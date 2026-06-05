@@ -12,10 +12,11 @@
 # =============================================================================
 
 [bar]
+outputs = ["DP-2", "eDP-1"]
 position = "top"         # "top" or "bottom"
 size = 32
 border_radius = 30
-background_opacity = 0.0 # 0.0 = transparent (islands), 1.0 = solid
+background_opacity = 0 # 0.0 = transparent (islands), 1.0 = solid
 # outline = true         # Override theme.outline for the bar (omit = inherit)
 
 [widgets]
@@ -32,22 +33,27 @@ right = [
   "battery",
   "notifications",
 ]
-border_radius = 40
+border_radius = 16
 background_opacity = 0.5
 # popover_background_opacity = 0.9  # Override popover opacity (default: max of bar and widget opacity)
 # outline = true                    # Override theme.outline for widgets (omit = inherit)
 
 # Per-widget options use [widgets.<name>] sections.
 # Example:
-#   [widgets.clock]
-#   format = "%H:%M"
-#   outline_color = "accent"  # Per-widget outline color: "subtle" | "accent" | "foreground" | "#rrggbb"
+[widgets.clock]
+format = "%d.%m.%Y %H:%M"
+outline_color = "accent"  # Per-widget outline color: "subtle" | "accent" | "foreground" | "#rrggbb"
 #
 #   [widgets.battery]
 #   disabled = true
 #
-#   [widgets.media]
+[widgets.media]
 #   visualizer = true  # Enable/disable cava audio visualizer (default: true)
+art_radius = 4
+#
+[widgets.updates]
+checck_interval = 3600
+terminal = "kitty"
 #
 # Custom widgets use the "custom-" prefix for user-defined buttons:
 #   right = ["custom-power", "custom-os", "tray", "clock"]
@@ -74,15 +80,16 @@ max_chars = 30
 # See documentation for all widget options.
 
 [theme]
+shadows = false
 mode = "auto" # "auto", "dark", "light", "gtk"
 #               "auto" = wallpaper-adaptive theming
 #               (detects from hyprpaper, awww/swww, wpaperd, waypaper)
-#scheme = "dark"         # Material You polarity: "dark" or "light" (auto mode only)
+scheme = "dark"         # Material You polarity: "dark" or "light" (auto mode only)
 #               Omit to auto-derive from wallpaper luminance (bright → light, dark → dark)
 #wallpaper = "/path/to/image.png"  # Explicit wallpaper for auto mode (default: auto-detect)
 #accent = "#adabe0" # "gtk", "none", or hex color (overrides wallpaper accent in auto mode)
-#animations = true  # Enable/disable all CSS transitions and animations
-#ripple = true      # Enable/disable Material Design ripple effect on click
+animations = false  # Enable/disable all CSS transitions and animations
+ripple = false      # Enable/disable Material Design ripple effect on click
 #blur = false       # Enable compositor blur via ext-background-effect-v1 (requires niri with blur)
 #outline = false             # Decorative outline on bar, widgets, and surfaces (CSS border)
 #outline_width = 1           # Outline width in pixels (0..=4; 0 disables visibly)

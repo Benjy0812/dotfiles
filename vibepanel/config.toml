@@ -9,18 +9,30 @@ border_radius = 30
 background_opacity = 0
 
 [widgets]
-left = ["workspaces", "window_title"]
+left = ["workspaces", "spacer", "network_speed", "memory"]
 center = ["media", "clock"]
-right = ["tray", "updates", "custom-weather", "cpu", "quick_settings", "battery", "notifications"]
+right = ["tray", "updates", "custom-weather", "cpu", "spacer", "quick_settings", "battery", "notifications"]
 border_radius = 16
 background_opacity = 0.55
-popover_background_opacity = 0.7
+popover_background_opacity = 0.75
 
 [widgets.clock]
-format = "%d.%m.%Y %H:%M"
+format = "%d.%m.%Y %H:%M:%S"
 
 [widgets.media]
 art_radius = 4
+
+[widgets.spacer]
+width = 16
+
+[widgets.cpu]
+interval = 1000
+
+[widgets.memory]
+interval = 2000
+
+[widgets.network_speed]
+interval = 1000
 
 [widgets.updates]
 check_interval = 3600
@@ -30,29 +42,34 @@ terminal = "kitty"
 exec = "curl -s 'wttr.in/?format=1'"
 template = " {output}"
 interval = 600
-on_click = "xdg-open https://wttr.in"
+on_click = "xdg-open https://www.yr.no"
 tooltip = "Weather"
 max_chars = 30
 
 [theme]
 mode = "auto"
 scheme = "dark"
+accent = "#7aa2f7"
 animations = true
 ripple = true
 shadows = true
 outline = true
 outline_width = 1
 outline_color = "subtle"
-outline_opacity = 0.5
+outline_opacity = 0.4
 
 [theme.icons]
 theme = "material"
 weight = 400
 
+[theme.typography]
+font_family = "monospace"
+
 [osd]
 enabled = true
 position = "bottom"
 show_value = false
+timeout_ms = 2000
 
 [advanced]
 compositor = "mango"

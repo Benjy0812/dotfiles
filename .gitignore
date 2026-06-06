@@ -4,6 +4,7 @@ broot
 btop
 cachyos
 dconf
+environment.d
 fish
 font-manager
 fontconfig

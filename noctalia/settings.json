@@ -45,7 +45,7 @@
         "backgroundOpacity": 0,
         "barType": "floating",
         "capsuleColorKey": "none",
-        "capsuleOpacity": 1,
+        "capsuleOpacity": 0.15,
         "contentPadding": 2,
         "density": "default",
         "displayMode": "always_visible",
@@ -60,7 +60,8 @@
         "middleClickCommand": "",
         "middleClickFollowMouse": false,
         "monitors": [
-            "DP-3"
+            "DP-3",
+            "DP-2"
         ],
         "mouseWheelAction": "workspace",
         "mouseWheelWrap": true,
@@ -71,6 +72,43 @@
         "rightClickCommand": "",
         "rightClickFollowMouse": true,
         "screenOverrides": [
+            {
+                "enabled": false,
+                "name": "DP-3"
+            },
+            {
+                "enabled": true,
+                "name": "DP-2",
+                "widgets": {
+                    "center": [
+                        {
+                            "characterCount": 2,
+                            "colorizeIcons": false,
+                            "emptyColor": "secondary",
+                            "enableScrollWheel": true,
+                            "focusedColor": "primary",
+                            "followFocusedScreen": false,
+                            "fontWeight": "bold",
+                            "groupedBorderOpacity": 1,
+                            "hideUnoccupied": false,
+                            "iconScale": 0.8,
+                            "id": "Workspace",
+                            "labelMode": "index",
+                            "occupiedColor": "secondary",
+                            "pillSize": 0.6,
+                            "showApplications": false,
+                            "showApplicationsHover": false,
+                            "showBadge": true,
+                            "showLabelsOnlyWhenOccupied": true,
+                            "unfocusedIconsOpacity": 1
+                        }
+                    ],
+                    "left": [
+                    ],
+                    "right": [
+                    ]
+                }
+            }
         ],
         "showCapsule": true,
         "showOnWorkspaceSwitch": true,

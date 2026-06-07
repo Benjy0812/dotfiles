@@ -45,7 +45,7 @@
         "backgroundOpacity": 0,
         "barType": "floating",
         "capsuleColorKey": "none",
-        "capsuleOpacity": 0.15,
+        "capsuleOpacity": 0.01,
         "contentPadding": 2,
         "density": "default",
         "displayMode": "always_visible",
@@ -54,8 +54,8 @@
         "frameRadius": 12,
         "frameThickness": 8,
         "hideOnOverview": false,
-        "marginHorizontal": 4,
-        "marginVertical": 4,
+        "marginHorizontal": 0,
+        "marginVertical": 0,
         "middleClickAction": "settings",
         "middleClickCommand": "",
         "middleClickFollowMouse": false,
@@ -140,16 +140,6 @@
                 }
             ],
             "left": [
-                {
-                    "colorizeSystemIcon": "none",
-                    "colorizeSystemText": "none",
-                    "customIconPath": "",
-                    "enableColorization": false,
-                    "icon": "rocket",
-                    "iconColor": "none",
-                    "id": "Launcher",
-                    "useDistroLogo": false
-                },
                 {
                     "compactMode": true,
                     "diskPath": "/",
@@ -474,7 +464,7 @@
     },
     "idle": {
         "customCommands": "[]",
-        "enabled": true,
+        "enabled": false,
         "fadeDuration": 5,
         "lockCommand": "",
         "lockTimeout": 660,

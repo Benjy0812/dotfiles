@@ -11,6 +11,7 @@ abbr -a gm git merge
 # Navigation
 abbr -a home cd ~
 abbr -a conf cd ~/.config
+abbr -a proj cd ~/projects
 
 # Directory operations
 abbr -a mkd mkdir -p
@@ -22,4 +23,6 @@ abbr -a buni bun install
 abbr -a bunf bun run format
 abbr -a bund bun run dev
 abbr -a bunb bun run build
+abbr -a bundep bun run deploy
 abbr -a py python3
+abbr -a zed zeditor

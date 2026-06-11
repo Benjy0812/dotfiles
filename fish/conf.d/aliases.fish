@@ -3,7 +3,7 @@
 # Directory navigation
 alias l="ls -lh"
 alias ll="ls -lah"
-alias la="ls -A"
+alias la="ls -a"
 # alias cd..="cd .."
 # alias ...="cd ../.."
 # alias ....="cd ../../.."

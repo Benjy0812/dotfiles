@@ -21,8 +21,4 @@ source=~/.config/mango/conf.d/appearance.conf
 source=~/.config/mango/conf.d/bind.conf
 source=~/.config/mango/conf.d/rules.conf
 
-source=./dms/cursor.conf
-source = ./dms/binds.conf
-source=./dms/outputs.conf
-
 trackpad_natural_scrolling=1

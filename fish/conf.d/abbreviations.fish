@@ -25,4 +25,6 @@ abbr -a bund bun run dev
 abbr -a bunb bun run build
 abbr -a bundep bun run deploy
 abbr -a py python3
-abbr -a zed zeditor
+if command -q zeditor
+    abbr -a zed zeditor
+end

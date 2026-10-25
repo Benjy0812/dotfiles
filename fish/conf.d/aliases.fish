@@ -18,7 +18,9 @@ alias la="ls -a"
 # alias gd="git diff"
 
 # Utilities
-alias cat="bat"
+if command -q bat
+    alias cat="bat"
+end
 alias grep="grep --color=auto"
 alias cp="cp -i"
 alias rm="rm -i"

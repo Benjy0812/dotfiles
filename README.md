@@ -6,46 +6,55 @@ This repository contains personal configuration files for a lightweight Linux de
 
 ### Window Manager
 - **`mango/`** - MangoWM (Wayland window manager) configuration
-  - `config.conf` - Core window manager settings, keybindings, display layout, and appearance
-  - `config.jsonc` - Waybar status bar configuration
-  - `autostart.sh` - Startup script for wallpaper and background processes
+  - `config.conf` - Core settings, environment, keybindings, display layout, and appearance
+  - `conf.d/appearance.conf` - Cursor, borders, gaps, and blur
+  - `conf.d/bind.conf` - Key and mouse bindings
+  - `conf.d/rules.conf` - Window rules
+  - `scripts/autostart.sh` - Startup script for Noctalia and the wallpaper
   - `wall/1.png` - Desktop wallpaper
-  - `style.css` - Waybar styling
+
+### Shell
+- **`fish/`** - Fish shell configuration
+  - `config.fish` - PATH, `$SHELL`, and bun setup
+  - `conf.d/` - Aliases, abbreviations, theme, and helper functions
+  - `functions/y.fish` - Yazi wrapper that changes the working directory
 
 ### Terminal
 - **`kitty/kitty.conf`** - Kitty terminal emulator configuration
-  - Font: JetBrains Mono 12.5pt
+  - Font: JetBrains Mono 12pt
+  - Shell: `/usr/bin/fish`
   - Transparency and padding settings
-  - Powerline-style tabs
   - Performance optimizations
 
 ### Code Editor
 - **`zed/`** - Zed editor configuration
   - `settings.json` - Editor preferences and theme settings
+  - `keymap.json` - Custom keybindings
   - `themes/Glass.json` - Custom Glass theme
+
+### File Manager
+- **`yazi/yazi.toml`** - Yazi terminal file manager configuration
+
+### NixOS
+- **`nix/`** - NixOS and home-manager configurations
+  - Kept in the repo for reference; they are not used by the running desktop. Copy/import them when needed.
+
+> **Repo layout:** the git repository root *is* `~/.config`. Files live there directly — there are no symlinks to a separate `~/dotfiles` directory.
 
 ## ⬇️ Required Dependencies
 
 To use this configuration setup, you'll need to install the following tools:
 
 ### Core Requirements
-- **[MangoWM](https://github.com/waycrate/MangoWM)** - Tiling Wayland window manager
+- **[MangoWM](https://github.com/mangowm/mango)** - Tiling Wayland window manager
 - **[Kitty](https://sw.kovidgoyal.net/kitty/)** - GPU-based terminal emulator
-- **[Zed](https://zed.dev)** - High-performance code editor
-- **[Waybar](https://github.com/Alexays/Waybar)** - Status bar for Wayland
-- **[Fuzzel](https://codeberg.org/dnkl/fuzzel)** - Application launcher
-
-
+- **[Fish](https://fishshell.com/)** - Shell used by the session and Kitty
+- **[Noctalia](https://noctalia.dev)** - Bar, launcher, notifications, and theme generation
 
 ### Optional
-- **[swaybg](https://github.com/swaywm/swaybg)** - Wayland wallpaper utility
-- **[FZF](https://github.com/junegunn/fzf)** - Command-line fuzzy finder
-- **[broot](https://github.com/Canop/broot)** - Fast tree-based file explorer
-- **[btop](https://github.com/aristocratos/btop)** - Modern system monitor
-- **[Fish Shell](https://fishshell.com/)** - User-friendly shell
-- **[gh](https://github.com/cli/cli)** - GitHub CLI
+- **[Zed](https://zed.dev)** - High-performance code editor
+- **[Yazi](https://yazi-rs.github.io/)** - Terminal file manager (`Alt + E`)
 - **[Jellyfin Desktop](https://jellyfin.org/)** - Media server client
-- **[Spicetify](https://github.com/spicetify/spicetify-cli)** - Spotify client customization
 - **[Vesktop](https://github.com/Vencord/Vesktop)** - Discord client with Vencord
 
 ## 🎨 Key Configuration Highlights
@@ -53,41 +62,57 @@ To use this configuration setup, you'll need to install the following tools:
 ### MangoWM Keybindings
 ```
 Terminal:           Alt + Return
-Launcher (Fuzzel):  Alt + D
-Workspaces:         Alt + 1/2/3
-Window Focus:       Super + Arrow Keys
+Launcher:           Alt + D          (Noctalia)
+File manager:       Alt + E          (Yazi in Kitty)
+Workspaces:         Alt + 1..9
+Move to workspace:  Alt + Shift + 1..9
+Window focus:       Alt + Arrow keys
 Fullscreen:         Super + f
-Floating Toggle:    Super + v
-Reload Config:      Super + r
+Reload config:      Super + r
+Screenshot:         Super + Shift + s (Noctalia)
+Close window:       Alt + q
+Quit MangoWM:       Super + Shift + q
 ```
 
 ### Display Setup
-- **DP-2**: 1920x1080 @ 280Hz (Primary, x:0)
-- **DP-3**: 1920x1080 @ 144Hz (Secondary, x:-1920)
+- **AOC 2590G4**: 1920x1080 @ 144Hz (left, x:0, y:0)
+- **AOC C27G4ZXU**: 1920x1080 @ 280Hz (right, primary, x:1920, y:0)
+- **eDP-1** (laptop): 2880x1800 @ 1.5x scale (x:0, y:1080)
 
 ### Appearance
-- **Color Scheme**: One Dark Pro Glass theme in Zed
-- **Blur Effect**: Enabled with optimized parameters
+- **Cursor Theme**: Adwaita (24px)
+- **Border**: 2px, 4px radius
+- **Gaps**: 0px inner, 2px outer
+- **Blur**: Enabled
 - **Font**: JetBrains Mono throughout
-- **Cursor Theme**: Bibata-Modern-Classic (24px)
-- **Border Radius**: 5px for rounded corners
 
 ## 📦 Installation Guide
 
 1. **Install MangoWM and dependencies:**
    ```bash
    # Arch Linux
-   sudo pacman -S kitty zed waybar fuzzel swaybg
-
-   # Other distributions - refer to individual project installation guides
+   sudo pacman -S kitty fish
+   # Noctalia is available from the AUR
+   paru -S noctalia
    ```
 
-2. **Clone this config repository:**
+2. **Clone this repo into `~/.config`:**
+   The repo root is `~/.config` itself, so there are no symlinks. Because `~/.config` always already exists, clone elsewhere and copy the tracked files in:
    ```bash
-   git clone https://github.com/Benjy0812/zed-hjson-extension.git ~/.config
+   git clone https://github.com/Benjy0812/dotfiles.git /tmp/dotfiles
+   cp -a /tmp/dotfiles/. ~/.config/
+   rm -rf /tmp/dotfiles
    ```
+   `cp -a` also copies `.git`, making `~/.config` the repository. Back up any existing files it would overwrite first.
 
-3. **Set up Kitty font** (optional):
+3. **Verify the repo:**
+   ```bash
+   cd ~/.config
+   git status
+   ```
+   Only the whitelisted paths are tracked: `fish/`, `kitty/`, `mango/`, `nix/`, `yazi/`, `zed/`, `.zed/`, `README.md`, and `.gitignore`. Everything else in `~/.config` is ignored.
+
+4. **Set up Kitty font** (optional):
    ```bash
    # Install JetBrains Mono if not already installed
    mkdir -p ~/.local/share/fonts
@@ -95,22 +120,23 @@ Reload Config:      Super + r
    fc-cache -fv
    ```
 
-4. **Start MangoWM:**
+5. **Start MangoWM:**
    - Log out and select MangoWM at your login screen, or
    - Run directly: `mango`
 
 ## 🔧 Manual/Ignored Configurations
 
-The following tools have configurations in `.config` but are **not tracked** in this repository (listed in `.gitignore`). You may want to configure them according to your preferences:
+`.gitignore` uses a whitelist (`/*` plus explicit `!` entries), so anything in `~/.config` that is not listed above is untracked automatically. That includes private and machine-specific data such as:
 
-- **broot** - File tree browser configuration
-- **btop** - System resource monitor settings
-- **fish** - Shell configuration
-- **gh** - GitHub CLI configuration
-- **github-copilot** - GitHub Copilot settings
-- **jellyfin-desktop** - Jellyfin media server client
-- **spicetify** - Spotify client customization
-- **vesktop** - Discord client customization
+- **`gh/`** - GitHub CLI credentials
+- **`mozilla/`**, **`zen/`** - browser profiles
+- **`vesktop/`** - Discord client data
+- **`opencode/`** - OpenCode state
+- **`noctalia/`** - generated Noctalia theme files
+- **`btop/`**, **`dconf/`**, **`gtk-3.0/`**, **`pulse/`**, **`@liner/`**, **`autostart/`**
+- **`mimeapps.list`**, **`user-dirs.dirs`**, **`user-dirs.locale`**
+
+These should never be committed; the whitelist keeps them out.
 
 ## 🎯 Workflow
 
@@ -118,7 +144,7 @@ This setup is optimized for:
 - **Tiling window management** on Wayland
 - **Fast terminal workflows** with Kitty
 - **Efficient code editing** with Zed
-- **Quick application launching** with Fuzzel
+- **Quick application launching** with Noctalia
 - **Minimal resource usage** with a custom window manager
 
 ## 🤝 Contributing
@@ -134,4 +160,4 @@ These are personal configuration files. Feel free to adapt them to your own setu
 
 ---
 
-**Last Updated**: 2026-06-03
+**Last Updated**: 2026-10-25

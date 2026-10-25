@@ -7,6 +7,7 @@
 !flake.lock
 !.zed/
 !fish/
+!fixes/
 !kitty/
 !mango/
 !nix/

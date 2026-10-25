@@ -8,9 +8,6 @@
   programs.home-manager.enable = true;
 
   home.packages = [
-    inputs.zen-browser.packages.${pkgs.system}.default
-
-    # Star Citizen
-    inputs.nix-citizen.packages.${pkgs.system}.rsi-launcher
+    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 }

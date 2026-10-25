@@ -35,9 +35,27 @@ This repository contains personal configuration files for a lightweight Linux de
 ### File Manager
 - **`yazi/yazi.toml`** - Yazi terminal file manager configuration
 
-### NixOS
-- **`nix/`** - NixOS and home-manager configurations
-  - Kept in the repo for reference; they are not used by the running desktop. Copy/import them when needed.
+### NixOS / Nix
+- **`flake.nix`** - Flake with two outputs:
+  - `nixosConfigurations.benjy` - full NixOS system. Installs MangoWM, makes it the default SDDM session, and deploys these dotfiles automatically through home-manager.
+  - `homeConfigurations.benjy` - standalone home-manager profile for non-NixOS machines. Installs packages only and never touches `~/.config`.
+- **`nix/nixos/`** - system, home-manager, and dotfile-deployment modules.
+- **`nix/nixos-wsl/`** - separate WSL configuration (not part of the flake).
+
+Rebuild the NixOS system from this repo:
+```bash
+sudo nixos-rebuild switch --flake ~/.config#benjy
+```
+
+On a fresh NixOS install where the repo is not checked out yet:
+```bash
+sudo nixos-rebuild switch --flake github:Benjy0812/dotfiles#benjy
+```
+
+Use the standalone profile on a non-NixOS system (Nix must be installed):
+```bash
+nix run github:nix-community/home-manager -- switch --flake ~/.config#benjy
+```
 
 > **Repo layout:** the git repository root *is* `~/.config`. Files live there directly — there are no symlinks to a separate `~/dotfiles` directory.
 

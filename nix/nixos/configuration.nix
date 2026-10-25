@@ -1,10 +1,9 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, ... }:
 
 {
-  imports =
-    [
-      ./hardware-configuration.nix
-    ];
+  imports = [
+    ./hardware-configuration.nix
+  ];
 
   # BOOTLOADER
   boot.loader.grub = {
@@ -41,10 +40,14 @@
     LC_TIME = "nb_NO.UTF-8";
   };
 
-  # DESKTOP (KDE PLASMA 6)
+  # DESKTOP
   services.xserver.enable = true;
 
   services.displayManager.sddm.enable = true;
+  # MangoWM is the default session. Plasma stays available as a fallback;
+  # remove the plasma6 line below if you only want Mango.
+  services.displayManager.defaultSession = "mango";
+  services.displayManager.sessionPackages = [ pkgs.mango ];
   services.desktopManager.plasma6.enable = true;
 
   services.xserver.xkb = {
@@ -53,6 +56,17 @@
   };
 
   console.keyMap = "no";
+
+  # Wayland / MangoWM
+  hardware.graphics.enable = true;
+  security.polkit.enable = true;
+
+  programs.fish.enable = true;
+
+  environment.sessionVariables = {
+    # Make Electron apps (Vesktop, Zed, ...) use Wayland natively.
+    NIXOS_OZONE_WL = "1";
+  };
 
   # AUDIO
   security.rtkit.enable = true;
@@ -71,6 +85,7 @@
     isNormalUser = true;
     description = "Benjy";
     extraGroups = [ "networkmanager" "wheel" ];
+    shell = pkgs.fish;
     packages = with pkgs; [
       kdePackages.kate
     ];
@@ -82,6 +97,18 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
+    # MangoWM session and everything it launches
+    mango
+    kitty
+    fish
+    noctalia
+    yazi
+
+    # Wayland portals (file pickers, screen sharing)
+    xdg-desktop-portal-gtk
+    xdg-desktop-portal-wlr
+
+    # Applications
     vesktop
     zed-editor
     git
@@ -94,17 +121,8 @@
 
     substituters = [
       "https://cache.nixos.org"
-      "https://nix-citizen.cachix.org"
-    ];
-
-    trusted-public-keys = [
-      "nix-citizen.cachix.org-1:lPMkWc2X8XD4/7YPEEwXKKBg+SVbYTVrAaLA2wQTKCo="
     ];
   };
-
-  nixpkgs.config.permittedInsecurePackages = [
-    "pnpm-10.29.2"
-  ];
 
   # zram
   zramSwap = {
@@ -126,15 +144,8 @@
     "zswap.enabled=0"
   ];
 
-  # AMD shader cache
-  environment.sessionVariables = {
-    MESA_SHADER_CACHE_DIR = "$HOME/.cache/star-citizen/mesa";
-    MESA_SHADER_CACHE_MAX_SIZE = "10G";
-  };
-
-  # Optional but worth trying
   programs.gamemode.enable = true;
 
-    # STATE VERSION
-    system.stateVersion = "26.05";
-  }
+  # STATE VERSION
+  system.stateVersion = "26.05";
+}

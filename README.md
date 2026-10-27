@@ -13,6 +13,9 @@ This repository contains personal configuration files for a lightweight Linux de
   - `scripts/autostart.sh` - Startup script for Noctalia and the wallpaper
   - `wall/1.png` - Desktop wallpaper
 
+### Omarchy
+- **`omarchy/plugins/benjy.monitor-workspaces/`** - Independent workspaces 1-10 per monitor, plus a bar widget (see its README; install with `setup.bash`)
+
 ### Shell
 - **`fish/`** - Fish shell configuration
   - `config.fish` - PATH, `$SHELL`, and bun setup

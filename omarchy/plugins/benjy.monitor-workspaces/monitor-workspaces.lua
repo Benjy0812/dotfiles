@@ -1,0 +1,87 @@
+-- Per-monitor workspaces for Hyprland's Lua config (0.55+), mangowm-style:
+-- every monitor gets its own workspaces 1-10 on SUPER+1..0.
+--
+-- Under the hood each monitor owns a block of real workspace ids: the first
+-- monitor in `monitors` owns 1-10, the second 11-20, and so on. Workspace rules
+-- pin each block to its monitor, and the binds below translate "slot N" into
+-- the id inside the focused monitor's block. Widget.qml reads the same mapping
+-- back from the workspace rules, so this file is the only place to configure.
+
+local M = {}
+
+-- Monitor order decides which block each one owns. Monitors not listed here
+-- get the next free block in connection order.
+M.monitors = { "DP-3", "DP-2" }
+M.per_monitor = 10
+
+local function monitor_index(name)
+  for i, monitor in ipairs(M.monitors) do
+    if monitor == name then return i - 1 end
+  end
+  M.monitors[#M.monitors + 1] = name
+  return #M.monitors - 1
+end
+
+local function workspace_id(monitor, slot)
+  return tostring(monitor_index(monitor.name) * M.per_monitor + slot)
+end
+
+local function pin_workspaces(monitor)
+  for slot = 1, M.per_monitor do
+    hl.workspace_rule({
+      workspace = workspace_id(monitor, slot),
+      monitor = monitor.name,
+      default = slot == 1,
+    })
+  end
+end
+
+for _, name in ipairs(M.monitors) do
+  pin_workspaces({ name = name })
+end
+for _, monitor in ipairs(hl.get_monitors()) do
+  pin_workspaces(monitor)
+end
+hl.on("monitor.added", pin_workspaces)
+
+local function on_focused_monitor(make_dispatcher)
+  return function()
+    local monitor = hl.get_active_monitor()
+    if monitor then hl.dispatch(make_dispatcher(monitor)) end
+  end
+end
+
+local function focus_slot(slot)
+  return on_focused_monitor(function(monitor)
+    return hl.dsp.focus({ workspace = workspace_id(monitor, slot) })
+  end)
+end
+
+local function move_to_slot(slot, follow)
+  return on_focused_monitor(function(monitor)
+    return hl.dsp.window.move({ workspace = workspace_id(monitor, slot), follow = follow })
+  end)
+end
+
+-- Replace Omarchy's global 1-10 binds (default/hypr/bindings/tiling.lua).
+for slot = 1, M.per_monitor do
+  local key = "code:" .. tostring(slot + 9)
+  -- Also clear the plain digit spelling in case Omarchy ever switches to it.
+  for _, k in ipairs({ key, tostring(slot % 10) }) do
+    hl.unbind("SUPER + " .. k)
+    hl.unbind("SUPER + SHIFT + " .. k)
+    hl.unbind("SUPER + SHIFT + ALT + " .. k)
+  end
+  o.bind("SUPER + " .. key, "Switch to monitor workspace " .. slot, focus_slot(slot))
+  o.bind("SUPER + SHIFT + " .. key, "Move window to monitor workspace " .. slot, move_to_slot(slot, true))
+  o.bind("SUPER + SHIFT + ALT + " .. key, "Move window silently to monitor workspace " .. slot, move_to_slot(slot, false))
+end
+
+-- Next/previous cycle only the focused monitor's open workspaces ("m"), not
+-- every open workspace across screens ("e") like Omarchy's default.
+for keys, target in pairs({ ["SUPER + TAB"] = "m+1", ["SUPER + SHIFT + TAB"] = "m-1", ["SUPER + mouse_down"] = "m+1", ["SUPER + mouse_up"] = "m-1" }) do
+  hl.unbind(keys)
+  o.bind(keys, "Cycle monitor workspaces " .. target, hl.dsp.focus({ workspace = target }))
+end
+
+return M

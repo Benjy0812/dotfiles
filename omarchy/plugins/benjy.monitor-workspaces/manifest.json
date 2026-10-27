@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "benjy.monitor-workspaces",
+  "name": "Monitor Workspaces",
+  "version": "2.0.0",
+  "author": "Benjy0812",
+  "description": "Independent workspaces 1-10 on every monitor, with a bar widget showing each monitor's own set",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Monitor Workspaces",
+    "description": "Workspaces of the monitor this bar is on",
+    "category": "Compositor",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.workspaces",
+    "clonedFromPath": "/usr/share/omarchy/shell/plugins/bar/widgets/Workspaces.qml"
+  }
+}

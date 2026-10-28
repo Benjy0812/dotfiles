@@ -9,38 +9,57 @@
 
 local M = {}
 
--- Monitor order decides which block each one owns. Monitors not listed here
--- get the next free block in connection order.
-M.monitors = { "DP-3", "DP-2" }
+-- Monitor order decides which block each one owns. Entries are a connector
+-- name ("DP-3") or a monitor description ("AOC C27G4ZXU 1O0Q7JA008205"); the
+-- description survives cable and port swaps. Monitors not listed here get the
+-- next free block in connection order.
+M.monitors = { "AOC C27G4ZXU 1O0Q7JA008205", "AOC 2590G4 0x000210C1" }
 M.per_monitor = 10
 
-local function monitor_index(name)
-  for i, monitor in ipairs(M.monitors) do
-    if monitor == name then return i - 1 end
+local function matches(entry, monitor)
+  return entry == monitor.name or entry == monitor.description
+end
+
+local function monitor_index(monitor)
+  for i, entry in ipairs(M.monitors) do
+    if matches(entry, monitor) then return i - 1 end
   end
-  M.monitors[#M.monitors + 1] = name
+  M.monitors[#M.monitors + 1] = monitor.name
   return #M.monitors - 1
 end
 
 local function workspace_id(monitor, slot)
-  return tostring(monitor_index(monitor.name) * M.per_monitor + slot)
+  return tostring(monitor_index(monitor) * M.per_monitor + slot)
 end
+
+-- workspace id -> monitor it is currently pinned to, so each rule is set once.
+local pinned = {}
 
 local function pin_workspaces(monitor)
   for slot = 1, M.per_monitor do
-    hl.workspace_rule({
-      workspace = workspace_id(monitor, slot),
-      monitor = monitor.name,
-      default = slot == 1,
-    })
+    local id = workspace_id(monitor, slot)
+    if pinned[id] ~= monitor.name then
+      pinned[id] = monitor.name
+      hl.workspace_rule({ workspace = id, monitor = monitor.name, default = slot == 1 })
+    end
   end
 end
 
-for _, name in ipairs(M.monitors) do
-  pin_workspaces({ name = name })
+-- rawlen, not ipairs: omarchy-menu-keybindings evaluates this file against a
+-- stub `hl` whose results answer every index, so ipairs would never terminate.
+local connected = hl.get_monitors()
+for i = 1, rawlen(connected) do
+  pin_workspaces(connected[i])
 end
-for _, monitor in ipairs(hl.get_monitors()) do
-  pin_workspaces(monitor)
+-- Reserve the blocks of listed monitors that are not plugged in right now.
+for _, entry in ipairs(M.monitors) do
+  local present = false
+  for i = 1, rawlen(connected) do
+    if matches(entry, connected[i]) then present = true end
+  end
+  if not present then
+    pin_workspaces({ name = entry:find(" ") and "desc:" .. entry or entry, description = entry })
+  end
 end
 hl.on("monitor.added", pin_workspaces)
 

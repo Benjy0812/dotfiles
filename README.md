@@ -1,6 +1,6 @@
-# .config Setup
+# Dotfiles
 
-This repository contains personal configuration files for a lightweight Linux desktop environment setup. The configurations are tracked in git and can be cloned to set up a similar environment.
+This repository contains personal configuration files for a lightweight Linux desktop environment setup. It is cloned to `~/Projects/dotfiles`; nothing here needs to live in `~/.config` itself.
 
 ## 📋 Tracked Files
 
@@ -51,7 +51,7 @@ This repository contains personal configuration files for a lightweight Linux de
 
 Rebuild the NixOS system from this repo:
 ```bash
-sudo nixos-rebuild switch --flake ~/.config#benjy
+sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy
 ```
 
 On a fresh NixOS install where the repo is not checked out yet:
@@ -61,10 +61,10 @@ sudo nixos-rebuild switch --flake github:Benjy0812/dotfiles#benjy
 
 Use the standalone profile on a non-NixOS system (Nix must be installed):
 ```bash
-nix run github:nix-community/home-manager -- switch --flake ~/.config#benjy
+nix run github:nix-community/home-manager -- switch --flake ~/Projects/dotfiles#benjy
 ```
 
-> **Repo layout:** the git repository root *is* `~/.config`. Files live there directly — there are no symlinks to a separate `~/dotfiles` directory.
+> **Repo layout:** the repository lives at `~/Projects/dotfiles`. How the configs get into `~/.config` depends on the machine: on NixOS home-manager deploys them (`nix/nixos/dotfiles.nix`), on Omarchy `omarchy/install.bash` links them, and anywhere else you copy over the ones you want.
 
 ## ⬇️ Required Dependencies
 
@@ -121,21 +121,18 @@ Quit MangoWM:       Super + Shift + q
    paru -S noctalia
    ```
 
-2. **Clone this repo into `~/.config`:**
-   The repo root is `~/.config` itself, so there are no symlinks. Because `~/.config` always already exists, clone elsewhere and copy the tracked files in:
+2. **Clone this repo:**
    ```bash
-   git clone https://github.com/Benjy0812/dotfiles.git /tmp/dotfiles
-   cp -a /tmp/dotfiles/. ~/.config/
-   rm -rf /tmp/dotfiles
+   git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
    ```
-   `cp -a` also copies `.git`, making `~/.config` the repository. Back up any existing files it would overwrite first.
+   Then put the configs in place: `nixos-rebuild` (see above) on NixOS, `~/Projects/dotfiles/omarchy/install.bash` on Omarchy, or copy the directories you want into `~/.config/` (back up existing ones first).
 
 3. **Verify the repo:**
    ```bash
-   cd ~/.config
+   cd ~/Projects/dotfiles
    git status
    ```
-   Only the whitelisted paths are tracked: `fish/`, `fixes/`, `kitty/`, `mango/`, `nix/`, `omarchy/`, `yazi/`, `zed/`, `.zed/`, `flake.nix`, `flake.lock`, `README.md`, and `.gitignore`. Everything else in `~/.config` is ignored.
+   Only the whitelisted paths are tracked: `fish/`, `fixes/`, `kitty/`, `mango/`, `nix/`, `omarchy/`, `yazi/`, `zed/`, `.zed/`, `flake.nix`, `flake.lock`, `README.md`, and `.gitignore`. Anything else dropped into the repo is ignored.
 
 4. **Set up Kitty font** (optional):
    ```bash
@@ -151,7 +148,7 @@ Quit MangoWM:       Super + Shift + q
 
 ## 🔧 Manual/Ignored Configurations
 
-`.gitignore` uses a whitelist (`/*` plus explicit `!` entries), so anything in `~/.config` that is not listed above is untracked automatically. That includes private and machine-specific data such as:
+`.gitignore` uses a whitelist (`/*` plus explicit `!` entries), so anything not listed above stays untracked even if it is copied into the repo. That includes private and machine-specific data such as:
 
 - **`gh/`** - GitHub CLI credentials
 - **`mozilla/`**, **`zen/`** - browser profiles

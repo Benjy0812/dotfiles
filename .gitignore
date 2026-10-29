@@ -1,5 +1,5 @@
-# Whitelist: this repo lives directly in ~/.config, so ignore everything
-# that is not an explicitly tracked dotfile directory/file.
+# Whitelist: ignore everything that is not an explicitly tracked dotfile
+# directory/file, so machine-specific or private configs never sneak in.
 /*
 !.gitignore
 !README.md

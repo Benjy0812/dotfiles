@@ -82,6 +82,63 @@ local function move_to_slot(slot, follow)
   end)
 end
 
+-- Slot 1..per_monitor of a workspace id inside its monitor's block.
+local function slot_of(id)
+  return (id - 1) % M.per_monitor + 1
+end
+
+-- The connected monitor whose block comes after this one's, wrapping around.
+local function next_monitor(monitor)
+  local own = monitor_index(monitor)
+  local after, first
+  local connected = hl.get_monitors()
+  for i = 1, rawlen(connected) do
+    local index = monitor_index(connected[i])
+    if index > own and (not after or index < after.index) then after = { monitor = connected[i], index = index } end
+    if index ~= own and (not first or index < first.index) then first = { monitor = connected[i], index = index } end
+  end
+  local pick = after or first
+  return pick and pick.monitor
+end
+
+-- Move the focused window onto whatever is showing on the monitor in
+-- `direction` ("l", "r", "u", "d"), and follow it there.
+local function send_window_toward(direction)
+  return function()
+    local target = hl.get_monitor(direction)
+    local shown = target and hl.get_active_workspace(target.name)
+    if shown then hl.dispatch(hl.dsp.window.move({ workspace = tostring(shown.id), follow = true })) end
+  end
+end
+
+-- Move every window of the focused workspace to the same slot on the monitor
+-- in `direction`, then follow. Replaces moving the workspace itself, which
+-- would carry its id out of its monitor's block.
+local function send_workspace_toward(direction)
+  return function()
+    local monitor = hl.get_active_monitor()
+    local target = hl.get_monitor(direction)
+    local current = monitor and hl.get_active_workspace(monitor.name)
+    if not (target and current) then return end
+
+    local destination = workspace_id(target, slot_of(current.id))
+    local windows = hl.get_workspace_windows(current.id)
+    for i = 1, rawlen(windows) do
+      hl.dispatch(hl.dsp.window.move({ workspace = destination, follow = false, window = "address:" .. windows[i].address }))
+    end
+    hl.dispatch(hl.dsp.focus({ workspace = destination }))
+  end
+end
+
+-- Move the focused window to `slot` on the next monitor, staying here.
+local function send_window_to_next_monitor(slot)
+  return function()
+    local monitor = hl.get_active_monitor()
+    local other = monitor and next_monitor(monitor)
+    if other then hl.dispatch(hl.dsp.window.move({ workspace = workspace_id(other, slot), follow = false })) end
+  end
+end
+
 -- Replace Omarchy's global 1-10 binds (default/hypr/bindings/tiling.lua).
 for slot = 1, M.per_monitor do
   local key = "code:" .. tostring(slot + 9)
@@ -94,6 +151,17 @@ for slot = 1, M.per_monitor do
   o.bind("SUPER + " .. key, "Switch to monitor workspace " .. slot, focus_slot(slot))
   o.bind("SUPER + SHIFT + " .. key, "Move window to monitor workspace " .. slot, move_to_slot(slot, true))
   o.bind("SUPER + SHIFT + ALT + " .. key, "Move window silently to monitor workspace " .. slot, move_to_slot(slot, false))
+  o.bind("SUPER + CTRL + SHIFT + " .. key, "Move window to workspace " .. slot .. " on next monitor", send_window_to_next_monitor(slot))
+end
+
+local directions = { LEFT = "l", RIGHT = "r", UP = "u", DOWN = "d" }
+local direction_names = { l = "left", r = "right", u = "up", d = "down" }
+for arrow, direction in pairs(directions) do
+  local name = direction_names[direction]
+  o.bind("SUPER + CTRL + SHIFT + " .. arrow, "Move window to " .. name .. " monitor", send_window_toward(direction))
+  -- Omarchy's version moves the workspace itself to the other monitor.
+  hl.unbind("SUPER + SHIFT + ALT + " .. arrow)
+  o.bind("SUPER + SHIFT + ALT + " .. arrow, "Move workspace windows to " .. name .. " monitor", send_workspace_toward(direction))
 end
 
 -- Next/previous cycle only the focused monitor's open workspaces ("m"), not
@@ -102,5 +170,14 @@ for keys, target in pairs({ ["SUPER + TAB"] = "m+1", ["SUPER + SHIFT + TAB"] = "
   hl.unbind(keys)
   o.bind(keys, "Cycle monitor workspaces " .. target, hl.dsp.focus({ workspace = target }))
 end
+
+-- Same actions for scripts, e.g.
+--   hyprctl eval 'monitor_workspaces.send_window_toward("l")()'
+M.focus_slot = focus_slot
+M.move_to_slot = move_to_slot
+M.send_window_toward = send_window_toward
+M.send_workspace_toward = send_workspace_toward
+M.send_window_to_next_monitor = send_window_to_next_monitor
+monitor_workspaces = M
 
 return M

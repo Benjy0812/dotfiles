@@ -21,8 +21,16 @@ Two parts, no compositor plugin needed:
 | `SUPER+SHIFT+1..0` | Move window to workspace N and follow |
 | `SUPER+SHIFT+ALT+1..0` | Move window to workspace N silently |
 | `SUPER+TAB` / `SUPER+SHIFT+TAB` / `SUPER+scroll` | Cycle this monitor's open workspaces |
+| `SUPER+CTRL+SHIFT+arrow` | Move window to the monitor in that direction and follow |
+| `SUPER+CTRL+SHIFT+1..0` | Move window to workspace N on the next monitor, stay here |
+| `SUPER+SHIFT+ALT+arrow` | Move all windows on this workspace to the same number on the monitor in that direction, and follow |
 
-These replace Omarchy's global workspace binds. Everything else is untouched.
+These replace Omarchy's global workspace binds and its `SUPER+SHIFT+ALT+arrow`
+"move workspace to monitor", which carried a workspace out of its monitor's
+numbering. Everything else is untouched.
+
+The same actions are available to scripts through `hyprctl eval`, e.g.
+`hyprctl eval 'monitor_workspaces.send_window_toward("l")()'`.
 
 ## Bar widget
 

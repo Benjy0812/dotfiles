@@ -14,10 +14,12 @@ This repository contains personal configuration files for a lightweight Linux de
   - `wall/1.png` - Desktop wallpaper
 
 ### Omarchy
-- **`omarchy/`** - Personal Omarchy changes only (see `omarchy/README.md` for setup)
+- **`omarchy/`** - Personal Omarchy changes only; set up with `omarchy/install.bash` (see `omarchy/README.md`)
   - `hypr/custom.lua` - Hyprland settings, loaded from `~/.config/hypr/hyprland.lua`
+  - `hypr/monitor-workspaces.lua`, `hypr/solo-workspaces.lua` - Settings for the two plugins
   - `shell/shell.json`, `apps/` - Bar layout and app configs
-- **`omarchy/plugins/benjy.monitor-workspaces/`** - Independent workspaces 1-10 per monitor, plus a bar widget (see its README; install with `setup.bash`)
+- **`omarchy/plugins/benjy.monitor-workspaces/`** - Independent workspaces 1-10 per monitor, plus a bar widget (see its README)
+- **`omarchy/plugins/benjy.solo-workspaces/`** - Gives listed apps a workspace to themselves, moving them to the nearest empty one (works with or without monitor-workspaces)
 
 ### Shell
 - **`fish/`** - Fish shell configuration
@@ -35,7 +37,6 @@ This repository contains personal configuration files for a lightweight Linux de
 ### Code Editor
 - **`zed/`** - Zed editor configuration
   - `settings.json` - Editor preferences and theme settings
-  - `keymap.json` - Custom keybindings
   - `themes/Glass.json` - Custom Glass theme
 
 ### File Manager
@@ -134,7 +135,7 @@ Quit MangoWM:       Super + Shift + q
    cd ~/.config
    git status
    ```
-   Only the whitelisted paths are tracked: `fish/`, `kitty/`, `mango/`, `nix/`, `yazi/`, `zed/`, `.zed/`, `README.md`, and `.gitignore`. Everything else in `~/.config` is ignored.
+   Only the whitelisted paths are tracked: `fish/`, `fixes/`, `kitty/`, `mango/`, `nix/`, `omarchy/`, `yazi/`, `zed/`, `.zed/`, `flake.nix`, `flake.lock`, `README.md`, and `.gitignore`. Everything else in `~/.config` is ignored.
 
 4. **Set up Kitty font** (optional):
    ```bash
@@ -184,4 +185,4 @@ These are personal configuration files. Feel free to adapt them to your own setu
 
 ---
 
-**Last Updated**: 2026-10-25
+**Last Updated**: 2026-10-29

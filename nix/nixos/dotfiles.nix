@@ -22,7 +22,6 @@
     "yazi/yazi.toml".source = "${dotfiles}/yazi/yazi.toml";
 
     "zed/settings.json".source = "${dotfiles}/zed/settings.json";
-    "zed/keymap.json".source = "${dotfiles}/zed/keymap.json";
     "zed/themes".source = "${dotfiles}/zed/themes";
 
     ".zed/settings.json".source = "${dotfiles}/.zed/settings.json";

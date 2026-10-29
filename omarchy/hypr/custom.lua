@@ -42,6 +42,13 @@ hl.config({
   },
 })
 
+-- Cursor: Bibata Modern (AUR bibata-cursor-theme-bin). "Classic" is black,
+-- "Ice" is white. Size stays at Omarchy's 24. GTK apps read the theme from
+-- gsettings instead: gsettings set org.gnome.desktop.interface cursor-theme <name>
+local cursor = "Bibata-Modern-Classic"
+hl.env("XCURSOR_THEME", cursor)
+hl.env("HYPRCURSOR_THEME", cursor)
+
 -- https://wiki.hypr.land/configuring/core/config-options/#opacity
 hl.window_rule({
     -- Which windows the rule applies to, matched by window class (".*" = all).

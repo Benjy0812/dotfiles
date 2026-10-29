@@ -14,6 +14,9 @@ This repository contains personal configuration files for a lightweight Linux de
   - `wall/1.png` - Desktop wallpaper
 
 ### Omarchy
+- **`omarchy/`** - Personal Omarchy changes only (see `omarchy/README.md` for setup)
+  - `hypr/custom.lua` - Hyprland settings, loaded from `~/.config/hypr/hyprland.lua`
+  - `shell/shell.json`, `apps/` - Bar layout and app configs
 - **`omarchy/plugins/benjy.monitor-workspaces/`** - Independent workspaces 1-10 per monitor, plus a bar widget (see its README; install with `setup.bash`)
 
 ### Shell

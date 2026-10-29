@@ -7,10 +7,7 @@ its own README with the details.
 |---|---|---|
 | `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [mango/README.md](mango/README.md) |
 | `omarchy/` | Personal Omarchy (Hyprland) changes and two workspace plugins | [omarchy/README.md](omarchy/README.md) |
-| `fish/` | Fish shell: aliases, abbreviations, helper functions | [fish/README.md](fish/README.md) |
-| `kitty/` | Kitty terminal | [kitty/README.md](kitty/README.md) |
-| `yazi/` | Yazi file manager | [yazi/README.md](yazi/README.md) |
-| `zed/`, `.zed/` | Zed editor settings and the Glass theme | [zed/README.md](zed/README.md) |
+| `apps/` | App configs: terminals, fish, yazi, zed, git | [apps/README.md](apps/README.md) |
 | `nix/`, `flake.nix` | NixOS system and home-manager profile | [nix/README.md](nix/README.md) |
 | `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
 
@@ -30,7 +27,7 @@ Then put the configs in place, depending on the machine:
   deploys them through home-manager ([nix](nix/README.md)).
 - **Omarchy:** `~/Projects/dotfiles/omarchy/install.bash`
   ([omarchy](omarchy/README.md)).
-- **Anywhere else:** copy the folders you want into `~/.config/`, after
+- **Anywhere else:** copy the folders you want from `apps/` (and `mango/`) into `~/.config/`, after
   backing up what's there.
 
 ## What's not tracked
@@ -38,5 +35,5 @@ Then put the configs in place, depending on the machine:
 `.gitignore` is a whitelist (`/*` plus explicit `!` entries), so anything not
 listed stays out of git even when it's copied into the repo. That keeps out
 private and machine-specific data such as `gh/` (GitHub credentials), browser
-profiles, app state, generated Noctalia themes, and `fish/fish_variables`.
+profiles, app state, generated Noctalia themes, and `apps/fish/fish_variables`.
 Add a new folder to the whitelist before committing it.

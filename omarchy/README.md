@@ -10,7 +10,6 @@ tracked; everything else stays Omarchy's stock config.
 | [`plugins/benjy.monitor-workspaces/`](plugins/benjy.monitor-workspaces/README.md) | `~/.config/omarchy/plugins/` | Workspaces 1-10 on every monitor, with bar widget |
 | [`plugins/benjy.solo-workspaces/`](plugins/benjy.solo-workspaces/README.md) | `~/.config/omarchy/plugins/` | Listed apps get a workspace to themselves, moved to the nearest empty one |
 | `shell/shell.json` | `~/.config/omarchy/shell.json` | Bar layout and idle settings |
-| `apps/` | `~/.config/<app>/` | alacritty, git, mise, fcitx5, tensaku |
 
 ## `hypr/custom.lua`
 
@@ -27,7 +26,8 @@ tracked; everything else stays Omarchy's stock config.
 ```
 
 Safe to run again; do so after `omarchy refresh hyprland` or `omarchy refresh shell`.
-`apps/` and `shell/shell.json` are not copied, so your live ones stay as they are.
+`shell/shell.json` is not copied, so your live one stays as it is. App configs
+(terminals, git, ...) are in [`../apps`](../apps/README.md).
 An existing plugin settings file that isn't a link yet is kept as `*.bak`.
 Each plugin also installs on its own with its `setup.bash`, for use without the rest.
 

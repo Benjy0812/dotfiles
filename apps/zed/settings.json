@@ -38,7 +38,7 @@
   "theme": {
     "mode": "dark",
     "light": "One Light",
-    "dark": "Glass",
+    "dark": "Glass Dark",
   },
   "file_scan_exclusions": [
     "**/.svn",

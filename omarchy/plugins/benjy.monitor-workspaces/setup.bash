@@ -7,6 +7,8 @@ ID="benjy.monitor-workspaces"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/$ID"
 BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
 SHELL_JSON="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
+# User settings, outside the plugin dir so reinstalls and uninstalls keep them.
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitor-workspaces.lua"
 
 BEGIN="-- >>> $ID >>>"
 END="-- <<< $ID <<<"
@@ -36,7 +38,12 @@ case "${1:-install}" in
     # Skip the copy when run from the installed plugin dir itself.
     if [[ "$SRC" != "$(realpath -m "$DEST")" ]]; then
       mkdir -p "$DEST"
-      cp "$SRC/manifest.json" "$SRC/Widget.qml" "$SRC/monitor-workspaces.lua" "$SRC/LICENSE" "$SRC/README.md" "$DEST/"
+      cp "$SRC/manifest.json" "$SRC/Widget.qml" "$SRC/monitor-workspaces.lua" "$SRC/config.default.lua" "$SRC/LICENSE" "$SRC/README.md" "$DEST/"
+    fi
+
+    if [[ ! -f "$CONFIG" ]]; then
+      cp "$SRC/config.default.lua" "$CONFIG"
+      echo "Created $CONFIG"
     fi
 
     printf '%s\n' \
@@ -65,7 +72,7 @@ case "${1:-install}" in
     fi
     hyprctl reload >/dev/null
     omarchy restart shell >/dev/null 2>&1 || true
-    echo "Uninstalled."
+    echo "Uninstalled. Settings kept in $CONFIG"
     ;;
 
   *)

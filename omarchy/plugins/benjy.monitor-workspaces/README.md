@@ -42,13 +42,19 @@ The same actions are available to scripts through `hyprctl eval`, e.g.
 
 ## Configure
 
-Set the monitor order at the top of `monitor-workspaces.lua`:
+Don't edit the plugin files; reinstalling overwrites them. `setup.bash` creates
+your own settings file at `~/.config/hypr/monitor-workspaces.lua` the first
+time, from `config.default.lua`, and never touches it again:
 
 ```lua
-M.monitors = { "DP-3", "DP-2" }  -- DP-3 gets 1-10, DP-2 gets 11-20
+return {
+  monitors = { "DP-3", "DP-2" },  -- DP-3 gets 1-10, DP-2 gets 11-20
+  per_monitor = 10,
+}
 ```
 
-Names come from `hyprctl monitors`. An unlisted monitor gets the next block.
+Names or descriptions come from `hyprctl monitors`; descriptions survive port
+swaps. An unlisted monitor gets the next block. Apply with `hyprctl reload`.
 
 ## Install
 
@@ -57,7 +63,7 @@ Names come from `hyprctl monitors`. An unlisted monitor gets the next block.
 ./setup.bash uninstall  # undo all three
 ```
 
-Run `setup.bash` again after editing files here, and after
+Run `setup.bash` again after updating the plugin, and after
 `omarchy refresh hyprland` or `omarchy refresh shell`, which reset the hook
 and the bar.
 

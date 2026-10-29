@@ -5,16 +5,19 @@
 -- monitor in `monitors` owns 1-10, the second 11-20, and so on. Workspace rules
 -- pin each block to its monitor, and the binds below translate "slot N" into
 -- the id inside the focused monitor's block. Widget.qml reads the same mapping
--- back from the workspace rules, so this file is the only place to configure.
+-- back from the workspace rules, so there is nothing to configure there.
 
-local M = {}
+local M = { monitors = {}, per_monitor = 10 }
 
--- Monitor order decides which block each one owns. Entries are a connector
--- name ("DP-3") or a monitor description ("AOC C27G4ZXU 1O0Q7JA008205"); the
--- description survives cable and port swaps. Monitors not listed here get the
--- next free block in connection order.
-M.monitors = { "AOC C27G4ZXU 1O0Q7JA008205", "AOC 2590G4 0x000210C1" }
-M.per_monitor = 10
+-- Settings live outside the plugin so reinstalling keeps them; setup.bash
+-- creates this file from config.default.lua. A mistake in it shows up in
+-- `hyprctl configerrors`.
+M.config = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/monitor-workspaces.lua"
+local file = io.open(M.config, "r")
+if file then
+  file:close()
+  for key, value in pairs(dofile(M.config) or {}) do M[key] = value end
+end
 
 local function matches(entry, monitor)
   return entry == monitor.name or entry == monitor.description
@@ -173,6 +176,8 @@ end
 
 -- Same actions for scripts, e.g.
 --   hyprctl eval 'monitor_workspaces.send_window_toward("l")()'
+-- workspace_id is also used by benjy.solo-workspaces.
+M.workspace_id = workspace_id
 M.focus_slot = focus_slot
 M.move_to_slot = move_to_slot
 M.send_window_toward = send_window_toward

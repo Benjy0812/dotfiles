@@ -1,185 +1,42 @@
 # Dotfiles
 
-This repository contains personal configuration files for a lightweight Linux desktop environment setup. It is cloned to `~/Projects/dotfiles`; nothing here needs to live in `~/.config` itself.
+Personal Linux desktop configs, kept at `~/Projects/dotfiles`. Each folder has
+its own README with the details.
 
-## 📋 Tracked Files
+| Folder | What | Details |
+|---|---|---|
+| `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [mango/README.md](mango/README.md) |
+| `omarchy/` | Personal Omarchy (Hyprland) changes and two workspace plugins | [omarchy/README.md](omarchy/README.md) |
+| `fish/` | Fish shell: aliases, abbreviations, helper functions | [fish/README.md](fish/README.md) |
+| `kitty/` | Kitty terminal | [kitty/README.md](kitty/README.md) |
+| `yazi/` | Yazi file manager | [yazi/README.md](yazi/README.md) |
+| `zed/`, `.zed/` | Zed editor settings and the Glass theme | [zed/README.md](zed/README.md) |
+| `nix/`, `flake.nix` | NixOS system and home-manager profile | [nix/README.md](nix/README.md) |
+| `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
 
-### Window Manager
-- **`mango/`** - MangoWM (Wayland window manager) configuration
-  - `config.conf` - Core settings, environment, keybindings, display layout, and appearance
-  - `conf.d/appearance.conf` - Cursor, borders, gaps, and blur
-  - `conf.d/bind.conf` - Key and mouse bindings
-  - `conf.d/rules.conf` - Window rules
-  - `scripts/autostart.sh` - Startup script for Noctalia and the wallpaper
-  - `wall/1.png` - Desktop wallpaper
+The Omarchy plugins have their own READMEs too:
+[monitor-workspaces](omarchy/plugins/benjy.monitor-workspaces/README.md) and
+[solo-workspaces](omarchy/plugins/benjy.solo-workspaces/README.md).
 
-### Omarchy
-- **`omarchy/`** - Personal Omarchy changes only; set up with `omarchy/install.bash` (see `omarchy/README.md`)
-  - `hypr/custom.lua` - Hyprland settings, loaded from `~/.config/hypr/hyprland.lua`
-  - `hypr/monitor-workspaces.lua`, `hypr/solo-workspaces.lua` - Settings for the two plugins
-  - `shell/shell.json`, `apps/` - Bar layout and app configs
-- **`omarchy/plugins/benjy.monitor-workspaces/`** - Independent workspaces 1-10 per monitor, plus a bar widget (see its README)
-- **`omarchy/plugins/benjy.solo-workspaces/`** - Gives listed apps a workspace to themselves, moving them to the nearest empty one (works with or without monitor-workspaces)
+## Setup
 
-### Shell
-- **`fish/`** - Fish shell configuration
-  - `config.fish` - PATH, `$SHELL`, and bun setup
-  - `conf.d/` - Aliases, abbreviations, theme, and helper functions
-  - `functions/y.fish` - Yazi wrapper that changes the working directory
-
-### Terminal
-- **`kitty/kitty.conf`** - Kitty terminal emulator configuration
-  - Font: JetBrains Mono 12pt
-  - Shell: `/usr/bin/fish`
-  - Transparency and padding settings
-  - Performance optimizations
-
-### Code Editor
-- **`zed/`** - Zed editor configuration
-  - `settings.json` - Editor preferences and theme settings
-  - `themes/Glass.json` - Custom Glass theme
-
-### File Manager
-- **`yazi/yazi.toml`** - Yazi terminal file manager configuration
-
-### NixOS / Nix
-- **`flake.nix`** - Flake with two outputs:
-  - `nixosConfigurations.benjy` - full NixOS system. Installs MangoWM, makes it the default SDDM session, and deploys these dotfiles automatically through home-manager.
-  - `homeConfigurations.benjy` - standalone home-manager profile for non-NixOS machines. Installs packages only and never touches `~/.config`.
-- **`nix/nixos/`** - system, home-manager, and dotfile-deployment modules.
-- **`nix/nixos-wsl/`** - separate WSL configuration (not part of the flake).
-
-Rebuild the NixOS system from this repo:
 ```bash
-sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy
+git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
 ```
 
-On a fresh NixOS install where the repo is not checked out yet:
-```bash
-sudo nixos-rebuild switch --flake github:Benjy0812/dotfiles#benjy
-```
+Then put the configs in place, depending on the machine:
 
-Use the standalone profile on a non-NixOS system (Nix must be installed):
-```bash
-nix run github:nix-community/home-manager -- switch --flake ~/Projects/dotfiles#benjy
-```
+- **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
+  deploys them through home-manager ([nix](nix/README.md)).
+- **Omarchy:** `~/Projects/dotfiles/omarchy/install.bash`
+  ([omarchy](omarchy/README.md)).
+- **Anywhere else:** copy the folders you want into `~/.config/`, after
+  backing up what's there.
 
-> **Repo layout:** the repository lives at `~/Projects/dotfiles`. How the configs get into `~/.config` depends on the machine: on NixOS home-manager deploys them (`nix/nixos/dotfiles.nix`), on Omarchy `omarchy/install.bash` links them, and anywhere else you copy over the ones you want.
+## What's not tracked
 
-## ⬇️ Required Dependencies
-
-To use this configuration setup, you'll need to install the following tools:
-
-### Core Requirements
-- **[MangoWM](https://github.com/mangowm/mango)** - Tiling Wayland window manager
-- **[Kitty](https://sw.kovidgoyal.net/kitty/)** - GPU-based terminal emulator
-- **[Fish](https://fishshell.com/)** - Shell used by the session and Kitty
-- **[Noctalia](https://noctalia.dev)** - Bar, launcher, notifications, and theme generation
-
-### Optional
-- **[Zed](https://zed.dev)** - High-performance code editor
-- **[Yazi](https://yazi-rs.github.io/)** - Terminal file manager (`Alt + E`)
-- **[Jellyfin Desktop](https://jellyfin.org/)** - Media server client
-- **[Vesktop](https://github.com/Vencord/Vesktop)** - Discord client with Vencord
-
-## 🎨 Key Configuration Highlights
-
-### MangoWM Keybindings
-```
-Terminal:           Alt + Return
-Launcher:           Alt + D          (Noctalia)
-File manager:       Alt + E          (Yazi in Kitty)
-Workspaces:         Alt + 1..9
-Move to workspace:  Alt + Shift + 1..9
-Window focus:       Alt + Arrow keys
-Fullscreen:         Super + f
-Reload config:      Super + r
-Screenshot:         Super + Shift + s (Noctalia)
-Close window:       Alt + q
-Quit MangoWM:       Super + Shift + q
-```
-
-### Display Setup
-- **AOC 2590G4**: 1920x1080 @ 144Hz (left, x:0, y:0)
-- **AOC C27G4ZXU**: 1920x1080 @ 280Hz (right, primary, x:1920, y:0)
-- **eDP-1** (laptop): 2880x1800 @ 1.5x scale (x:0, y:1080)
-
-### Appearance
-- **Cursor Theme**: Adwaita (24px)
-- **Border**: 2px, 4px radius
-- **Gaps**: 0px inner, 2px outer
-- **Blur**: Enabled
-- **Font**: JetBrains Mono throughout
-
-## 📦 Installation Guide
-
-1. **Install MangoWM and dependencies:**
-   ```bash
-   # Arch Linux
-   sudo pacman -S kitty fish
-   # Noctalia is available from the AUR
-   paru -S noctalia
-   ```
-
-2. **Clone this repo:**
-   ```bash
-   git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
-   ```
-   Then put the configs in place: `nixos-rebuild` (see above) on NixOS, `~/Projects/dotfiles/omarchy/install.bash` on Omarchy, or copy the directories you want into `~/.config/` (back up existing ones first).
-
-3. **Verify the repo:**
-   ```bash
-   cd ~/Projects/dotfiles
-   git status
-   ```
-   Only the whitelisted paths are tracked: `fish/`, `fixes/`, `kitty/`, `mango/`, `nix/`, `omarchy/`, `yazi/`, `zed/`, `.zed/`, `flake.nix`, `flake.lock`, `README.md`, and `.gitignore`. Anything else dropped into the repo is ignored.
-
-4. **Set up Kitty font** (optional):
-   ```bash
-   # Install JetBrains Mono if not already installed
-   mkdir -p ~/.local/share/fonts
-   # Download and extract JetBrains Mono to ~/.local/share/fonts
-   fc-cache -fv
-   ```
-
-5. **Start MangoWM:**
-   - Log out and select MangoWM at your login screen, or
-   - Run directly: `mango`
-
-## 🔧 Manual/Ignored Configurations
-
-`.gitignore` uses a whitelist (`/*` plus explicit `!` entries), so anything not listed above stays untracked even if it is copied into the repo. That includes private and machine-specific data such as:
-
-- **`gh/`** - GitHub CLI credentials
-- **`mozilla/`**, **`zen/`** - browser profiles
-- **`vesktop/`** - Discord client data
-- **`opencode/`** - OpenCode state
-- **`noctalia/`** - generated Noctalia theme files
-- **`btop/`**, **`dconf/`**, **`gtk-3.0/`**, **`pulse/`**, **`@liner/`**, **`autostart/`**
-- **`mimeapps.list`**, **`user-dirs.dirs`**, **`user-dirs.locale`**
-
-These should never be committed; the whitelist keeps them out.
-
-## 🎯 Workflow
-
-This setup is optimized for:
-- **Tiling window management** on Wayland
-- **Fast terminal workflows** with Kitty
-- **Efficient code editing** with Zed
-- **Quick application launching** with Noctalia
-- **Minimal resource usage** with a custom window manager
-
-## 🤝 Contributing
-
-These are personal configuration files. Feel free to adapt them to your own setup!
-
-## 📝 Notes
-
-- This configuration uses **Wayland**, not X11
-- Some settings may need adjustment based on your hardware (e.g., display refresh rates)
-- Theme and font choices can be customized in their respective config files
-- The Glass theme for Zed provides a modern, translucent appearance
-
----
-
-**Last Updated**: 2026-10-29
+`.gitignore` is a whitelist (`/*` plus explicit `!` entries), so anything not
+listed stays out of git even when it's copied into the repo. That keeps out
+private and machine-specific data such as `gh/` (GitHub credentials), browser
+profiles, app state, generated Noctalia themes, and `fish/fish_variables`.
+Add a new folder to the whitelist before committing it.

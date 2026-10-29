@@ -7,8 +7,8 @@ tracked; everything else stays Omarchy's stock config.
 |---|---|---|
 | `hypr/custom.lua` | loaded from here | All personal Hyprland settings (see setup below) |
 | `hypr/monitor-workspaces.lua`, `hypr/solo-workspaces.lua` | linked to `~/.config/hypr/` | My settings for the two plugins: monitor order, and the solo apps (Jellyfin) |
-| `plugins/benjy.monitor-workspaces/` | `~/.config/omarchy/plugins/` | Workspaces 1-10 on every monitor, with bar widget |
-| `plugins/benjy.solo-workspaces/` | `~/.config/omarchy/plugins/` | Listed apps get a workspace to themselves, moved to the nearest empty one |
+| [`plugins/benjy.monitor-workspaces/`](plugins/benjy.monitor-workspaces/README.md) | `~/.config/omarchy/plugins/` | Workspaces 1-10 on every monitor, with bar widget |
+| [`plugins/benjy.solo-workspaces/`](plugins/benjy.solo-workspaces/README.md) | `~/.config/omarchy/plugins/` | Listed apps get a workspace to themselves, moved to the nearest empty one |
 | `shell/shell.json` | `~/.config/omarchy/shell.json` | Bar layout and idle settings |
 | `apps/` | `~/.config/<app>/` | alacritty, git, mise, fcitx5, tensaku |
 

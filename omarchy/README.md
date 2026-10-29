@@ -6,7 +6,9 @@ tracked; everything else stays Omarchy's stock config.
 | Path | Lives at | What |
 |---|---|---|
 | `hypr/custom.lua` | loaded from here | All personal Hyprland settings (see setup below) |
-| `plugins/benjy.monitor-workspaces/` | `~/.config/omarchy/plugins/` | Workspaces 1-10 on every monitor, with bar widget. Install with its `setup.bash` |
+| `hypr/monitor-workspaces.lua`, `hypr/solo-workspaces.lua` | linked to `~/.config/hypr/` | My settings for the two plugins: monitor order, and the solo apps (Jellyfin) |
+| `plugins/benjy.monitor-workspaces/` | `~/.config/omarchy/plugins/` | Workspaces 1-10 on every monitor, with bar widget |
+| `plugins/benjy.solo-workspaces/` | `~/.config/omarchy/plugins/` | Listed apps get a workspace to themselves, moved to the nearest empty one |
 | `shell/shell.json` | `~/.config/omarchy/shell.json` | Bar layout and idle settings |
 | `apps/` | `~/.config/<app>/` | alacritty, git, mise, fcitx5, tensaku |
 
@@ -19,7 +21,17 @@ tracked; everything else stays Omarchy's stock config.
 
 ### Setup
 
-`custom.lua` is loaded from `~/.config/hypr/hyprland.lua`, which needs two edits:
+```sh
+./install.bash             # hyprland.lua edits below, settings links, both plugins
+./install.bash uninstall   # undo it all
+```
+
+Safe to run again; do so after `omarchy refresh hyprland` or `omarchy refresh shell`.
+`apps/` and `shell/shell.json` are not copied, so your live ones stay as they are.
+An existing plugin settings file that isn't a link yet is kept as `*.bak`.
+Each plugin also installs on its own with its `setup.bash`, for use without the rest.
+
+What it does by hand: `custom.lua` is loaded from `~/.config/hypr/hyprland.lua`, which needs two edits:
 
 1. Before `require("default.hypr.omarchy")`, uncomment:
 

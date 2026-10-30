@@ -1,0 +1,8 @@
+# Where repo files go. One rule per line: "folder/path = target".
+# The longest matching rule wins. A folder with no rule goes to
+# ~/.config/<folder>/ (apps/kitty -> ~/.config/kitty). "~" is your home.
+# A top-level repo folder named here (no slash in the left side) becomes a
+# folder of its own. Examples:
+#   omarchy/hypr = ~/.config/hypr
+#   kitty/themes = ~/.local/share/kitty-themes
+omarchy/hypr = ~/.config/hypr

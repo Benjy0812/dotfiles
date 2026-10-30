@@ -61,6 +61,7 @@ ${B}More${X}
   watch         notify when a tracked file changes in ~/.config (--auto pulls it)
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
+  map           show where each repo folder goes (rules live in .dotfiles-map)
   help, version
 
 ${B}Options${X}
@@ -75,8 +76,8 @@ ${B}Names${X} are folders (\`./dotfiles.bash list\`) or single files (fish/confi
 Without names, push and diff use every out-of-sync folder, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
-${B}Files${X} in the repo root: .dotfilesignore (paths to skip) and .dotfiles-hosts
-(which folders belong on which machine). Both are optional.
+${B}Files${X} in the repo root: .dotfiles-map (where folders go), .dotfilesignore (paths
+to skip) and .dotfiles-hosts (which folders belong on which machine). All optional.
 EOF
 }
 
@@ -106,6 +107,24 @@ matches_any() { # path glob..
 }
 ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 
+# Where repo files go. Built in: omarchy/hypr goes to ~/.config/hypr. More rules
+# come from .dotfiles-map ("folder/path = target", the longest match wins); a
+# folder with no rule goes to ~/.config/<folder>/.
+MAP_SRC=(omarchy/hypr) MAP_DST=("$CONFIG/hypr")
+if [[ -f $ROOT/.dotfiles-map ]]; then
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%#*}
+    [[ $line == *=* ]] || continue
+    src=${line%%=*} dst=${line#*=}
+    src=${src#"${src%%[![:space:]]*}"} src=${src%"${src##*[![:space:]]}"}
+    dst=${dst#"${dst%%[![:space:]]*}"} dst=${dst%"${dst##*[![:space:]]}"}
+    [[ -n $src && -n $dst ]] || continue
+    src=${src%/} dst=${dst/#\~/$HOME}
+    for i in "${!MAP_SRC[@]}"; do [[ ${MAP_SRC[i]} == "$src" ]] && { MAP_DST[i]=$dst; continue 2; }; done
+    MAP_SRC+=("$src") MAP_DST+=("$dst")
+  done <"$ROOT/.dotfiles-map"
+fi
+
 # Every folder this repo has, one per line.
 all_entries() {
   local d
@@ -114,6 +133,9 @@ all_entries() {
   done
   echo mango
   echo omarchy
+  for d in "${MAP_SRC[@]}"; do
+    [[ $d != */* && $d != mango && $d != omarchy && -d $ROOT/$d ]] && echo "$d"
+  done
 }
 
 # Folders for this machine: all of them, unless .dotfiles-hosts has a
@@ -138,12 +160,17 @@ load_entries() {
 load_entries
 entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
 
-src_dir() { if [[ $1 == mango || $1 == omarchy ]]; then echo "$ROOT/$1"; else echo "$ROOT/apps/$1"; fi; }
+src_dir() { if [[ -d $ROOT/apps/$1 ]]; then echo "$ROOT/apps/$1"; else echo "$ROOT/$1"; fi; }
 
-# Where a repo file lives in ~/.config: <folder>/<file>, except Omarchy's hypr/
-# files, which belong in ~/.config/hypr/.
+# Where a repo file lives outside the repo: the longest matching rule of the map.
 dest_of() { # name rel
-  if [[ $1 == omarchy && $2 == hypr/* ]]; then echo "$CONFIG/$2"; else echo "$CONFIG/$1/$2"; fi
+  local key=$1/$2 i best=-1 bi=-1
+  for i in "${!MAP_SRC[@]}"; do
+    if [[ $key == "${MAP_SRC[i]}" || $key == "${MAP_SRC[i]}"/* ]] && ((${#MAP_SRC[i]} >= best)); then
+      best=${#MAP_SRC[i]} bi=$i
+    fi
+  done
+  if ((bi >= 0)); then echo "${MAP_DST[bi]}${key#"${MAP_SRC[bi]}"}"; else echo "$CONFIG/$key"; fi
 }
 
 # Files and links of one entry, relative to its folder (NUL separated).
@@ -1307,6 +1334,15 @@ case $cmd in
   baseline) baseline ;;
   doctor) doctor ;;
   watch) watch_config "${names[@]}" ;;
+  map)
+    while read -r n; do
+      d=$(dest_of "$n" "")
+      printf '  %-14s %s → %s\n' "$n" "$(short "$(src_dir "$n")")" "$(short "${d%/}")"
+      for i in "${!MAP_SRC[@]}"; do
+        if [[ ${MAP_SRC[i]} == "$n"/* ]]; then printf '  %-14s %s → %s\n' "" "${MAP_SRC[i]}" "$(short "${MAP_DST[i]}")"; fi
+      done
+    done < <(entries)
+    ;;
   setup) omarchy_setup ;;
   uninstall) omarchy_uninstall ;;
   help) usage ;;

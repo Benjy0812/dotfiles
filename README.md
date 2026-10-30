@@ -68,6 +68,10 @@ Then put the configs in place, depending on the machine. On any machine,
   and press Enter; unticked files are skipped. It saves them to `.dotfilesignore`.
   `./dotfiles.bash setup` adds what copying cannot do for `omarchy/` (the hyprland.lua
   hook, the settings links, the plugin hooks); `uninstall` undoes it.
+- **Where files go:** each folder goes to `~/.config/<folder>/` unless `.dotfiles-map`
+  says otherwise. One rule per line, `folder/path = target`; the longest match wins.
+  A top-level repo folder named there (for example `extra = ~/somewhere`) becomes a
+  folder of its own. `./dotfiles.bash map` shows the result.
 - **Config files:** `.dotfilesignore` (local, not committed) lists paths to skip; `.dotfiles-hosts`
   maps a hostname to the folders it should get (both optional). Fish
   completions live in `apps/fish/completions/dotfiles.bash.fish`.

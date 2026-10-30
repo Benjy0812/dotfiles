@@ -143,6 +143,7 @@ More:
 | `profile NAME\|auto\|none` | Choose this machine's profile. |
 | `profile new NAME [folder..]` | Create a profile by copying boilerplate (all of `apps/` if no folders named). |
 | `profile set terminal\|editor NAME\|all` | Choose the preferred terminal or editor. |
+| `rebuild` | NixOS only: `nixos-rebuild switch` for this flake (`-n` dry-build). |
 | `edit [NAME[/FILE]]` | Open the profile in the preferred editor. |
 | `profile templates` | List the boilerplate folders. |
 | `map` | Show where each folder goes. |
@@ -195,10 +196,11 @@ the rest stay untouched in the profile folder.
 ```text
 terminal = kitty     # alacritty kitty foot ghostty
 editor = nvim        # nvim zed
+wm = hypr            # hypr mango i3 sway niri bspwm awesome river openbox
 ```
 
 Use `all` (or leave the line out) to sync every member. Change it with
-`./dotfiles.bash profile set terminal kitty`, or Tools > Profile settings in the
+`./dotfiles.bash profile set terminal kitty` (or `editor`, `wm`), or Tools > Profile settings in the
 menu. Status shows what is not synced, e.g. `terminal: kitty (alacritty, foot, ghostty not synced)`.
 If the preferred app isn't in the profile, nothing is filtered.
 
@@ -210,7 +212,7 @@ it) in the preferred editor, falling back to `$EDITOR`, then `nvim`.
 | You want to... | Use |
 |---|---|
 | Keep a whole app out of a machine | Leave its folder out of the profile (`profile new` with only the folders you need, or delete it) |
-| Sync only one terminal or editor | `profile set terminal kitty` / Tools > Profile settings |
+| Sync only one terminal, editor or window manager | `profile set terminal kitty` / Tools > Profile settings |
 | Give different hostnames different folders | `.dotfiles-hosts` |
 | Skip one file inside a folder you keep (e.g. `omarchy/shell.json`) | `select` (menu: Choose what syncs), fine-grained |
 | Skip a pattern (e.g. `mango/wall/*`) | Edit `.dotfilesignore` by hand |
@@ -261,9 +263,14 @@ NixOS needs no sync. `nixos-rebuild` reads the configs straight from this repo
 the only copy. That is why `dotfiles.bash` skips any profile that contains a
 `nix/` folder: status says "managed by Nix" and push, pull and the menu do nothing.
 
-- Edit files in `profiles/nixos/`, then rebuild:
-  `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
-- Which files are deployed is listed in `profiles/nixos/nix/nixos/dotfiles.nix`.
+- Edit files in `profiles/nixos/`, then rebuild with `./dotfiles.bash rebuild`
+  (or Tools > NixOS: rebuild; `-n` does a dry build). It runs
+  `sudo nixos-rebuild switch --flake <repo>#benjy`; set `DOTFILES_NIX_HOST` for a
+  different flake host.
+- Every folder in `profiles/nixos/` (except `nix/`) is deployed automatically by
+  `profiles/nixos/nix/nixos/dotfiles.nix`: add a folder, rebuild, done. It also
+  honors `profile.conf`, so only the preferred terminal, editor and window manager
+  are deployed. Its group lists mirror the ones in `dotfiles.bash`.
 - More in [profiles/nixos/nix/README.md](../profiles/nixos/nix/README.md).
 
 ## Other folders
@@ -293,6 +300,7 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 
 | Variable | Meaning |
 |---|---|
+| `DOTFILES_NIX_HOST` | Flake host for `rebuild` (default `benjy`). |
 | `DOTFILES_PROFILE` | Force a profile (or `none`/`auto`) for one run. |
 | `DOTFILES_HOST` | Hostname used for `.dotfiles-hosts`. |
 | `DOTFILES_BACKUP_DIR` | Backup location. |

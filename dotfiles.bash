@@ -62,7 +62,8 @@ ${B}More${X}
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
   profile [NAME|auto|none]  show or choose this machine's profile (the folders that get synced)
-  profile set terminal|editor NAME|all  sync only the preferred terminal or editor (profile.conf)
+  profile set terminal|editor|wm NAME|all  sync only the preferred terminal, editor or window manager
+  rebuild       NixOS: nixos-rebuild switch for this repo's flake (-n: dry-build)
   edit [NAME[/FILE]]  open the profile (or a folder or file of it) in the preferred editor
   profile new NAME [folder..]  start a profile from the boilerplate in apps/ and mango/
   map           show where each repo folder goes (rules live in .dotfiles-map)
@@ -81,7 +82,7 @@ Without names, push and diff use every out-of-sync folder, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
 ${B}Files${X} in the profile folder (profiles/<os>/), all optional: profile.conf (preferred
-terminal and editor), .dotfiles-map (where
+terminal, editor and window manager), .dotfiles-map (where
 folders go), .dotfilesignore (paths to skip) and .dotfiles-hosts (which folders belong
 on which machine).
 EOF
@@ -154,9 +155,11 @@ pfile() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
 # the profile folder untouched. "all" (or no line) syncs every member.
 #   terminal = kitty     # alacritty kitty foot ghostty
 #   editor = nvim        # nvim zed
-PREF_KEYS=(terminal editor)
+#   wm = hypr            # hypr mango i3 sway niri bspwm awesome river openbox
+PREF_KEYS=(terminal editor wm)
 PREF_terminal=(alacritty kitty foot ghostty)
 PREF_editor=(nvim zed)
+PREF_wm=(hypr mango i3 sway niri bspwm awesome river openbox)
 declare -A PREF=()
 
 # "kitty" -> terminal: the group a folder belongs to, if any.
@@ -1086,7 +1089,7 @@ next_step() {
   done <<<"$DIFFS"
   if nix_managed; then
     PENDING=0
-    echo "  ${CYA}Profile $PROFILE is managed by Nix.${X} Edit it in the repo and run: sudo nixos-rebuild switch --flake $(short "$ROOT")#benjy"
+    echo "  ${CYA}Profile $PROFILE is managed by Nix.${X} Edit it in the repo, then Tools > NixOS: rebuild (or ./dotfiles.bash rebuild)."
     return 0
   fi
   if [[ -z $PROFILE ]]; then
@@ -1396,7 +1399,7 @@ menu_profile() {
 menu_settings() {
   local k choice items=()
   for k in "${PREF_KEYS[@]}"; do
-    items+=("$k|Which $k this profile syncs. Now: ${PREF[$k]:-all}.")
+    items+=("$k|Which $k this profile syncs; the others stay in the profile, unsynced. Now: ${PREF[$k]:-all}.")
   done
   items+=("Back|Return to the tools menu.")
   k=$(choose "Profile settings ($PROFILE)" "${items[@]}") || return 0
@@ -1414,8 +1417,11 @@ menu_settings() {
 menu_tools() {
   local choice items=()
   items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
-    "Profile settings|Preferred terminal and editor for this profile; only those are synced."
+    "Profile settings|Preferred terminal, editor and window manager for this profile; only those are synced."
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
+  if nix_managed; then
+    items+=("NixOS: rebuild|Run nixos-rebuild switch for this repo's flake. The configs are deployed by Nix, not synced.")
+  fi
   if omarchy_ready; then
     items+=("Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))."
       "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua.")
@@ -1424,6 +1430,7 @@ menu_tools() {
   choice=$(choose "Tools" "${items[@]}") || return 0
   case $choice in
     Profile) menu_profile ;;
+    "NixOS: rebuild") "$SELF" rebuild; pause ;;
     "Profile settings") [[ -n $PROFILE ]] && menu_settings ;;
     Doctor) doctor || true; pause ;;
     "Omarchy: set up") omarchy_setup; pause ;;
@@ -1577,7 +1584,7 @@ case $cmd in
       profile_new "${names[@]:1}"
       exit 0
     elif [[ ${names[0]:-} == set ]]; then
-      ((${#names[@]} == 3)) || die "usage: $0 profile set terminal|editor NAME|all"
+      ((${#names[@]} == 3)) || die "usage: $0 profile set terminal|editor|wm NAME|all"
       set_pref "${names[1]}" "${names[2]}"
       echo "${names[1]} = ${names[2]}"
       exit 0
@@ -1604,6 +1611,17 @@ case $cmd in
       target=$ROOT/profiles/${PROFILE:-none}
     fi
     exec "$ed" "$target"
+    ;;
+  rebuild)
+    nix_managed || die "rebuild is for a Nix-managed profile (one with a nix/ folder); the active profile is '${PROFILE:-none}'"
+    command -v nixos-rebuild >/dev/null || die "nixos-rebuild not found; this is not NixOS"
+    flake="$ROOT#${DOTFILES_NIX_HOST:-benjy}"
+    if ((DRY)); then
+      echo "would run: sudo nixos-rebuild dry-build --flake $flake"
+      sudo nixos-rebuild dry-build --flake "$flake"
+    else
+      sudo nixos-rebuild switch --flake "$flake"
+    fi
     ;;
   map)
     while read -r n; do

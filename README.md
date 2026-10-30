@@ -36,9 +36,11 @@ Then put the configs in place, depending on the machine. On any machine,
 
 `./dotfiles.bash help` lists everything. The main parts:
 
-- **Menu:** status per folder, then Push folders, Push single files, Fetch, Diff, Backups,
-  Doctor. The file pickers (fzf) preview each diff; `Tab` selects, `Ctrl-e`
-  opens `nvim -d` on the file.
+- **Menu:** the status table, then Sync, Backups, Tools. Sync is one fzf list of
+  every file that differs, labeled `→ push`, `← pull` or `⚠ both`; `Tab` selects,
+  `Enter` applies each file in the direction shown (conflicts ask first),
+  `Ctrl-e` opens `nvim -d`. Backups restores (type a folder or file name to
+  filter) or deletes old ones. Tools has Doctor, baseline and the Omarchy uninstall.
 - **Push / pull:** `push [name|name/file]` copies repo to `~/.config`; `pull`
   copies edits back (`--commit` commits them, the menu offers commit and push).
   `-n` is a dry run everywhere.

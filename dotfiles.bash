@@ -33,25 +33,24 @@ ${B}dotfiles${X} v$VERSION: compare this repo with ~/.config and sync the two
 ${B}Usage${X}
   ./dotfiles.bash [command] [options] [name..]
 
-${B}Commands${X}
-  menu        interactive menu (default; needs gum, and fzf for the pickers)
-  status      one row per folder: in sync, edited in ~/.config, newer in repo,
-              changed on both sides (--json for scripts)
-  fetch       list every file that differs, with +/- line counts; changes nothing
-  push        copy repo files into ~/.config; replaced files are kept in the backup folder
-              (install is the same command)
-  pull        copy files edited in ~/.config back into the repo (--commit commits them)
-  diff        show what differs
-  merge NAME FILE     open both copies of a file in nvim -d
-  preview NAME FILE   diff of one file (the pickers use it)
-  backups     list the backups of tracked files
-  restore     bring a backup back (NAME/FILE for the newest, or pick with fzf)
+${B}Everyday${X}
+  (no command)  interactive menu: Sync, Backups, Tools (needs gum and fzf)
+  status        one row per folder: in sync, edited in ~/.config, newer in repo,
+                changed on both sides (--json for scripts)
+  diff          show what differs
+  push          copy repo files into ~/.config; replaced files are kept in the backup folder
+  pull          copy files edited in ~/.config back into the repo (--commit commits them)
+  restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
+
+${B}More${X}
+  fetch         list every file that differs, with +/- line counts; changes nothing
+  merge NAME FILE  open both copies of a file in nvim -d
+  backups       list the backups of tracked files
   clean [DAYS]  list backups older than DAYS (default 30); --yes deletes them
-  baseline    record everything that is in sync as the common starting point
-  doctor      check tools, .gitignore, backups and links
-  watch       notify when a tracked file changes in ~/.config (--auto pulls it)
-  uninstall   undo the Omarchy hook, links and plugins
-  list [files]  print the folder names, or every tracked NAME/FILE
+  baseline      record everything that is in sync as the common starting point
+  doctor        check tools, .gitignore, backups and links
+  watch         notify when a tracked file changes in ~/.config (--auto pulls it)
+  uninstall     undo the Omarchy hook, links and plugins
   help, version
 
 ${B}Options${X}
@@ -667,6 +666,8 @@ watch_config() { # [--auto] [name..]
 
 pause() { read -rp $'\n  enter to continue… ' _ || true; }
 
+MSG= KEEP=0 # a line shown under the status table, and whether to skip the next clear
+
 # choose HEADER "label|description".. -> the chosen label. With fzf the
 # description of the highlighted item shows under the list; without it this is
 # a plain gum choose.
@@ -685,15 +686,6 @@ choose() {
   fi
 }
 
-# pick HEADER PRESELECTED_CSV NAME... -> chosen names, one per line
-pick() {
-  local header=$1 sel=$2
-  shift 2
-  local args=(--no-limit --header "$header" --cursor "> ")
-  [[ -n $sel ]] && args+=(--selected "$sel")
-  gum choose "${args[@]}" "$@"
-}
-
 need_fzf() {
   command -v fzf >/dev/null && return 0
   echo "  the file picker needs fzf (sudo pacman -S fzf)"
@@ -701,84 +693,70 @@ need_fzf() {
   return 1
 }
 
-menu_install() {
-  local sel chosen name edited
-  sel=$(out_of_sync | paste -sd,)
-  mapfile -t chosen < <(pick "Push folders to ~/.config (space selects, enter confirms)" "$sel" $(entries))
-  edited=$(config_edited)
-  N_COPY=0 N_BACKUP=0
-  for name in "${chosen[@]}"; do
-    [[ -n $name ]] || continue
-    if grep -qx "$name" <<<"$edited" && ((!DRY)); then
-      gum confirm "$name has newer edits in ~/.config. Overwrite? (old files kept as backups)" || continue
-    fi
-    install_entry "$name"
-  done
-  summary pushed
-  pause
+# Colored "what Enter will do" label for one differing file.
+sync_tag() {
+  case $1 in
+    config-newer) echo "${YEL}← pull${X}  edited in ~/.config" ;;
+    repo-newer) echo "${CYA}→ push${X}  newer in repo" ;;
+    conflict) echo "${RED}⚠ both${X}  changed on both sides, you choose" ;;
+    *) echo "${CYA}→ push${X}  not installed" ;;
+  esac
 }
 
-# Pick single files with fzf, previewing each diff, then push or pull them.
-# Keys: tab selects, ctrl-a all, ctrl-d none, ctrl-e opens nvim -d on the file.
-menu_files() { # push | pull
+# Every file that differs in one fzf list. Enter applies each file in the
+# direction its label shows; files changed on both sides ask first.
+# Keys: tab selects, ctrl-a all, ctrl-d none, ctrl-e opens nvim -d.
+menu_sync() {
   need_fzf || return 0
-  local mode=$1 n rel st rows picked row warn=
-  rows=$(while IFS=$'\t' read -r n rel st; do
-    printf '%-38s %s\t%s\t%s\t%s\n' "$n/$rel" "$(tag_for "$st")" "$n" "$rel" "$st"
-  done < <(changed_files "$mode"))
-  if [[ -z $rows ]]; then echo "  nothing to $mode"; pause; return 0; fi
+  local n rel st rows picked row act choice plan=() npush=0 npull=0 p
+  rows=$(
+    while IFS=$'\t' read -r n rel st; do
+      printf '%-38s %s\t%s\t%s\t%s\n' "$n/$rel" "$(sync_tag "$st")" "$n" "$rel" "$st"
+    done < <(changed_files all)
+    if [[ -d $ROOT/omarchy && $(omarchy_state) != installed ]]; then
+      printf '%-38s %s\t%s\t-\t%s\n' "omarchy (hook and links)" "$(sync_tag missing)" omarchy missing
+    fi
+  )
+  if [[ -z $rows ]]; then MSG="${GRN}everything is in sync${X}"; return 0; fi
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
-    --prompt "$mode > " --pointer ">" --marker "+" \
-    --header $'tab select · ctrl-a all · ctrl-d none · ctrl-e merge · enter confirm\ndiff: - repo, + ~/.config' \
-    --preview "'$SELF' preview {2} {3}" --preview-window 'down,60%,wrap,border-top' \
+    --prompt "sync > " --pointer ">" --marker "+" \
+    --header $'tab select · ctrl-a all · ctrl-d none · ctrl-e merge · enter apply\ndiff: - repo, + ~/.config' \
+    --preview "if [ {3} = - ]; then echo 'Links the Omarchy hook and settings (omarchy/install.bash).'; else '$SELF' preview {2} {3}; fi" \
+    --preview-window 'down,60%,wrap,border-top' \
     --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
     --bind "ctrl-e:execute('$SELF' merge {2} {3})" <<<"$rows" || true)
   ((${#picked[@]})) || return 0
   for row in "${picked[@]}"; do
-    if [[ $row == *$'\t'conflict ]]; then warn=" Some changed on both sides: the other copy is replaced."; fi
+    IFS=$'\t' read -r _ n rel st <<<"$row"
+    case $st in
+      config-newer) act=pull ;;
+      conflict)
+        choice=$(choose "$n/$rel changed on both sides" \
+          "Push|The repo copy wins; the ~/.config copy is kept as a backup." \
+          "Pull|The ~/.config copy wins and replaces the repo file (git can undo it)." \
+          "Skip|Leave both as they are.") || choice=Skip
+        act=${choice,,}
+        ;;
+      *) act=push ;;
+    esac
+    case $act in
+      push) plan+=("push"$'\t'"$n"$'\t'"$rel"); ((++npush)) ;;
+      pull) plan+=("pull"$'\t'"$n"$'\t'"$rel"); ((++npull)) ;;
+    esac
   done
-  if [[ $mode == push ]]; then
-    gum confirm "Push ${#picked[@]} file(s) to ~/.config?$warn (replaced files kept as backups)" || return 0
-  else
-    gum confirm "Pull ${#picked[@]} file(s) into the repo?$warn" || return 0
-  fi
+  ((${#plan[@]})) || return 0
+  gum confirm "Apply $npush push, $npull pull? (replaced files in ~/.config are kept as backups)" || return 0
   N_COPY=0 N_BACKUP=0
-  for row in "${picked[@]}"; do
-    IFS=$'\t' read -r _ n rel _ <<<"$row"
-    if [[ $mode == push ]]; then push_file "$n" "$rel"; else pull_file "$n" "$rel"; fi
+  for p in "${plan[@]}"; do
+    IFS=$'\t' read -r act n rel <<<"$p"
+    if [[ $rel == - ]]; then install_entry "$n"
+    elif [[ $act == push ]]; then push_file "$n" "$rel"
+    else pull_file "$n" "$rel"
+    fi
   done
-  summary "${mode}ed"
+  MSG=$(summary synced)
+  KEEP=1
   offer_commit
-  pause
-}
-
-# Preview what differs, then pull everything edited or pick single files.
-menu_fetch() {
-  local choice n
-  fetch_report
-  if [[ -z $(changed_files pull) ]]; then pause; return 0; fi
-  choice=$(choose "Pull what?" \
-    "Pick files|Choose single files, with a diff preview, to copy into the repo." \
-    "All edited in ~/.config|Copy every file edited in ~/.config into the repo. Files changed on both sides are skipped." \
-    "Back|Return to the main menu.") || return 0
-  case $choice in
-    "Pick files") menu_files pull ;;
-    All*)
-      if gum confirm "Copy every file edited in ~/.config into the repo?"; then
-        N_COPY=0 N_BACKUP=0
-        while read -r n; do [[ -n $n ]] && pull_entry "$n"; done < <(config_edited)
-        summary pulled
-        offer_commit
-        pause
-      fi
-      ;;
-  esac
-}
-
-menu_diff() {
-  local name
-  name=$(gum choose --header "Diff which folder?" --cursor "> " $(entries)) || return 0
-  { diff_entry "$name"; echo; } | less -RFX
 }
 
 # ---- backups menu ---------------------------------------------------------
@@ -806,11 +784,10 @@ backup_summary() {
 
 # fzf rows, newest first: "file  date  age  size", then backup path, current
 # path, folder and file as hidden tab-separated fields.
-backup_rows() { # [folder]
+backup_rows() {
   local n rel b mt sz age ago where now
   now=$(date +%s)
   while IFS=$'\t' read -r n rel b; do
-    [[ -z ${1:-} || $n == "$1" ]] || continue
     read -r mt sz < <(stat -c '%Y %s' -- "$b")
     age=$(((now - mt) / 86400))
     case $age in
@@ -826,37 +803,21 @@ backup_rows() { # [folder]
 }
 
 # Pick one backup, preview it against the current file, restore it.
-backup_restore_pick() { # [folder]
+backup_restore_pick() {
   need_fzf || return 0
   local rows picked n rel b
-  rows=$(backup_rows "${1:-}")
-  if [[ -z $rows ]]; then echo "  no backups"; pause; return 0; fi
+  rows=$(backup_rows)
+  if [[ -z $rows ]]; then MSG="no backups yet"; return 0; fi
   picked=$(fzf --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
     --prompt "" --pointer ">" --gutter ' ' --border=rounded \
-    --header $'Pick a backup to bring back. The current file is backed up first.\nenter restore · esc cancel · diff: - backup, + current file' \
+    --header $'Type a folder or file name to filter. The current file is backed up first.\nenter restore · esc cancel · diff: - backup, + current file' \
     --preview "diff --color=always -u --label backup --label current {2} {3}; true" \
     --preview-window 'down,60%,wrap,border-top' <<<"$rows" || true)
   [[ -n $picked ]] || return 0
   IFS=$'\t' read -r _ b _ n rel <<<"$picked"
   N_COPY=0 N_BACKUP=0
   restore_backup "$n" "$rel" "$b"
-  summary restored
-  pause
-}
-
-# Choose a folder that has backups, then restore from just that folder.
-backup_folder_pick() {
-  local n rel b folder items=()
-  declare -A count=()
-  while IFS=$'\t' read -r n rel b; do count[$n]=$((${count[$n]:-0} + 1)); done < <(backups)
-  if ((${#count[@]} == 0)); then echo "  no backups"; pause; return 0; fi
-  for folder in $(printf '%s\n' "${!count[@]}" | sort); do
-    items+=("$folder|${count[$folder]} backup(s) in $folder.")
-  done
-  items+=("Back|Return to the backups menu.")
-  folder=$(choose "Restore from which folder?" "${items[@]}") || return 0
-  [[ $folder == Back ]] && return 0
-  backup_restore_pick "$folder"
+  MSG=$(summary restored)
 }
 
 backup_clean_pick() {
@@ -880,48 +841,53 @@ menu_backups() {
     backup_summary
     echo
     choice=$(choose "What do you want to do?" \
-      "Restore a file|Pick a backup, preview the diff against the current file and bring it back." \
-      "Restore from a folder|Choose a folder first, then pick one of its backups to bring back." \
+      "Restore a backup|Pick a backup (type a folder or file name to filter), preview the diff and bring it back." \
       "Delete old backups|Remove backups older than 7, 30 or 90 days, after confirming." \
       "Back|Return to the main menu.") || return 0
     case $choice in
-      "Restore a file") backup_restore_pick ;;
-      "Restore from a folder") backup_folder_pick ;;
+      "Restore a backup") backup_restore_pick; return 0 ;;
       "Delete old backups") backup_clean_pick ;;
       *) return 0 ;;
     esac
   done
 }
 
+menu_tools() {
+  local choice
+  choice=$(choose "Tools" \
+    "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
+    "Record baseline|Mark everything that is in sync as the common starting point for conflict detection." \
+    "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
+    "Back|Return to the main menu.") || return 0
+  case $choice in
+    Doctor) doctor || true; pause ;;
+    "Record baseline") baseline; pause ;;
+    Omarchy*)
+      if gum confirm "Remove the Omarchy hook, links and plugins?"; then
+        "$ROOT/omarchy/install.bash" uninstall
+        pause
+      fi
+      ;;
+  esac
+}
+
 menu() {
   command -v gum >/dev/null || die "the menu needs gum (sudo pacman -S gum); or use: $0 help"
-  local choice
+  local choice count
   while true; do
-    clear
+    if ((KEEP)); then KEEP=0; echo; else clear; fi
     show_status
+    if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
+    count=$(( $(changed_files all | wc -l) + $([[ -d $ROOT/omarchy && $(omarchy_state) != installed ]] && echo 1 || echo 0) ))
     choice=$(choose "What next?" \
-      "Push folders to ~/.config|Copy whole folders from the repo into ~/.config. Replaced files are kept as backups." \
-      "Push single files to ~/.config|Pick individual files, with a diff preview, and copy them from the repo into ~/.config." \
-      "Fetch changes from ~/.config|Preview every file that differs, then pull your ~/.config edits back into the repo." \
-      "Diff a folder|Colored diff for one folder: - is the repo copy, + is the ~/.config copy." \
-      "Backups|Restore a file from a backup, or delete old backups. Shows how many there are." \
-      "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
-      "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
-      "Refresh|Read ~/.config again and redraw the status table." \
+      "Sync|$(if ((count)); then echo "$count item(s) differ. Pick files and apply them in the direction shown, with a diff preview."; else echo "Everything is in sync."; fi)" \
+      "Backups|Restore a replaced file, or delete old backups." \
+      "Tools|Doctor, record baseline, uninstall the Omarchy hook." \
       "Quit|Leave the menu.") || break
     case $choice in
-      "Push folders"*) menu_install ;;
-      "Push single"*) menu_files push ;;
-      Fetch*) menu_fetch ;;
-      "Diff a folder") menu_diff ;;
+      Sync) menu_sync ;;
       Backups) menu_backups ;;
-      Doctor) doctor || true; pause ;;
-      Omarchy*)
-        if gum confirm "Remove the Omarchy hook, links and plugins?"; then
-          "$ROOT/omarchy/install.bash" uninstall
-          pause
-        fi
-        ;;
+      Tools) menu_tools ;;
       Quit) break ;;
     esac
   done

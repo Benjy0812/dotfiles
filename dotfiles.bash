@@ -121,10 +121,14 @@ resolve_profile() {
   esac
   if [[ -n $PROFILE && ! -d $ROOT/profiles/$PROFILE ]]; then PROFILE=; fi
 }
+
+# A profile with a nix/ folder is deployed by home-manager (nixos-rebuild), not
+# copied into ~/.config, so dotfiles.bash leaves it alone.
+nix_managed() { [[ -n $PROFILE && -d $ROOT/profiles/$PROFILE/nix ]]; }
 resolve_profile
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('nix/*' '*/README.md' '*/fish_variables' 'hypr/custom.lua')
+ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
 USER_IGNORE=() # from the profile's .dotfilesignore, which "Choose what syncs" edits
 
 # matches PATH ("folder/file") against the globs that follow it
@@ -177,7 +181,7 @@ load_profile_settings() {
 # Every folder this repo has, one per line.
 all_entries() {
   local d
-  if [[ -n $PROFILE ]]; then
+  if [[ -n $PROFILE ]] && ! nix_managed; then
     for d in "$ROOT/profiles/$PROFILE"/*/ "$ROOT/profiles/$PROFILE"/.[!.]*/; do
       [[ -d $d ]] && basename "$d"
     done
@@ -205,7 +209,7 @@ load_entries() {
 }
 load_profile_settings
 load_entries
-entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
+entries() { if ((${#ENTRY_LIST[@]})); then printf '%s\n' "${ENTRY_LIST[@]}"; fi; }
 
 src_dir() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
 
@@ -484,6 +488,7 @@ show_status() {
   local n label parts p skip note
   printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
     "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)${PROFILE:+  ${D}profile $PROFILE${X}}"
+  if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
   while read -r n; do
     if true; then
       tally "$n"
@@ -1004,6 +1009,11 @@ next_step() {
       missing) ((++m)) ;;
     esac
   done <<<"$DIFFS"
+  if nix_managed; then
+    PENDING=0
+    echo "  ${CYA}Profile $PROFILE is managed by Nix.${X} Edit it in the repo and run: sudo nixos-rebuild switch --flake $(short "$ROOT")#benjy"
+    return 0
+  fi
   if [[ -z $PROFILE ]]; then
     PENDING=0
     echo "  ${YEL}No profile for this machine.${X} Open Tools > Profile to pick one or start one from the boilerplate."

@@ -125,6 +125,8 @@ The active profile is, in order: `DOTFILES_PROFILE`, the choice saved by
 `profile NAME` (`~/.local/state/dotfiles/profile`), then detection (Omarchy if
 `~/.config/omarchy` exists, NixOS, then `ID`/`ID_LIKE` from `/etc/os-release`;
 only profiles that exist can match). With no match nothing is synced.
+A profile that contains a `nix/` folder (the `nixos` one) is deployed by
+home-manager through `nixos-rebuild`, so `dotfiles.bash` never syncs it.
 
 To add an OS: `./dotfiles.bash profile new ubuntu kitty git fish`, then edit
 `profiles/ubuntu/`. The copy is independent of `apps/` and other profiles.

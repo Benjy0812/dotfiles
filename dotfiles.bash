@@ -48,6 +48,7 @@ ${B}Everyday${X}
   push          copy repo files into ~/.config; replaced files are kept in the backup folder
   pull          copy files edited in ~/.config back into the repo (--commit commits them)
   restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
+  select        choose which files are synced (the rest go in .dotfilesignore)
   undo          put back what the last push, pull or restore changed (--yes to do it)
 
 ${B}More${X}
@@ -81,24 +82,28 @@ EOF
 # ---- what is managed ------------------------------------------------------
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-IGNORE=('*/README.md' '*/install.bash' '*/fish_variables')
+ALWAYS_IGNORE=('*/README.md' '*/install.bash' '*/fish_variables')
+USER_IGNORE=() # from .dotfilesignore, which the "Choose what syncs" menu edits
 if [[ -f $ROOT/.dotfilesignore ]]; then
   while IFS= read -r line || [[ -n $line ]]; do
     line=${line%%#*}
     line=${line#"${line%%[![:space:]]*}"}
     line=${line%"${line##*[![:space:]]}"}
-    [[ -n $line ]] && IGNORE+=("$line")
+    [[ -n $line ]] && USER_IGNORE+=("$line")
   done <"$ROOT/.dotfilesignore"
 fi
 
-ignored() {
-  local p
-  for p in "${IGNORE[@]}"; do
+# matches PATH ("folder/file") against the globs that follow it
+matches_any() { # path glob..
+  local path=$1 p
+  shift
+  for p in "$@"; do
     # shellcheck disable=SC2053 # the pattern is meant to be a glob
-    [[ $1 == $p ]] && return 0
+    [[ $path == $p ]] && return 0
   done
   return 1
 }
+ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 
 # Every folder this repo has, one per line.
 all_entries() {
@@ -1000,6 +1005,53 @@ menu_backups() {
   done
 }
 
+# Tick the files that should sync. Unticked files are written to
+# .dotfilesignore as exact paths; other lines there (comments, globs) stay.
+menu_select() {
+  need_fzf || return 0
+  local f=$ROOT/.dotfilesignore n rel path rows=() paths=() i preselect=load:select-all
+  local picked=() skipped=0 synced=0 pattern
+  declare -A keep=()
+  while read -r n; do
+    [[ $n == omarchy ]] && continue
+    while IFS= read -r -d '' rel; do
+      path=$n/$rel
+      matches_any "$path" "${ALWAYS_IGNORE[@]}" && continue
+      paths+=("$path")
+    done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+  done < <(entries)
+  for i in "${!paths[@]}"; do
+    if matches_any "${paths[i]}" "${USER_IGNORE[@]}"; then preselect+="+pos($((i + 1)))+deselect"; fi
+  done
+  preselect+="+pos(1)"
+  mapfile -t picked < <(printf '%s\n' "${paths[@]}" | fzf --multi --layout=reverse --height=90% --no-info \
+    --prompt "syncs > " --pointer ">" --marker "+" --bind "$preselect" \
+    --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
+    --header $'ticked files are synced · tab toggles · type a folder name, then ctrl-a, to tick it all\nenter saves to .dotfilesignore · esc cancels' || true)
+  ((${#picked[@]})) || { MSG="nothing ticked, nothing changed"; return 0; }
+  for path in "${picked[@]}"; do keep[$path]=1; done
+  touch "$f"
+  for path in "${paths[@]}"; do
+    if [[ -n ${keep[$path]:-} ]]; then
+      matches_any "$path" "${USER_IGNORE[@]}" || continue
+      if grep -qxF -- "$path" "$f"; then
+        grep -vxF -- "$path" "$f" >"$f.tmp" || true
+        mv -f "$f.tmp" "$f"
+        ((++synced))
+      else
+        pattern=$(printf '%s\n' "${USER_IGNORE[@]}" | while read -r p; do matches_any "$path" "$p" && echo "$p" && break; done)
+        echo "  ${YEL}$path is skipped by the pattern '$pattern'; edit .dotfilesignore to change it${X}"
+        pause
+      fi
+    else
+      matches_any "$path" "${USER_IGNORE[@]}" && continue
+      printf '%s\n' "$path" >>"$f"
+      ((++skipped))
+    fi
+  done
+  MSG="saved: $skipped file(s) now skipped, $synced synced again"
+}
+
 menu_tools() {
   local choice
   choice=$(choose "Tools" \
@@ -1028,7 +1080,8 @@ menu() {
     echo
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
     items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
-      "Backups|Restore a replaced file, or delete old backups.")
+      "Backups|Restore a replaced file, or delete old backups."
+      "Choose what syncs|Tick the files that should sync. Unticked ones are skipped.")
     run=$(last_run)
     if [[ -n $run ]]; then
       items+=("Undo last sync|Put back what the run from $(run_time "$run") changed ($(run_changes "$run" | wc -l) change(s)).")
@@ -1038,6 +1091,7 @@ menu() {
     case $choice in
       Sync) menu_sync ;;
       Backups) menu_backups ;;
+      "Choose what syncs") menu_select ;;
       "Undo last sync") undo_last confirm; pause ;;
       Tools) menu_tools ;;
       Quit) break ;;
@@ -1143,6 +1197,7 @@ case $cmd in
       die "usage: $0 restore NAME/FILE.."
     fi
     ;;
+  select) menu_select; echo "$MSG" ;;
   undo) undo_last ;;
   clean) clean_backups "${names[0]:-30}" ;;
   baseline) baseline ;;

@@ -1,3 +1,3 @@
 # Docs
 
-- [usage.md](usage.md): everything `dotfiles.bash` does, command by command.
+- [usage.md](usage.md): the whole project (layout, setup per machine, profiles, Omarchy, NixOS, fixes) and every `dotfiles.bash` command.

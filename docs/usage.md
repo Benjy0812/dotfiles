@@ -1,10 +1,13 @@
-# dotfiles.bash usage
+# Dotfiles: project guide and dotfiles.bash usage
 
-`dotfiles.bash` compares the active profile in this repo with `~/.config` and
-syncs the two. `./dotfiles.bash help` prints a short version of this page.
+Everything about this repo in one place: what is in it, how a machine gets set
+up, and every `dotfiles.bash` command. `./dotfiles.bash help` prints a short
+version of the usage part.
 
 ## Contents
 
+- [Project layout](#project-layout)
+- [Setting up a machine](#setting-up-a-machine)
 - [Concepts](#concepts)
 - [Quick start](#quick-start)
 - [The menu](#the-menu)
@@ -17,9 +20,57 @@ syncs the two. `./dotfiles.bash help` prints a short version of this page.
 - [Backups and undo](#backups-and-undo)
 - [Omarchy](#omarchy)
 - [NixOS](#nixos)
+- [Other folders](#other-folders)
+- [Files on disk](#files-on-disk)
 - [Environment variables](#environment-variables)
 - [Requirements](#requirements)
 - [Recipes](#recipes)
+- [Troubleshooting](#troubleshooting)
+
+## Project layout
+
+```text
+dotfiles.bash          the one script: sync, backups, undo, profiles, Omarchy setup
+flake.nix, flake.lock  NixOS flake (system + home-manager), reads profiles/nixos/
+profiles/
+  <os>/                what a machine with that OS syncs (omarchy, nixos, ubuntu...)
+    <folder>/          one app or area, goes to ~/.config/<folder>/
+    profile.conf       preferred terminal and editor (optional)
+    .dotfiles-map      where folders go (optional)
+    .dotfiles-hosts    which folders a hostname gets (optional)
+    .dotfilesignore    paths to skip, local, not committed (optional)
+    README.md          notes for that OS (optional)
+apps/                  boilerplate app configs, copied by `profile new`
+mango/                 boilerplate MangoWM + Noctalia config, copied by `profile new`
+docs/                  this guide
+fixes/                 documented local patches for upstream bugs
+```
+
+Rule: nothing is synced from the repo root. A machine syncs only its own
+profile; `apps/` and `mango/` are starting points to copy from.
+
+| Folder | What | More |
+|---|---|---|
+| `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, two workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md) |
+| `profiles/nixos/` | NixOS: apps, MangoWM, and `nix/` (system, home-manager, WSL) | [README](../profiles/nixos/nix/README.md) |
+| `apps/` | Terminals (alacritty, kitty, foot, ghostty), fish, nvim, yazi, zed, git | [README](../apps/README.md) |
+| `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [README](../mango/README.md) |
+| `fixes/` | Patches applied outside package management, each with revert and verify | [README](../fixes/README.md) |
+
+## Setting up a machine
+
+```bash
+git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
+cd ~/Projects/dotfiles
+```
+
+- **Omarchy:** `./dotfiles.bash push -n` to preview, `push`, then `setup` (hyprland
+  hook, settings links, plugins).
+- **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`. No
+  sync needed; see [NixOS](#nixos).
+- **Another OS (Ubuntu, Arch...):** `./dotfiles.bash profile new ubuntu kitty git fish nvim`,
+  edit `profiles/ubuntu/` to fit, then `push`. Commit the new profile.
+- **Anywhere, one app only:** `./dotfiles.bash push kitty`.
 
 ## Concepts
 
@@ -203,6 +254,29 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 - Which files are deployed is listed in `profiles/nixos/nix/nixos/dotfiles.nix`.
 - More in [profiles/nixos/nix/README.md](../profiles/nixos/nix/README.md).
 
+## Other folders
+
+- **`apps/`:** boilerplate. Terminals share one look (JetBrainsMono Nerd Font, same
+  keys); `nvim` is a plugin-free `init.lua`; `git` holds aliases and defaults.
+- **`mango/`:** MangoWM config (`config.conf`, `conf.d/`, `scripts/`, `wall/`).
+  `noctalia.conf` is generated and never tracked.
+- **`fixes/`:** one numbered folder per fix (`NNN-slug/`) with a README (symptom,
+  cause, versions, undo), the patch, snapshots of live files, a `verify/` check and
+  `revert.sh`. Nothing runs automatically.
+- **Omarchy plugins:** `benjy.monitor-workspaces` (workspaces 1-10 on every
+  monitor, with bar widget) and `benjy.solo-workspaces` (listed apps get a
+  workspace of their own). Installed by `setup`; settings are `hypr/*-workspaces.lua`.
+
+## Files on disk
+
+| Path | What |
+|---|---|
+| `~/.local/state/dotfiles/synced.tsv` | Baseline: checksum of each file at its last sync |
+| `~/.local/state/dotfiles/history.tsv` | Log of every push, pull and restore (for `undo`) |
+| `~/.local/state/dotfiles/backups/` | Replaced `~/.config` files, per folder and file |
+| `~/.local/state/dotfiles/undo/` | Repo files as they were before a pull |
+| `~/.local/state/dotfiles/profile` | The profile chosen with `profile NAME` |
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -226,3 +300,19 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 - **First time on a new OS:** `profile new <os> <folders>`, edit, `push`.
 - **Skip a file Omarchy rewrites:** `select`, untick `omarchy/shell.json`.
 - **Oops:** `undo --yes`, or `restore NAME/FILE`.
+
+## Troubleshooting
+
+- **"No profile for this machine":** no `profiles/<os>/` matches. Run
+  `./dotfiles.bash profile` to see what exists, then `profile NAME` or `profile new NAME`.
+- **Everything shows "newer in repo" or "not installed" on a new machine:** expected
+  before the first `push`. Run `push -n` first to preview.
+- **A file shows "changed on both sides":** open Sync and choose, or run
+  `merge NAME FILE`. Run `fetch` to see all differences first.
+- **A file keeps coming back as edited:** a tool rewrites it. Untick it in
+  `select`, or pull the change if it should be kept.
+- **The menu says gum or fzf is missing:** `sudo pacman -S gum fzf`, or use the
+  commands directly.
+- **Something looks wrong after a push:** `undo --yes`, or `restore NAME/FILE`.
+- **Broken links or old backups:** `./dotfiles.bash doctor`, then `clean --yes`.
+- **Hyprland errors after `setup`:** `hyprctl configerrors`; `uninstall` removes the hook.

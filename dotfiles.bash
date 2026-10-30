@@ -78,53 +78,13 @@ ${B}Names${X} are folders (\`./dotfiles.bash list\`) or single files (fish/confi
 Without names, push and diff use every out-of-sync folder, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
-${B}Files${X} in the repo root: .dotfiles-map (where folders go), .dotfilesignore (paths
-to skip) and .dotfiles-hosts (which folders belong on which machine). All optional.
+${B}Files${X} in the profile folder (profiles/<os>/), all optional: .dotfiles-map (where
+folders go), .dotfilesignore (paths to skip) and .dotfiles-hosts (which folders belong
+on which machine).
 EOF
 }
 
 # ---- what is managed ------------------------------------------------------
-
-# Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
-USER_IGNORE=() # from .dotfilesignore, which the "Choose what syncs" menu edits
-if [[ -f $ROOT/.dotfilesignore ]]; then
-  while IFS= read -r line || [[ -n $line ]]; do
-    line=${line%%#*}
-    line=${line#"${line%%[![:space:]]*}"}
-    line=${line%"${line##*[![:space:]]}"}
-    [[ -n $line ]] && USER_IGNORE+=("$line")
-  done <"$ROOT/.dotfilesignore"
-fi
-
-# matches PATH ("folder/file") against the globs that follow it
-matches_any() { # path glob..
-  local path=$1 p
-  shift
-  for p in "$@"; do
-    # shellcheck disable=SC2053 # the pattern is meant to be a glob
-    [[ $path == $p ]] && return 0
-  done
-  return 1
-}
-ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
-
-# Where repo files go. Rules come from .dotfiles-map ("folder/path = target", the longest match wins); a
-# folder with no rule goes to ~/.config/<folder>/.
-MAP_SRC=() MAP_DST=()
-if [[ -f $ROOT/.dotfiles-map ]]; then
-  while IFS= read -r line || [[ -n $line ]]; do
-    line=${line%%#*}
-    [[ $line == *=* ]] || continue
-    src=${line%%=*} dst=${line#*=}
-    src=${src#"${src%%[![:space:]]*}"} src=${src%"${src##*[![:space:]]}"}
-    dst=${dst#"${dst%%[![:space:]]*}"} dst=${dst%"${dst##*[![:space:]]}"}
-    [[ -n $src && -n $dst ]] || continue
-    src=${src%/} dst=${dst/#\~/$HOME}
-    for i in "${!MAP_SRC[@]}"; do [[ ${MAP_SRC[i]} == "$src" ]] && { MAP_DST[i]=$dst; continue 2; }; done
-    MAP_SRC+=("$src") MAP_DST+=("$dst")
-  done <"$ROOT/.dotfiles-map"
-fi
 
 # ---- profiles -------------------------------------------------------------
 # Only the active profile is synced: profiles/<name>/<folder>/ goes to
@@ -163,6 +123,57 @@ resolve_profile() {
 }
 resolve_profile
 
+# Paths ("folder/file", globs allowed) that are never compared or copied.
+ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
+USER_IGNORE=() # from the profile's .dotfilesignore, which "Choose what syncs" edits
+
+# matches PATH ("folder/file") against the globs that follow it
+matches_any() { # path glob..
+  local path=$1 p
+  shift
+  for p in "$@"; do
+    # shellcheck disable=SC2053 # the pattern is meant to be a glob
+    [[ $path == $p ]] && return 0
+  done
+  return 1
+}
+ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
+
+# The settings files live in the profile (profiles/<os>/), never in the repo root.
+pfile() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
+
+# Read the active profile's .dotfilesignore and .dotfiles-map.
+# Map rules are "folder/path = target"; the longest match wins; a folder with no
+# rule goes to ~/.config/<folder>/.
+MAP_SRC=() MAP_DST=()
+load_profile_settings() {
+  local line src dst i f
+  USER_IGNORE=() MAP_SRC=() MAP_DST=()
+  f=$(pfile .dotfilesignore)
+  if [[ -f $f ]]; then
+    while IFS= read -r line || [[ -n $line ]]; do
+      line=${line%%#*}
+      line=${line#"${line%%[![:space:]]*}"}
+      line=${line%"${line##*[![:space:]]}"}
+      [[ -n $line ]] && USER_IGNORE+=("$line")
+    done <"$f"
+  fi
+  f=$(pfile .dotfiles-map)
+  if [[ -f $f ]]; then
+    while IFS= read -r line || [[ -n $line ]]; do
+      line=${line%%#*}
+      [[ $line == *=* ]] || continue
+      src=${line%%=*} dst=${line#*=}
+      src=${src#"${src%%[![:space:]]*}"} src=${src%"${src##*[![:space:]]}"}
+      dst=${dst#"${dst%%[![:space:]]*}"} dst=${dst%"${dst##*[![:space:]]}"}
+      [[ -n $src && -n $dst ]] || continue
+      src=${src%/} dst=${dst/#\~/$HOME}
+      for i in "${!MAP_SRC[@]}"; do [[ ${MAP_SRC[i]} == "$src" ]] && { MAP_DST[i]=$dst; continue 2; }; done
+      MAP_SRC+=("$src") MAP_DST+=("$dst")
+    done <"$f"
+  fi
+}
+
 # Every folder this repo has, one per line.
 all_entries() {
   local d
@@ -173,15 +184,15 @@ all_entries() {
   fi
 }
 
-# Folders for this machine: all of them, unless .dotfiles-hosts has a
+# Folders for this machine: all of them, unless the profile's .dotfiles-hosts has a
 # "hostname: folder folder" line for it ("*" means all).
 ENTRY_LIST=()
 load_entries() {
   local host=${DOTFILES_HOST:-$(uname -n)} allowed= e w
   local keep=()
   mapfile -t ENTRY_LIST < <(all_entries)
-  if [[ -f $ROOT/.dotfiles-hosts ]]; then
-    allowed=$(awk -F: -v h="$host" '/^[[:space:]]*#/ {next} $1 == h {print $2}' "$ROOT/.dotfiles-hosts")
+  if [[ -f $(pfile .dotfiles-hosts) ]]; then
+    allowed=$(awk -F: -v h="$host" '/^[[:space:]]*#/ {next} $1 == h {print $2}' "$(pfile .dotfiles-hosts)")
   fi
   if [[ -n ${allowed//[[:space:]]/} && $allowed != *'*'* ]]; then
     for e in "${ENTRY_LIST[@]}"; do
@@ -192,6 +203,7 @@ load_entries() {
     ENTRY_LIST=("${keep[@]}")
   fi
 }
+load_profile_settings
 load_entries
 entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
 
@@ -1187,7 +1199,7 @@ menu_backups() {
 # .dotfilesignore as exact paths; other lines there (comments, globs) stay.
 menu_select() {
   need_fzf || return 0
-  local f=$ROOT/.dotfilesignore n rel path rows=() paths=() i preselect=load:select-all
+  local f; f=$(pfile .dotfilesignore); local n rel path rows=() paths=() i preselect=load:select-all
   local picked=() skipped=0 synced=0 pattern
   declare -A keep=()
   while read -r n; do
@@ -1265,6 +1277,7 @@ set_profile() { # auto | none | NAME
   mkdir -p "$STATE_DIR"
   printf '%s\n' "$1" >"$PROFILE_FILE"
   resolve_profile
+  load_profile_settings
   load_entries
 }
 

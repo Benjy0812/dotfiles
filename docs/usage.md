@@ -24,7 +24,7 @@ syncs the two. `./dotfiles.bash help` prints a short version of this page.
 - **Profile:** `profiles/<os>/` (omarchy, nixos, ubuntu...). Only the active
   profile is synced. `apps/` and `mango/` are boilerplate that `profile new` copies.
 - **Folder:** each folder in the profile goes to `~/.config/<folder>/`
-  (change with `.dotfiles-map`).
+  (change with the profile's `.dotfiles-map`).
 - **State of a file:**
   - `in sync`: identical on both sides.
   - `edited in ~/.config` (`← save to repo`): only `~/.config` changed since the last sync.
@@ -131,18 +131,19 @@ To add an OS: `./dotfiles.bash profile new ubuntu kitty git fish`, then edit
 
 ## Config files
 
-All optional, in the repo root.
+All optional, and per profile: they live in `profiles/<os>/`, never in the repo
+root, so each OS has its own.
 
-- **`.dotfilesignore`** (local, not committed): paths to skip, one glob per line
-  (`folder/file`, `*` matches slashes, `#` comments). Edited by `select`.
-  Always skipped: `*/README.md`, `*/fish_variables`, `hypr/custom.lua`.
-- **`.dotfiles-map`**: `folder/path = target`, longest match wins, `~` is home.
-  Default is `~/.config/<folder>/`.
+- **`profiles/<os>/.dotfilesignore`** (local, not committed): paths to skip, one
+  glob per line (`folder/file`, `*` matches slashes, `#` comments). Edited by
+  `select`. Always skipped: `*/README.md`, `*/fish_variables`, `hypr/custom.lua`.
+- **`profiles/<os>/.dotfiles-map`**: `folder/path = target`, longest match wins,
+  `~` is home. Default is `~/.config/<folder>/`.
   ```text
   kitty/themes = ~/.local/share/kitty-themes
   ```
-- **`.dotfiles-hosts`**: `hostname: folder folder` limits which folders a machine
-  gets; `*` or no line means all. Find the name with `uname -n`.
+- **`profiles/<os>/.dotfiles-hosts`**: `hostname: folder folder` limits which
+  folders a machine gets; `*` or no line means all. Find the name with `uname -n`.
 
 ## Backups and undo
 

@@ -75,11 +75,12 @@ Then put the configs in place, depending on the machine. On any machine,
   and press Enter; unticked files are skipped. It saves them to `.dotfilesignore`.
   On Omarchy, `./dotfiles.bash setup` adds what copying cannot do (the hyprland.lua
   hook, the settings links, the plugin hooks); `uninstall` undoes it.
-- **Where files go:** each profile folder goes to `~/.config/<folder>/` unless `.dotfiles-map`
+- **Where files go:** each profile folder goes to `~/.config/<folder>/` unless the profile's `.dotfiles-map`
   says otherwise. One rule per line, `folder/path = target`; the longest match wins.
   `./dotfiles.bash map` shows the result.
-- **Config files:** `.dotfilesignore` (local, not committed) lists paths to skip; `.dotfiles-hosts`
-  maps a hostname to the folders it should get (both optional). Fish
+- **Config files:** all live in `profiles/<os>/`, never in the root: `.dotfilesignore`
+  (local, not committed) lists paths to skip, `.dotfiles-map` says where folders go and
+  `.dotfiles-hosts` maps a hostname to the folders it should get (all optional). Fish
   completions live in `profiles/<os>/fish/completions/dotfiles.bash.fish`.
 
 ## What's not tracked

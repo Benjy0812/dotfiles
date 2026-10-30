@@ -5,9 +5,6 @@
 !apps/
 !README.md
 !dotfiles.bash
-!.dotfilesignore
-!.dotfiles-hosts
-!.dotfiles-map
 !flake.nix
 !flake.lock
 !fixes/
@@ -27,4 +24,4 @@ profiles/*/fish/fish_variables
 profiles/*/mango/noctalia.conf
 
 # Per-machine list of files dotfiles.bash skips
-.dotfilesignore
+profiles/*/.dotfilesignore

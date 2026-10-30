@@ -806,10 +806,11 @@ backup_summary() {
 
 # fzf rows, newest first: "file  date  age  size", then backup path, current
 # path, folder and file as hidden tab-separated fields.
-backup_rows() {
+backup_rows() { # [folder]
   local n rel b mt sz age ago where now
   now=$(date +%s)
   while IFS=$'\t' read -r n rel b; do
+    [[ -z ${1:-} || $n == "$1" ]] || continue
     read -r mt sz < <(stat -c '%Y %s' -- "$b")
     age=$(((now - mt) / 86400))
     case $age in
@@ -825,10 +826,10 @@ backup_rows() {
 }
 
 # Pick one backup, preview it against the current file, restore it.
-backup_restore_pick() {
+backup_restore_pick() { # [folder]
   need_fzf || return 0
   local rows picked n rel b
-  rows=$(backup_rows)
+  rows=$(backup_rows "${1:-}")
   if [[ -z $rows ]]; then echo "  no backups"; pause; return 0; fi
   picked=$(fzf --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
     --prompt "" --pointer ">" --gutter ' ' --border=rounded \
@@ -841,6 +842,21 @@ backup_restore_pick() {
   restore_backup "$n" "$rel" "$b"
   summary restored
   pause
+}
+
+# Choose a folder that has backups, then restore from just that folder.
+backup_folder_pick() {
+  local n rel b folder items=()
+  declare -A count=()
+  while IFS=$'\t' read -r n rel b; do count[$n]=$((${count[$n]:-0} + 1)); done < <(backups)
+  if ((${#count[@]} == 0)); then echo "  no backups"; pause; return 0; fi
+  for folder in $(printf '%s\n' "${!count[@]}" | sort); do
+    items+=("$folder|${count[$folder]} backup(s) in $folder.")
+  done
+  items+=("Back|Return to the backups menu.")
+  folder=$(choose "Restore from which folder?" "${items[@]}") || return 0
+  [[ $folder == Back ]] && return 0
+  backup_restore_pick "$folder"
 }
 
 backup_clean_pick() {
@@ -865,10 +881,12 @@ menu_backups() {
     echo
     choice=$(choose "What do you want to do?" \
       "Restore a file|Pick a backup, preview the diff against the current file and bring it back." \
+      "Restore from a folder|Choose a folder first, then pick one of its backups to bring back." \
       "Delete old backups|Remove backups older than 7, 30 or 90 days, after confirming." \
       "Back|Return to the main menu.") || return 0
     case $choice in
       "Restore a file") backup_restore_pick ;;
+      "Restore from a folder") backup_folder_pick ;;
       "Delete old backups") backup_clean_pick ;;
       *) return 0 ;;
     esac

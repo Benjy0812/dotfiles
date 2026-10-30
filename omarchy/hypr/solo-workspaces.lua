@@ -1,5 +1,5 @@
 -- Settings for benjy.solo-workspaces, linked to ~/.config/hypr/solo-workspaces.lua by
--- omarchy/install.bash. Changes apply on their own a moment after saving.
+-- dotfiles.bash setup. Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.
   apps = { "org.jellyfin.JellyfinDesktop" },

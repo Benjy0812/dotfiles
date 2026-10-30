@@ -27,10 +27,10 @@ Then put the configs in place, depending on the machine. On any machine,
 
 - **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
   deploys them through home-manager ([nix](nix/README.md)).
-- **Omarchy:** `~/Projects/dotfiles/omarchy/install.bash`
+- **Omarchy:** `./dotfiles.bash push`, then `./dotfiles.bash setup`
   ([omarchy](omarchy/README.md)).
-- **Anywhere else:** copy the folders you want from `apps/` (and `mango/`) into `~/.config/`, after
-  backing up what's there.
+- **Anywhere else:** `./dotfiles.bash push` copies the folders into `~/.config/` and keeps
+  what it replaces as backups (`-n` shows what it would do first).
 
 ## dotfiles.bash
 
@@ -62,11 +62,12 @@ Then put the configs in place, depending on the machine. On any machine,
   Hyprland's `exec-once`. Needs `inotify-tools`.
 - **doctor:** checks tools, that `.gitignore` does not hide tracked files, old
   backups and broken links.
-- **What syncs:** everything under `apps/` and `mango/` except `README.md`,
-  `install.bash` and `fish_variables`. To change that, open the menu's
+- **What syncs:** everything under `apps/`, `mango/` and `omarchy/` except
+  `README.md`, `fish_variables` and `omarchy/hypr/custom.lua`. To change that, open the menu's
   "Choose what syncs" (or run `./dotfiles.bash select`), tick the files you want
   and press Enter; unticked files are skipped. It saves them to `.dotfilesignore`.
-  `omarchy/` is not file-synced: the install script links it.
+  `./dotfiles.bash setup` adds what copying cannot do for `omarchy/` (the hyprland.lua
+  hook, the settings links, the plugin hooks); `uninstall` undoes it.
 - **Config files:** `.dotfilesignore` (local, not committed) lists paths to skip; `.dotfiles-hosts`
   maps a hostname to the folders it should get (both optional). Fish
   completions live in `apps/fish/completions/dotfiles.bash.fish`.

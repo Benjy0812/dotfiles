@@ -36,8 +36,8 @@ Any way works, as long as `fish --version` prints 3.4 or newer afterwards:
 ### 2. Put this config in place
 
 ```bash
-~/Projects/dotfiles/apps/install.bash -n   # see what it would copy
-~/Projects/dotfiles/apps/install.bash      # copy all app configs, fish included
+~/Projects/dotfiles/dotfiles.bash push -n   # see what it would copy
+~/Projects/dotfiles/dotfiles.bash push      # copy all app configs, fish included
 ```
 
 Or copy just fish: `cp -rP ~/Projects/dotfiles/apps/fish ~/.config/`. On NixOS,

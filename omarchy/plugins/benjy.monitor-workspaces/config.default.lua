@@ -1,4 +1,4 @@
--- Settings for benjy.monitor-workspaces. setup.bash created this file and
+-- Settings for benjy.monitor-workspaces. dotfiles.bash setup created this file and
 -- never overwrites it. Apply changes with: hyprctl reload
 return {
   -- Monitor order decides which block of workspace ids each one owns: the

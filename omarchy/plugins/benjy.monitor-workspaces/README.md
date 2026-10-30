@@ -42,7 +42,7 @@ The same actions are available to scripts through `hyprctl eval`, e.g.
 
 ## Configure
 
-Don't edit the plugin files; reinstalling overwrites them. `setup.bash` creates
+Don't edit the plugin files; reinstalling overwrites them. `dotfiles.bash setup` starts
 your own settings file at `~/.config/hypr/monitor-workspaces.lua` the first
 time, from `config.default.lua`, and never touches it again:
 
@@ -59,11 +59,11 @@ swaps. An unlisted monitor gets the next block. Apply with `hyprctl reload`.
 ## Install
 
 ```sh
-./setup.bash            # install, hook into hypr/bindings.lua, swap the bar widget
-./setup.bash uninstall  # undo all three
+dotfiles.bash setup      # install, hook into hypr/bindings.lua, swap the bar widget
+dotfiles.bash uninstall  # undo all three
 ```
 
-Run `setup.bash` again after updating the plugin, and after
+Run `dotfiles.bash setup` again after updating the plugin, and after
 `omarchy refresh hyprland` or `omarchy refresh shell`, which reset the hook
 and the bar.
 

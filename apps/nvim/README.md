@@ -9,8 +9,8 @@ Look up any option or key inside Neovim with `:help <name>`, for example
 
 ## Install
 
-Run `./install.bash` in this folder (or `../install.bash` for all apps). It
-copies `init.lua` to `~/.config/nvim/init.lua` and warns if `nvim` or a
+Run `../../dotfiles.bash push nvim`. It
+copies `init.lua` to `~/.config/nvim/init.lua`; `dotfiles.bash doctor` warns if `nvim` or a
 clipboard tool (`wl-clipboard`) is missing. If a
 different `init.lua` is already there (for example Omarchy's LazyVim one), it
 is moved to the backup folder first
@@ -19,7 +19,7 @@ is moved to the backup folder first
 hot-reload stops working. To go back, run `../../dotfiles.bash restore nvim/init.lua`. NixOS deploys
 the file through home-manager ([../../nix](../../nix/README.md)).
 
-Check what the installer would do with `./install.bash -n`.
+Check what it would do with `../../dotfiles.bash push -n nvim`.
 
 ## How the file is built
 

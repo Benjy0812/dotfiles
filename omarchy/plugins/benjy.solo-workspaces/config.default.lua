@@ -1,4 +1,4 @@
--- Settings for benjy.solo-workspaces. setup.bash created this file and never
+-- Settings for benjy.solo-workspaces. dotfiles.bash setup created this file and never
 -- overwrites it. Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.

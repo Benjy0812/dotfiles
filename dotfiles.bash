@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dotfiles v1.2: compare this repo with ~/.config and sync the two. Each folder
 # in apps/ and mango/ maps to ~/.config/<folder>/; omarchy/ is set up by
-# omarchy/install.bash. Run `./dotfiles.bash help` for the commands.
+# `setup`. Run `./dotfiles.bash help` for the commands.
 set -euo pipefail
 
 VERSION=1.2.0
@@ -15,7 +15,7 @@ SYNCED="$STATE_DIR/synced.tsv" # "name/file<TAB>sha256" as of the last push or p
 HISTORY="$STATE_DIR/history.tsv" # "run<TAB>kind<TAB>name<TAB>file<TAB>saved copy", for undo
 UNDO_DIR="$STATE_DIR/undo"       # repo files as they were before a pull
 RUN_SEQ=0
-OMARCHY_SETTINGS=(monitor-workspaces.lua solo-workspaces.lua)
+OMARCHY_RESTART=0
 DRY=0 JSON=0 COMMIT=0 YES=0
 N_COPY=0 N_BACKUP=0 # counted by push/pull/restore for the summary line
 PULLED=()           # repo paths written by pulls, for the commit offer
@@ -59,7 +59,8 @@ ${B}More${X}
   baseline      record everything that is in sync as the common starting point
   doctor        check tools, .gitignore, backups and links
   watch         notify when a tracked file changes in ~/.config (--auto pulls it)
-  uninstall     undo the Omarchy hook, links and plugins
+  setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
+  uninstall     undo setup
   help, version
 
 ${B}Options${X}
@@ -82,7 +83,7 @@ EOF
 # ---- what is managed ------------------------------------------------------
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('*/README.md' '*/install.bash' '*/fish_variables' 'omarchy/hypr/custom.lua')
+ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'omarchy/hypr/custom.lua')
 USER_IGNORE=() # from .dotfilesignore, which the "Choose what syncs" menu edits
 if [[ -f $ROOT/.dotfilesignore ]]; then
   while IFS= read -r line || [[ -n $line ]]; do
@@ -253,14 +254,125 @@ skipped_count() {
   echo "$n"
 }
 
-# installed | partial | missing, for the Omarchy hook and the two settings links.
-omarchy_state() {
-  local ok=0 total=$((${#OMARCHY_SETTINGS[@]} + 1)) f
-  if grep -qs 'omarchy/hypr/custom.lua' "$HYPR/hyprland.lua"; then ((++ok)); fi
-  for f in "${OMARCHY_SETTINGS[@]}"; do
-    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$ROOT/omarchy/hypr/$f" ]]; then ((++ok)); fi
+# ---- omarchy --------------------------------------------------------------
+# The Omarchy folder is synced like the others. `setup` adds what copying
+# cannot: the hyprland.lua hook, the settings links and the plugin hooks.
+
+# Settings files in omarchy/hypr/ (not custom.lua): linked into ~/.config/hypr/.
+omarchy_settings() {
+  local f
+  for f in "$ROOT"/omarchy/hypr/*.lua; do
+    [[ -f $f && $(basename "$f") != custom.lua ]] && basename "$f"
   done
+}
+
+# Plugin ids: every folder in omarchy/plugins/.
+omarchy_plugins() {
+  local d
+  for d in "$ROOT"/omarchy/plugins/*/; do [[ -d $d ]] && basename "$d"; done
+}
+
+# A plugin with a bar widget hooks into bindings.lua, the others into autostart.lua.
+plugin_hook_file() {
+  if [[ -f $ROOT/omarchy/plugins/$1/Widget.qml ]]; then echo "$HYPR/bindings.lua"; else echo "$HYPR/autostart.lua"; fi
+}
+
+# installed | partial | missing, for the hyprland.lua hook and the settings links.
+omarchy_state() {
+  local ok=0 total=1 f
+  if grep -qs 'omarchy/hypr/custom.lua' "$HYPR/hyprland.lua"; then ((++ok)); fi
+  while read -r f; do
+    ((++total))
+    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$ROOT/omarchy/hypr/$f" ]]; then ((++ok)); fi
+  done < <(omarchy_settings)
   if ((ok == total)); then echo installed; elif ((ok > 0)); then echo partial; else echo missing; fi
+}
+
+# Drop a plugin's marked block from a hook file.
+remove_hook() { # file id
+  [[ -f $1 ]] || return 0
+  awk -v b="-- >>> $2 >>>" -v e="-- <<< $2 <<<" '
+    $0 == b { skip=1; next }
+    $0 == e { skip=0; next }
+    !skip
+  ' "$1" >"$1.tmp"
+  mv "$1.tmp" "$1"
+}
+
+plugin_install() { # id
+  local id=$1 hook dest=$CONFIG/omarchy/plugins/$1 shell=$CONFIG/omarchy/shell.json rel
+  hook=$(plugin_hook_file "$id")
+  [[ -f $hook ]] || die "missing $(short "$hook")"
+  cp "$hook" "$hook.bak"
+  remove_hook "$hook" "$id"
+  while IFS= read -r -d '' rel; do
+    [[ $rel == plugins/$id/* ]] && push_file omarchy "$rel"
+  done < <(tracked omarchy)
+  printf '%s\n' "-- >>> $id >>>" "dofile(\"$dest/${id#*.}.lua\")" "-- <<< $id <<<" >>"$hook"
+  echo "  ${GRN}plugin${X}  $id"
+  # A plugin with a widget replaces Omarchy's global workspace strip in the bar.
+  if [[ -f $ROOT/omarchy/plugins/$id/Widget.qml && -f $shell ]] && grep -q '"omarchy.workspaces"' "$shell"; then
+    cp "$shell" "$shell.bak"
+    sed -i "s/\"omarchy.workspaces\"/\"$id\"/" "$shell"
+    OMARCHY_RESTART=1
+  fi
+}
+
+plugin_uninstall() { # id
+  local id=$1 shell=$CONFIG/omarchy/shell.json
+  remove_hook "$(plugin_hook_file "$id")" "$id"
+  rm -rf "$CONFIG/omarchy/plugins/$id"
+  if [[ -f $ROOT/omarchy/plugins/$id/Widget.qml && -f $shell ]]; then
+    sed -i "s/\"$id\"/\"omarchy.workspaces\"/" "$shell"
+    OMARCHY_RESTART=1
+  fi
+  echo "  ${YEL}removed${X} plugin $id"
+}
+
+omarchy_reload() {
+  hyprctl reload >/dev/null 2>&1 && hyprctl configerrors || true
+  # Plugin hot-reload can keep the old widget cached, so restart the bar.
+  if ((OMARCHY_RESTART)); then omarchy restart shell >/dev/null 2>&1 || true; fi
+}
+
+# Load custom.lua from hyprland.lua, link the settings, install the plugins.
+# Safe to run again, e.g. after `omarchy refresh hyprland`.
+omarchy_setup() {
+  local hl=$HYPR/hyprland.lua f
+  if ((DRY)); then echo "would hook custom.lua into hyprland.lua, link the settings and install the plugins"; return 0; fi
+  [[ -f $hl ]] || die "missing $(short "$hl")"
+  OMARCHY_RESTART=0
+  cp "$hl" "$hl.bak"
+  # Skip Omarchy's preinstalled app binds; has to be set before its defaults load.
+  sed -i 's/^-- *omarchy_preinstalled_bindings = false/omarchy_preinstalled_bindings = false/' "$hl"
+  grep -q 'omarchy/hypr/custom.lua' "$hl" || echo "dofile(\"$ROOT/omarchy/hypr/custom.lua\")" >>"$hl"
+  echo "  ${GRN}hook${X}    custom.lua loads from hyprland.lua"
+  # Link before the plugin hooks run, so the plugins don't create default settings.
+  while read -r f; do
+    if [[ -e $HYPR/$f && ! -L $HYPR/$f ]]; then stash omarchy "hypr/$f" "$HYPR/$f"; fi
+    ln -sfn "$ROOT/omarchy/hypr/$f" "$HYPR/$f"
+    echo "  ${GRN}link${X}    hypr/$f"
+  done < <(omarchy_settings)
+  while read -r f; do plugin_install "$f"; done < <(omarchy_plugins)
+  omarchy_reload
+}
+
+omarchy_uninstall() {
+  local hl=$HYPR/hyprland.lua f
+  if ((DRY)); then echo "would remove the hook, the settings links and the plugins"; return 0; fi
+  OMARCHY_RESTART=0
+  while read -r f; do plugin_uninstall "$f"; done < <(omarchy_plugins)
+  # Only remove links pointing here; the settings stay in this repo.
+  while read -r f; do
+    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$ROOT/omarchy/hypr/$f" ]]; then rm "$HYPR/$f"; fi
+  done < <(omarchy_settings)
+  if [[ -f $hl ]]; then
+    cp "$hl" "$hl.bak"
+    sed -i '/omarchy\/hypr\/custom.lua/d' "$hl"
+    sed -i 's/^omarchy_preinstalled_bindings = false/-- omarchy_preinstalled_bindings = false/' "$hl"
+  fi
+  omarchy_reload
+  echo "${B}removed${X} the Omarchy hook, links and plugins"
 }
 
 # Names that need a push / have edits in ~/.config.
@@ -684,6 +796,7 @@ doctor() {
   for c in git gum fzf; do
     if command -v "$c" >/dev/null; then d_ok "$c"; else d_bad "$c is missing (the menu needs it)"; fi
   done
+  if command -v wl-copy >/dev/null || command -v xclip >/dev/null; then d_ok "clipboard tool"; else d_warn "wl-copy or xclip is missing (nvim's system clipboard)"; fi
   for c in inotifywait notify-send nvim; do
     if command -v "$c" >/dev/null; then d_ok "$c"; else d_warn "$c is missing (watch / merge)"; fi
   done
@@ -1052,10 +1165,10 @@ menu_tools() {
     "Back|Return to the main menu.") || return 0
   case $choice in
     Doctor) doctor || true; pause ;;
-    "Omarchy: set up") "$ROOT/omarchy/install.bash"; pause ;;
+    "Omarchy: set up") omarchy_setup; pause ;;
     "Omarchy: uninstall")
       if gum confirm "Remove the Omarchy hook, links and plugins?"; then
-        "$ROOT/omarchy/install.bash" uninstall
+        omarchy_uninstall
         pause
       fi
       ;;
@@ -1194,9 +1307,8 @@ case $cmd in
   baseline) baseline ;;
   doctor) doctor ;;
   watch) watch_config "${names[@]}" ;;
-  uninstall)
-    if ((DRY)); then echo "would run omarchy/install.bash uninstall"; else "$ROOT/omarchy/install.bash" uninstall; fi
-    ;;
+  setup) omarchy_setup ;;
+  uninstall) omarchy_uninstall ;;
   help) usage ;;
   version) echo "dotfiles $VERSION" ;;
   *) usage >&2; exit 2 ;;

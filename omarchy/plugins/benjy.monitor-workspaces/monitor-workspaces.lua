@@ -9,7 +9,7 @@
 
 local M = { monitors = {}, per_monitor = 10 }
 
--- Settings live outside the plugin so reinstalling keeps them; setup.bash
+-- Settings live outside the plugin so reinstalling keeps them; dotfiles.bash setup
 -- creates this file from config.default.lua. A mistake in it shows up in
 -- `hyprctl configerrors`.
 M.config = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/monitor-workspaces.lua"

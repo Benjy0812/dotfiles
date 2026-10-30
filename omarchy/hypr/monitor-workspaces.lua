@@ -1,5 +1,5 @@
 -- Settings for benjy.monitor-workspaces, linked to ~/.config/hypr/monitor-workspaces.lua by
--- omarchy/install.bash. Apply changes with: hyprctl reload
+-- dotfiles.bash setup. Apply changes with: hyprctl reload
 return {
   -- Monitor order decides which block of workspace ids each one owns: the
   -- first gets 1-10, the second 11-20, and so on. Entries are a connector

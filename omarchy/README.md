@@ -21,15 +21,18 @@ tracked; everything else stays Omarchy's stock config.
 ### Setup
 
 ```sh
-./install.bash             # hyprland.lua edits below, settings links, both plugins
-./install.bash uninstall   # undo it all
+../dotfiles.bash push omarchy   # copy shell.json and the plugins into ~/.config
+../dotfiles.bash setup          # hyprland.lua hook, settings links, plugin hooks
+../dotfiles.bash uninstall      # undo setup
 ```
 
 Safe to run again; do so after `omarchy refresh hyprland` or `omarchy refresh shell`.
-`shell.json` is not copied, so your live one stays as it is. App configs
+`shell.json` syncs like any file (untick it in `dotfiles.bash select` to leave your
+live one alone). App configs
 (terminals, git, ...) are in [`../apps`](../apps/README.md).
 An existing plugin settings file that isn't a link yet is kept as `*.bak`.
-Each plugin also installs on its own with its `setup.bash`, for use without the rest.
+Every folder in `plugins/` is installed, and a plugin with a `Widget.qml` also
+replaces the bar's workspace widget.
 
 What it does by hand: `custom.lua` is loaded from `~/.config/hypr/hyprland.lua`, which needs two edits:
 

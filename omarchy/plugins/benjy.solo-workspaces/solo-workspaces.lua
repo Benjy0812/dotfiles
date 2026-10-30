@@ -13,7 +13,7 @@
 local defaults = { apps = {}, push_others = true, follow = true, slots = 10 }
 local M = {}
 
--- Settings live outside the plugin so reinstalling keeps them; setup.bash
+-- Settings live outside the plugin so reinstalling keeps them; dotfiles.bash setup
 -- creates this file from config.default.lua.
 M.config = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/solo-workspaces.lua"
 

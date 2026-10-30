@@ -16,9 +16,9 @@ Floating windows (dialogs, popups, pickers) are never moved and never count.
 
 ## Configure
 
-Don't edit the plugin files; reinstalling overwrites them. `setup.bash` creates
-your own settings file at `~/.config/hypr/solo-workspaces.lua` the first time,
-from `config.default.lua`, and never touches it again (uninstall keeps it too):
+Don't edit the plugin files; reinstalling overwrites them. Your own settings
+file is `~/.config/hypr/solo-workspaces.lua` (started from `config.default.lua`);
+installing never overwrites it and uninstall keeps it:
 
 ```lua
 return {
@@ -41,8 +41,8 @@ Works on its own with plain workspaces 1-10. If
 ## Install
 
 ```sh
-./setup.bash            # install and hook into hypr/autostart.lua
-./setup.bash uninstall
+dotfiles.bash setup       # install and hook into hypr/autostart.lua
+dotfiles.bash uninstall
 ```
 
 Run it again after updating the plugin, and after `omarchy refresh hyprland`.

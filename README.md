@@ -7,7 +7,7 @@ its own README with the details.
 |---|---|---|
 | `profiles/<os>/` | What is synced on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md) |
 | `apps/`, `mango/` | Boilerplate: starting configs that `profile new` copies into a new profile | [apps/README.md](apps/README.md) |
-| `nix/`, `flake.nix` | NixOS system and home-manager profile | [nix/README.md](nix/README.md) |
+| `flake.nix` | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/` | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
 | `docs/` | Guides, starting with [the dotfiles.bash usage](docs/usage.md) | [docs/README.md](docs/README.md) |
 | `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
 
@@ -26,7 +26,7 @@ Then put the configs in place, depending on the machine. On any machine,
 `gum` and `fzf`). Or by hand:
 
 - **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
-  deploys them through home-manager ([nix](nix/README.md)).
+  deploys them through home-manager ([nix](profiles/nixos/nix/README.md)).
 - **Omarchy:** `./dotfiles.bash push`, then `./dotfiles.bash setup`
   ([omarchy](omarchy/README.md)).
 - **Anywhere else:** `./dotfiles.bash push` copies the profile into `~/.config/` and keeps

@@ -1,6 +1,6 @@
 # Nix
 
-The flake (`../flake.nix`) has two outputs:
+The flake (`../../../flake.nix`) has two outputs:
 
 - **`nixosConfigurations.benjy`** - full NixOS system. Installs MangoWM, makes
   it the default SDDM session, and deploys the dotfiles through home-manager.

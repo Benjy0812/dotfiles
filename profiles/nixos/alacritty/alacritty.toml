@@ -1,0 +1,38 @@
+# Alacritty, matching the kitty, foot and ghostty configs next to it.
+# Reference: https://alacritty.org/config-alacritty.html
+
+# Colors come from the current Omarchy theme, so `omarchy theme set` restyles
+# this too. Drop the import to pick your own colors below.
+general.import = [ "~/.local/state/omarchy/current/theme/alacritty.toml" ]
+
+[env]
+# Widely known terminfo name, so SSH hosts without Alacritty's work too.
+TERM = "xterm-256color"
+
+[terminal]
+# Let programs (vim, tmux, over SSH too) read and write the clipboard.
+osc52 = "CopyPaste"
+
+# Nerd Font variant, so icons in prompts, Yazi and lazygit render.
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+size = 9
+
+[window]
+padding.x = 14
+padding.y = 14
+# Hyprland draws the borders, so no title bar of its own.
+decorations = "None"
+
+[keyboard]
+bindings = [
+# Shift/Ctrl+Insert as a second way to paste and copy.
+{ key = "Insert", mods = "Shift", action = "Paste" },
+{ key = "Insert", mods = "Control", action = "Copy" },
+# Send Shift+Return as CSI-u so TUIs can distinguish it from Return without treating it as Alt+Return.
+{ key = "Return", mods = "Shift", chars = "\u001B[13;2u" },
+# Legacy encoding sends Alt+Shift+Return the same as Alt+Return; send CSI-u so tmux can match M-S-Enter.
+{ key = "Return", mods = "Alt|Shift", chars = "\u001B[13;4u" }
+]

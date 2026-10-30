@@ -124,7 +124,7 @@ resolve_profile() {
 resolve_profile
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
+ALWAYS_IGNORE=('nix/*' '*/README.md' '*/fish_variables' 'hypr/custom.lua')
 USER_IGNORE=() # from the profile's .dotfilesignore, which "Choose what syncs" edits
 
 # matches PATH ("folder/file") against the globs that follow it

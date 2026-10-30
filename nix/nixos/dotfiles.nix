@@ -19,6 +19,8 @@
     "mango".source = "${dotfiles}/mango";
     "mango".recursive = true;
 
+    "nvim/init.lua".source = "${dotfiles}/apps/nvim/init.lua";
+
     "yazi/yazi.toml".source = "${dotfiles}/apps/yazi/yazi.toml";
 
     "zed/settings.json".source = "${dotfiles}/apps/zed/settings.json";

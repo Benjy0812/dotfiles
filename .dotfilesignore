@@ -1,0 +1,5 @@
+# Paths dotfiles.bash never compares, pushes or pulls. One glob per line,
+# written as folder/file; * also matches slashes. README.md, install.bash and
+# fish_variables are always skipped. Examples:
+#   mango/wall/*
+#   kitty/current-theme.conf

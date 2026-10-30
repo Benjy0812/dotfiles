@@ -21,7 +21,9 @@ The Omarchy plugins have their own READMEs too:
 git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
 ```
 
-Then put the configs in place, depending on the machine:
+Then put the configs in place, depending on the machine. On any machine,
+`./dotfiles.bash` compares the repo with `~/.config` and syncs them (menu needs
+`gum` and `fzf`). Or by hand:
 
 - **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
   deploys them through home-manager ([nix](nix/README.md)).
@@ -29,6 +31,33 @@ Then put the configs in place, depending on the machine:
   ([omarchy](omarchy/README.md)).
 - **Anywhere else:** copy the folders you want from `apps/` (and `mango/`) into `~/.config/`, after
   backing up what's there.
+
+## dotfiles.bash
+
+`./dotfiles.bash help` lists everything. The main parts:
+
+- **Menu:** status per folder, then Push folders, Push single files, Fetch, Diff, Backups,
+  Doctor. The file pickers (fzf) preview each diff; `Tab` selects, `Ctrl-e`
+  opens `nvim -d` on the file.
+- **Push / pull:** `push [name|name/file]` copies repo to `~/.config`; `pull`
+  copies edits back (`--commit` commits them, the menu offers commit and push).
+  `-n` is a dry run everywhere.
+- **Conflicts:** after `baseline` (or the first push or pull of a file) the
+  script knows each file's last synced content, so it can tell "edited in
+  `~/.config`" from "changed on both sides". Without that it goes by file time.
+- **Backups:** a replaced file is moved to its own folder,
+  `~/.local/state/dotfiles/backups/<folder>/<file>/<time>` (`DOTFILES_BACKUP_DIR`
+  changes it), so a file with ten backups has one folder, not ten files beside it.
+  `backups` lists them, `restore name/file` brings one back, `clean --yes`
+  deletes the ones older than 30 days.
+- **watch:** `./dotfiles.bash watch [--auto]` notifies when a tracked file is
+  saved in `~/.config` (`--auto` pulls it). Run it at login, for example from
+  Hyprland's `exec-once`. Needs `inotify-tools`.
+- **doctor:** checks tools, that `.gitignore` does not hide tracked files, old
+  backups and broken links.
+- **Config files:** `.dotfilesignore` lists paths to skip; `.dotfiles-hosts`
+  maps a hostname to the folders it should get (both optional). Fish
+  completions live in `apps/fish/completions/dotfiles.bash.fish`.
 
 ## What's not tracked
 

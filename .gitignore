@@ -4,6 +4,9 @@
 !.gitignore
 !apps/
 !README.md
+!dotfiles.bash
+!.dotfilesignore
+!.dotfiles-hosts
 !flake.nix
 !flake.lock
 !fixes/

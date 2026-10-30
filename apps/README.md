@@ -7,6 +7,7 @@ them ([../nix](../nix/README.md)); elsewhere copy the ones you want over.
 |---|---|---|
 | `alacritty/`, `kitty/`, `foot/`, `ghostty/` | Terminals, set up alike (see below) | |
 | `fish/` | Fish shell: aliases, abbreviations, helper functions | [fish/README.md](fish/README.md) |
+| `nvim/` | Neovim: plugin-free `init.lua` for learning | [nvim/README.md](nvim/README.md) |
 | `yazi/` | Yazi file manager | [yazi/README.md](yazi/README.md) |
 | `zed/`, `.zed/` | Zed editor settings and the Glass theme | [zed/README.md](zed/README.md) |
 | `git/` | Git aliases, sane defaults, `gh` as credential helper | |

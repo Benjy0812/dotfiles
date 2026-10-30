@@ -12,6 +12,9 @@ HYPR="$CONFIG/hypr"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 BACKUP_DIR="${DOTFILES_BACKUP_DIR:-$STATE_DIR/backups}" # one folder per file inside
 SYNCED="$STATE_DIR/synced.tsv" # "name/file<TAB>sha256" as of the last push or pull
+HISTORY="$STATE_DIR/history.tsv" # "run<TAB>kind<TAB>name<TAB>file<TAB>saved copy", for undo
+UNDO_DIR="$STATE_DIR/undo"       # repo files as they were before a pull
+RUN_SEQ=0
 OMARCHY_SETTINGS=(monitor-workspaces.lua solo-workspaces.lua)
 DRY=0 JSON=0 COMMIT=0 YES=0
 N_COPY=0 N_BACKUP=0 # counted by push/pull/restore for the summary line
@@ -22,6 +25,10 @@ if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
 else
   B= D= RED= GRN= YEL= CYA= X=
 fi
+
+# Every push, pull or restore is one run, so undo can put back just that run.
+new_run() { RUN_ID="$(date +%Y%m%d-%H%M%S)-$((++RUN_SEQ))"; }
+new_run
 
 die() { echo "${RED}$*${X}" >&2; exit 1; }
 short() { echo "${1/#$HOME/\~}"; }
@@ -41,6 +48,7 @@ ${B}Everyday${X}
   push          copy repo files into ~/.config; replaced files are kept in the backup folder
   pull          copy files edited in ~/.config back into the repo (--commit commits them)
   restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
+  undo          put back what the last push, pull or restore changed (--yes to do it)
 
 ${B}More${X}
   fetch         list every file that differs, with +/- line counts; changes nothing
@@ -169,6 +177,21 @@ record_sync() { # key file
     printf '%s\t%s\n' "$1" "$(hash_of "$2")"
   } >"$tmp"
   mv -f "$tmp" "$SYNCED"
+}
+
+# Remember one change of the current run so undo can reverse it.
+log_change() { # kind name rel [saved]
+  if ((DRY)); then return 0; fi
+  mkdir -p "$STATE_DIR"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$RUN_ID" "$1" "$2" "$3" "${4:-}" >>"$HISTORY"
+}
+
+# Keep the repo file as it is before a pull overwrites it.
+save_repo_copy() { # name rel src
+  local saved=$UNDO_DIR/$RUN_ID/$1/$2
+  mkdir -p "$(dirname "$saved")"
+  cp -P "$3" "$saved"
+  log_change pull "$1" "$2" "$saved"
 }
 
 # same | missing | repo-newer | config-newer | conflict, for a repo file and its
@@ -323,18 +346,23 @@ changed_files() { # all | pull
   done < <(entries)
 }
 
+# " +N -M": lines of file $2 that are new / missing compared with file $1.
+diff_stat() {
+  local add del
+  if [[ -L $1 || -L $2 ]]; then return 0; fi
+  add=$(diff "$1" "$2" | grep -c '^>' || true)
+  del=$(diff "$1" "$2" | grep -c '^<' || true)
+  printf ' %s+%s%s %s-%s%s' "$GRN" "$add" "$X" "$RED" "$del" "$X"
+}
+
 # Read-only preview of every differing file; +/- count lines of the
 # ~/.config copy against the repo copy.
 fetch_report() {
-  local n rel st src dest add del stat total=0
+  local n rel st src dest stat total=0
   while IFS=$'\t' read -r n rel st; do
     src=$(src_dir "$n")/$rel dest=$CONFIG/$n/$rel
     stat=
-    if [[ $st != missing && ! -L $src && ! -L $dest ]]; then
-      add=$(diff "$src" "$dest" | grep -c '^>' || true)
-      del=$(diff "$src" "$dest" | grep -c '^<' || true)
-      stat=" ${GRN}+$add${X} ${RED}-$del${X}"
-    fi
+    if [[ $st != missing ]]; then stat=$(diff_stat "$src" "$dest"); fi
     printf '  %-38s %s%s\n' "$n/$rel" "$(tag_for "$st")" "$stat"
     ((++total))
   done < <(changed_files all)
@@ -363,6 +391,7 @@ stash() { # name rel file
     mkdir -p "$(dirname "$bak")"
     mv -T "$3" "$bak"
     touch -h "$bak"
+    log_change stash "$1" "$2" "$bak"
   fi
 }
 
@@ -379,6 +408,7 @@ push_file() { # name rel
   if ((!DRY)); then
     mkdir -p "$(dirname "$dest")"
     cp -P "$src" "$dest"
+    if [[ $st == missing ]]; then log_change created "$1" "$2"; fi
     record_sync "$1/$2" "$dest"
   fi
 }
@@ -393,6 +423,7 @@ pull_file() { # name rel
   echo "  ${YEL}pull${X}    $1/$2"
   ((++N_COPY))
   if ((!DRY)); then
+    save_repo_copy "$1" "$2" "$src"
     cp -P "$dest" "$src"
     PULLED+=("${src#"$ROOT"/}")
     record_sync "$1/$2" "$dest"
@@ -537,6 +568,66 @@ restore_target() { # name rel
   b=$(latest_backup "$1" "$2")
   [[ -n $b ]] || { echo "  ${RED}no backup${X}  $1/$2"; return 0; }
   restore_backup "$1" "$2" "$b"
+}
+
+# ---- undo -----------------------------------------------------------------
+
+# "2026-10-30 14:02" from a run id like 20261030-140212-1.
+run_time() {
+  local id=${1%-*}
+  date -d "${id:0:8} ${id:9:2}:${id:11:2}:${id:13:2}" '+%F %H:%M' 2>/dev/null || echo "$id"
+}
+
+# Newest run in the history, and its changes newest first.
+last_run() { if [[ -s $HISTORY ]]; then tail -n1 "$HISTORY" | cut -f1; fi; }
+run_changes() { awk -F'\t' -v r="$1" '$1 == r' "$HISTORY" | tac; }
+
+# Put back everything the newest run changed: replaced ~/.config files, new
+# files (moved to the backups) and repo files that a pull overwrote. Undoing is
+# itself a run, so undoing again redoes it.
+undo_last() { # [confirm]
+  local run lines=() line kind n rel saved dest src
+  run=$(last_run)
+  if [[ -z $run ]]; then echo "nothing to undo"; return 0; fi
+  mapfile -t lines < <(run_changes "$run")
+  echo "${B}Last sync${X}  $(run_time "$run")"
+  for line in "${lines[@]}"; do
+    IFS=$'\t' read -r _ kind n rel saved <<<"$line"
+    case $kind in
+      stash) echo "  ${CYA}←${X} put back the old ~/.config copy of $n/$rel" ;;
+      created) echo "  ${RED}×${X} remove $n/$rel from ~/.config (it was new; kept as a backup)" ;;
+      pull) echo "  ${CYA}←${X} put back the old repo copy of $n/$rel" ;;
+    esac
+  done
+  if [[ ${1:-} == confirm ]]; then
+    gum confirm --affirmative Undo --negative Cancel "Undo these ${#lines[@]} change(s)?" || return 0
+  elif ((!YES && !DRY)); then
+    echo "Pass --yes to undo."
+    return 0
+  fi
+  new_run
+  N_COPY=0 N_BACKUP=0
+  for line in "${lines[@]}"; do
+    IFS=$'\t' read -r _ kind n rel saved <<<"$line"
+    dest=$CONFIG/$n/$rel src=$(src_dir "$n")/$rel
+    case $kind in
+      stash)
+        if [[ -e $saved || -L $saved ]]; then restore_backup "$n" "$rel" "$saved"
+        else echo "  ${RED}backup is gone${X}  $n/$rel"; fi
+        ;;
+      created)
+        if [[ -e $dest || -L $dest ]]; then stash "$n" "$rel" "$dest"; fi
+        ;;
+      pull)
+        if [[ -e $saved ]]; then
+          echo "  ${GRN}restore${X} $n/$rel in the repo"
+          ((++N_COPY))
+          if ((!DRY)); then save_repo_copy "$n" "$rel" "$src"; cp -P "$saved" "$src"; fi
+        else echo "  ${RED}old repo copy is gone${X}  $n/$rel"; fi
+        ;;
+    esac
+  done
+  summary undone
 }
 
 # Backups older than DAYS: listed, and deleted with --yes (or after confirming).
@@ -696,33 +787,85 @@ need_fzf() {
 # Colored "what Enter will do" label for one differing file.
 sync_tag() {
   case $1 in
-    config-newer) echo "${YEL}← pull${X}  edited in ~/.config" ;;
-    repo-newer) echo "${CYA}→ push${X}  newer in repo" ;;
-    conflict) echo "${RED}⚠ both${X}  changed on both sides, you choose" ;;
-    *) echo "${CYA}→ push${X}  not installed" ;;
+    config-newer) echo "${YEL}← save to repo${X}      edited in ~/.config" ;;
+    repo-newer) echo "${CYA}→ save to ~/.config${X}  newer in repo" ;;
+    conflict) echo "${RED}⚠ both changed${X}       you choose" ;;
+    *) echo "${CYA}→ save to ~/.config${X}  not installed" ;;
   esac
 }
 
-# Every file that differs in one fzf list. Enter applies each file in the
-# direction its label shows; files changed on both sides ask first.
-# Keys: tab selects, ctrl-a all, ctrl-d none, ctrl-e opens nvim -d.
+omarchy_pending() { [[ -d $ROOT/omarchy && $(omarchy_state) != installed ]]; }
+
+# One line under the status table saying what to do next. Sets PENDING.
+next_step() {
+  local st e=0 r=0 b=0 m=0 parts=() list p
+  while IFS=$'\t' read -r _ _ st; do
+    case $st in
+      config-newer) ((++e)) ;;
+      repo-newer) ((++r)) ;;
+      conflict) ((++b)) ;;
+      missing) ((++m)) ;;
+    esac
+  done <<<"$DIFFS"
+  if omarchy_pending; then ((++m)); fi
+  PENDING=$((e + r + b + m))
+  if ((PENDING == 0)); then echo "  ${GRN}Everything is in sync.${X}"; return 0; fi
+  if ((e)); then parts+=("$e edited in ~/.config"); fi
+  if ((r)); then parts+=("$r newer in repo"); fi
+  if ((b)); then parts+=("$b changed on both sides"); fi
+  if ((m)); then parts+=("$m not installed"); fi
+  list=${parts[0]}
+  for p in "${parts[@]:1}"; do list+=", $p"; done
+  echo "  ${B}Next:${X} open Sync to review $PENDING file(s): $list"
+}
+
+# The list of changes the user is about to approve.
+sync_review() { # plan lines: act<TAB>name<TAB>rel
+  local p act n rel src dest
+  clear
+  printf '\n  %sReview%s\n\n' "$B$CYA" "$X"
+  for p in "$@"; do
+    IFS=$'\t' read -r act n rel <<<"$p"
+    src=$(src_dir "$n")/$rel dest=$CONFIG/$n/$rel
+    if [[ $rel == - ]]; then
+      printf '  → ~/.config  %-34s link the hook and settings\n' "omarchy"
+    elif [[ $act == push ]]; then
+      if [[ -e $dest || -L $dest ]]; then
+        printf '  → ~/.config  %-34s%s  replaces it, old copy kept as a backup\n' "$n/$rel" "$(diff_stat "$dest" "$src")"
+      else
+        printf '  → ~/.config  %-34s  new file\n' "$n/$rel"
+      fi
+    else
+      printf '  ← repo       %-34s%s  replaces the repo file, git can undo it\n' "$n/$rel" "$(diff_stat "$src" "$dest")"
+    fi
+  done
+  echo
+}
+
+# Every file that differs in one fzf list. Files that are safe to apply start
+# ticked, so Enter is the usual answer; files changed on both sides start
+# unticked and ask first. Keys: tab toggles, ctrl-a all, ctrl-d none, ctrl-e nvim -d.
 menu_sync() {
   need_fzf || return 0
-  local n rel st rows picked row act choice plan=() npush=0 npull=0 p
-  rows=$(
-    while IFS=$'\t' read -r n rel st; do
-      printf '%-38s %s\t%s\t%s\t%s\n' "$n/$rel" "$(sync_tag "$st")" "$n" "$rel" "$st"
-    done < <(changed_files all)
-    if [[ -d $ROOT/omarchy && $(omarchy_state) != installed ]]; then
-      printf '%-38s %s\t%s\t-\t%s\n' "omarchy (hook and links)" "$(sync_tag missing)" omarchy missing
-    fi
-  )
-  if [[ -z $rows ]]; then MSG="${GRN}everything is in sync${X}"; return 0; fi
+  local n rel st line safe=() conf=() rows picked row act choice plan=() preselect i p
+  while IFS=$'\t' read -r n rel st; do
+    line=$(printf '%-38s %s\t%s\t%s\t%s' "$n/$rel" "$(sync_tag "$st")" "$n" "$rel" "$st")
+    if [[ $st == conflict ]]; then conf+=("$line"); else safe+=("$line"); fi
+  done < <(changed_files all)
+  if omarchy_pending; then
+    safe+=("$(printf '%-38s %s\t%s\t-\t%s' "omarchy (hook and links)" "$(sync_tag missing)" omarchy missing)")
+  fi
+  if ((${#safe[@]} + ${#conf[@]} == 0)); then MSG="${GRN}everything is in sync${X}"; return 0; fi
+  rows=$(printf '%s\n' "${safe[@]}" "${conf[@]}" | sed '/^$/d')
+  preselect="load:select-all"
+  for ((i = 1; i <= ${#conf[@]}; i++)); do preselect+="+pos(-$i)+deselect"; done
+  preselect+="+pos(1)"
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
     --prompt "sync > " --pointer ">" --marker "+" \
-    --header $'tab select · ctrl-a all · ctrl-d none · ctrl-e merge · enter apply\ndiff: - repo, + ~/.config' \
+    --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge\ndiff: - repo, + ~/.config' \
     --preview "if [ {3} = - ]; then echo 'Links the Omarchy hook and settings (omarchy/install.bash).'; else '$SELF' preview {2} {3}; fi" \
     --preview-window 'down,60%,wrap,border-top' \
+    --bind "$preselect" \
     --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
     --bind "ctrl-e:execute('$SELF' merge {2} {3})" <<<"$rows" || true)
   ((${#picked[@]})) || return 0
@@ -732,20 +875,25 @@ menu_sync() {
       config-newer) act=pull ;;
       conflict)
         choice=$(choose "$n/$rel changed on both sides" \
-          "Push|The repo copy wins; the ~/.config copy is kept as a backup." \
-          "Pull|The ~/.config copy wins and replaces the repo file (git can undo it)." \
+          "Keep the repo copy|Replaces the ~/.config file; the old one is kept as a backup." \
+          "Keep the ~/.config copy|Replaces the repo file (git can undo it)." \
+          "Merge in nvim|Open both copies side by side. Nothing is applied now." \
           "Skip|Leave both as they are.") || choice=Skip
-        act=${choice,,}
+        case $choice in
+          "Keep the repo copy") act=push ;;
+          "Keep the ~/.config copy") act=pull ;;
+          "Merge in nvim") merge_file "$n" "$rel"; act=skip ;;
+          *) act=skip ;;
+        esac
         ;;
       *) act=push ;;
     esac
-    case $act in
-      push) plan+=("push"$'\t'"$n"$'\t'"$rel"); ((++npush)) ;;
-      pull) plan+=("pull"$'\t'"$n"$'\t'"$rel"); ((++npull)) ;;
-    esac
+    if [[ $act != skip ]]; then plan+=("$act"$'\t'"$n"$'\t'"$rel"); fi
   done
   ((${#plan[@]})) || return 0
-  gum confirm "Apply $npush push, $npull pull? (replaced files in ~/.config are kept as backups)" || return 0
+  sync_review "${plan[@]}"
+  gum confirm --affirmative Apply --negative Cancel "Apply ${#plan[@]} change(s)?" || return 0
+  new_run
   N_COPY=0 N_BACKUP=0
   for p in "${plan[@]}"; do
     IFS=$'\t' read -r act n rel <<<"$p"
@@ -856,12 +1004,10 @@ menu_tools() {
   local choice
   choice=$(choose "Tools" \
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
-    "Record baseline|Mark everything that is in sync as the common starting point for conflict detection." \
     "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
     "Back|Return to the main menu.") || return 0
   case $choice in
     Doctor) doctor || true; pause ;;
-    "Record baseline") baseline; pause ;;
     Omarchy*)
       if gum confirm "Remove the Omarchy hook, links and plugins?"; then
         "$ROOT/omarchy/install.bash" uninstall
@@ -873,20 +1019,26 @@ menu_tools() {
 
 menu() {
   command -v gum >/dev/null || die "the menu needs gum (sudo pacman -S gum); or use: $0 help"
-  local choice count
+  local choice items run
   while true; do
     if ((KEEP)); then KEEP=0; echo; else clear; fi
     show_status
+    DIFFS=$(changed_files all)
+    next_step
+    echo
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
-    count=$(( $(changed_files all | wc -l) + $([[ -d $ROOT/omarchy && $(omarchy_state) != installed ]] && echo 1 || echo 0) ))
-    choice=$(choose "What next?" \
-      "Sync|$(if ((count)); then echo "$count item(s) differ. Pick files and apply them in the direction shown, with a diff preview."; else echo "Everything is in sync."; fi)" \
-      "Backups|Restore a replaced file, or delete old backups." \
-      "Tools|Doctor, record baseline, uninstall the Omarchy hook." \
-      "Quit|Leave the menu.") || break
+    items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
+      "Backups|Restore a replaced file, or delete old backups.")
+    run=$(last_run)
+    if [[ -n $run ]]; then
+      items+=("Undo last sync|Put back what the run from $(run_time "$run") changed ($(run_changes "$run" | wc -l) change(s)).")
+    fi
+    items+=("Tools|Doctor and the Omarchy uninstall." "Quit|Leave the menu.")
+    choice=$(choose "What next?" "${items[@]}") || break
     case $choice in
       Sync) menu_sync ;;
       Backups) menu_backups ;;
+      "Undo last sync") undo_last confirm; pause ;;
       Tools) menu_tools ;;
       Quit) break ;;
     esac
@@ -991,6 +1143,7 @@ case $cmd in
       die "usage: $0 restore NAME/FILE.."
     fi
     ;;
+  undo) undo_last ;;
   clean) clean_backups "${names[0]:-30}" ;;
   baseline) baseline ;;
   doctor) doctor ;;

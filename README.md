@@ -36,11 +36,16 @@ Then put the configs in place, depending on the machine. On any machine,
 
 `./dotfiles.bash help` lists everything. The main parts:
 
-- **Menu:** the status table, then Sync, Backups, Tools. Sync is one fzf list of
-  every file that differs, labeled `→ push`, `← pull` or `⚠ both`; `Tab` selects,
-  `Enter` applies each file in the direction shown (conflicts ask first),
-  `Ctrl-e` opens `nvim -d`. Backups restores (type a folder or file name to
-  filter) or deletes old ones. Tools has Doctor, baseline and the Omarchy uninstall.
+- **Menu:** the status table and a "Next:" line, then Sync, Backups, Tools (and
+  Undo last sync once something has been applied). Sync is one fzf list of every
+  file that differs, labeled `→ save to ~/.config`, `← save to repo` or
+  `⚠ both changed`. Safe files start ticked, so `Enter` is the usual answer;
+  `Tab` toggles, `Ctrl-e` opens `nvim -d`. A review screen lists what will be
+  replaced before anything is applied. Conflicts start unticked and ask: keep
+  the repo copy, keep the ~/.config copy, merge in nvim, or skip.
+- **Undo:** every push, pull and restore is logged. `undo --yes` (or Undo last sync
+  in the menu) puts back the replaced ~/.config files, removes files the run
+  created and restores repo files a pull overwrote. Undoing is itself undoable.
 - **Push / pull:** `push [name|name/file]` copies repo to `~/.config`; `pull`
   copies edits back (`--commit` commits them, the menu offers commit and push).
   `-n` is a dry run everywhere.

@@ -25,7 +25,7 @@ omarchy/*
 !omarchy/README.md
 !omarchy/install.bash
 !omarchy/plugins/
-!omarchy/shell/
+!omarchy/shell.json
 !omarchy/hypr/
 omarchy/hypr/*
 !omarchy/hypr/custom.lua

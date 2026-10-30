@@ -82,7 +82,7 @@ EOF
 # ---- what is managed ------------------------------------------------------
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('*/README.md' '*/install.bash' '*/fish_variables')
+ALWAYS_IGNORE=('*/README.md' '*/install.bash' '*/fish_variables' 'omarchy/hypr/custom.lua')
 USER_IGNORE=() # from .dotfilesignore, which the "Choose what syncs" menu edits
 if [[ -f $ROOT/.dotfilesignore ]]; then
   while IFS= read -r line || [[ -n $line ]]; do
@@ -137,7 +137,13 @@ load_entries() {
 load_entries
 entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
 
-src_dir() { if [[ $1 == mango ]]; then echo "$ROOT/mango"; else echo "$ROOT/apps/$1"; fi; }
+src_dir() { if [[ $1 == mango || $1 == omarchy ]]; then echo "$ROOT/$1"; else echo "$ROOT/apps/$1"; fi; }
+
+# Where a repo file lives in ~/.config: <folder>/<file>, except Omarchy's hypr/
+# files, which belong in ~/.config/hypr/.
+dest_of() { # name rel
+  if [[ $1 == omarchy && $2 == hypr/* ]]; then echo "$CONFIG/$2"; else echo "$CONFIG/$1/$2"; fi
+}
 
 # Files and links of one entry, relative to its folder (NUL separated).
 tracked() {
@@ -172,14 +178,14 @@ synced_hash() {
 }
 
 # Remember that this file was identical on both sides just now.
-record_sync() { # key file
-  if ((DRY)) || [[ -L $2 || ! -f $2 ]]; then return 0; fi
+record_sync() { # file in ~/.config
+  if ((DRY)) || [[ -L $1 || ! -f $1 ]]; then return 0; fi
   mkdir -p "$STATE_DIR"
-  local tmp
+  local tmp key=${1#"$CONFIG"/}
   tmp=$(mktemp "$STATE_DIR/.synced.XXXXXX")
   {
-    if [[ -f $SYNCED ]]; then awk -F'\t' -v k="$1" '$1 != k' "$SYNCED"; fi
-    printf '%s\t%s\n' "$1" "$(hash_of "$2")"
+    if [[ -f $SYNCED ]]; then awk -F'\t' -v k="$key" '$1 != k' "$SYNCED"; fi
+    printf '%s\t%s\n' "$key" "$(hash_of "$1")"
   } >"$tmp"
   mv -f "$tmp" "$SYNCED"
 }
@@ -205,6 +211,7 @@ save_repo_copy() { # name rel src
 state() {
   local s=$1 d=$2 base
   if [[ ! -e $d && ! -L $d ]]; then echo missing
+  elif [[ -L $d && "$(readlink -f "$d")" == "$(readlink -f "$s")" ]]; then echo same
   elif [[ -L $s || -L $d ]]; then
     if [[ "$(readlink "$s" 2>/dev/null)" == "$(readlink "$d" 2>/dev/null)" ]]; then echo same; else echo repo-newer; fi
   elif cmp -s "$s" "$d"; then echo same
@@ -227,7 +234,7 @@ tally() {
   local dir rel
   dir=$(src_dir "$1")
   while IFS= read -r -d '' rel; do
-    case "$(state "$dir/$rel" "$CONFIG/$1/$rel")" in
+    case "$(state "$dir/$rel" "$(dest_of "$1" "$rel")")" in
       same) ((++S_same)) ;;
       repo-newer) ((++S_repo)) ;;
       config-newer) ((++S_conf)) ;;
@@ -260,18 +267,13 @@ omarchy_state() {
 out_of_sync() {
   local n
   while read -r n; do
-    if [[ $n == omarchy ]]; then
-      if [[ "$(omarchy_state)" != installed ]]; then echo "$n"; fi
-    else
-      tally "$n"
-      if ((S_repo + S_conf + S_both + S_miss > 0)); then echo "$n"; fi
-    fi
+    tally "$n"
+    if ((S_repo + S_conf + S_both + S_miss > 0)); then echo "$n"; fi
   done < <(entries)
 }
 config_edited() {
   local n
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     tally "$n"
     if ((S_conf + S_both > 0)); then echo "$n"; fi
   done < <(entries)
@@ -292,13 +294,7 @@ show_status() {
   printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
     "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)"
   while read -r n; do
-    if [[ $n == omarchy ]]; then
-      case "$(omarchy_state)" in
-        installed) label="${GRN}✔ installed${X}" ;;
-        partial) label="${YEL}◐ partly installed${X}" ;;
-        *) label="${RED}✗ not installed${X}" ;;
-      esac
-    else
+    if true; then
       tally "$n"
       parts=()
       if ((S_both)); then parts+=("${RED}⚠ $S_both changed on both sides${X}"); fi
@@ -317,6 +313,9 @@ show_status() {
         for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
       fi
     fi
+    if [[ $n == omarchy && $(omarchy_state) != installed ]]; then
+      label+=" ${D}·${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
+    fi
     printf '  %-14s %s\n' "$n" "$label"
   done < <(entries)
   printf '\n'
@@ -328,9 +327,7 @@ status_json() {
   while read -r n; do
     ((first)) || printf ','
     first=0
-    if [[ $n == omarchy ]]; then
-      printf '{"name":"omarchy","state":"%s"}' "$(omarchy_state)"
-    else
+    if true; then
       tally "$n"
       printf '{"name":"%s","in_sync":%d,"edited_in_config":%d,"newer_in_repo":%d,"conflict":%d,"not_installed":%d}' \
         "$n" "$S_same" "$S_conf" "$S_repo" "$S_both" "$S_miss"
@@ -354,10 +351,9 @@ tag_for() {
 changed_files() { # all | pull
   local n rel st dir
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     dir=$(src_dir "$n")
     while IFS= read -r -d '' rel; do
-      st=$(state "$dir/$rel" "$CONFIG/$n/$rel")
+      st=$(state "$dir/$rel" "$(dest_of "$n" "$rel")")
       [[ $st == same ]] && continue
       [[ $1 == pull && $st == missing ]] && continue
       printf '%s\t%s\t%s\n' "$n" "$rel" "$st"
@@ -379,7 +375,7 @@ diff_stat() {
 fetch_report() {
   local n rel st src dest stat total=0
   while IFS=$'\t' read -r n rel st; do
-    src=$(src_dir "$n")/$rel dest=$CONFIG/$n/$rel
+    src=$(src_dir "$n")/$rel dest=$(dest_of "$n" "$rel")
     stat=
     if [[ $st != missing ]]; then stat=$(diff_stat "$src" "$dest"); fi
     printf '  %-38s %s%s\n' "$n/$rel" "$(tag_for "$st")" "$stat"
@@ -417,7 +413,7 @@ stash() { # name rel file
 # One file, repo -> ~/.config; a different old file is kept as a backup.
 push_file() { # name rel
   local src dest st
-  src=$(src_dir "$1")/$2 dest=$CONFIG/$1/$2
+  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
   if [[ ! -e $src && ! -L $src ]]; then echo "  ${RED}not in the repo${X}  $1/$2"; return 0; fi
   st=$(state "$src" "$dest")
   [[ $st == same ]] && return 0
@@ -428,14 +424,14 @@ push_file() { # name rel
     mkdir -p "$(dirname "$dest")"
     cp -P "$src" "$dest"
     if [[ $st == missing ]]; then log_change created "$1" "$2"; fi
-    record_sync "$1/$2" "$dest"
+    record_sync "$dest"
   fi
 }
 
 # One file, ~/.config -> repo. Git is the undo, so no backup.
 pull_file() { # name rel
   local src dest
-  src=$(src_dir "$1")/$2 dest=$CONFIG/$1/$2
+  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
   if [[ ! -e $src && ! -L $src ]]; then echo "  ${RED}not tracked in the repo${X}  $1/$2"; return 0; fi
   if [[ ! -e $dest && ! -L $dest ]]; then echo "  ${RED}not in ~/.config${X}  $1/$2"; return 0; fi
   [[ "$(state "$src" "$dest")" == same ]] && return 0
@@ -445,27 +441,22 @@ pull_file() { # name rel
     save_repo_copy "$1" "$2" "$src"
     cp -P "$dest" "$src"
     PULLED+=("${src#"$ROOT"/}")
-    record_sync "$1/$2" "$dest"
+    record_sync "$dest"
   fi
 }
 
 install_entry() {
   local name=$1 rel
   echo "${B}$name${X}"
-  if [[ $name == omarchy ]]; then
-    if ((DRY)); then echo "  would run omarchy/install.bash"; else "$ROOT/omarchy/install.bash"; fi
-    return
-  fi
   while IFS= read -r -d '' rel; do push_file "$name" "$rel"; done < <(tracked "$name")
 }
 
 # Every file edited in ~/.config and not changed in the repo since.
 pull_entry() {
   local name=$1 rel
-  if [[ $name == omarchy ]]; then echo "omarchy: nothing to pull (settings are linked)"; return; fi
   echo "${B}$name${X}"
   while IFS= read -r -d '' rel; do
-    case "$(state "$(src_dir "$name")/$rel" "$CONFIG/$name/$rel")" in
+    case "$(state "$(src_dir "$name")/$rel" "$(dest_of "$name" "$rel")")" in
       config-newer) pull_file "$name" "$rel" ;;
       conflict) echo "  ${RED}⚠ skipped${X}  $name/$rel changed on both sides (use merge, or pull the file by name)" ;;
     esac
@@ -475,7 +466,7 @@ pull_entry() {
 # Colored diff of one file: - is the repo copy, + is the ~/.config copy.
 file_diff() { # name rel
   local src dest
-  src=$(src_dir "$1")/$2 dest=$CONFIG/$1/$2
+  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
   case "$(state "$src" "$dest")" in
     same) ;;
     missing) echo "${RED}not installed${X}  $1/$2" ;;
@@ -491,7 +482,6 @@ file_diff() { # name rel
 
 diff_entry() {
   local name=$1 rel
-  if [[ $name == omarchy ]]; then echo "omarchy: linked files, nothing to diff"; return; fi
   while IFS= read -r -d '' rel; do file_diff "$name" "$rel"; done < <(tracked "$name")
 }
 
@@ -499,7 +489,7 @@ diff_entry() {
 # merged result into whichever side you want to keep, then push or pull it.
 merge_file() { # name rel
   local src dest
-  src=$(src_dir "$1")/$2 dest=$CONFIG/$1/$2
+  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
   [[ -f $src && -f $dest ]] || die "both copies must exist: $1/$2"
   if command -v nvim >/dev/null; then nvim -d "$src" "$dest"; else vimdiff "$src" "$dest"; fi
 }
@@ -553,9 +543,8 @@ offer_commit() {
 backups() {
   local n rel dest b
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     while IFS= read -r -d '' rel; do
-      dest=$CONFIG/$n/$rel
+      dest=$(dest_of "$n" "$rel")
       # Per-file backup folder, plus .bak files left next to the file by older versions.
       for b in "$BACKUP_DIR/$n/$rel"/* "$dest".bak*; do
         if [[ -f $b || -L $b ]]; then printf '%s\t%s\t%s\n' "$n" "$rel" "$b"; fi
@@ -565,12 +554,12 @@ backups() {
 }
 
 latest_backup() { # name rel
-  ls -t -- "$BACKUP_DIR/$1/$2"/* "$CONFIG/$1/$2".bak* 2>/dev/null | head -n1 || true
+  ls -t -- "$BACKUP_DIR/$1/$2"/* "$(dest_of "$1" "$2")".bak* 2>/dev/null | head -n1 || true
 }
 
 # Bring a backup back. The current file is backed up first, so nothing is lost.
 restore_backup() { # name rel backup
-  local dest=$CONFIG/$1/$2
+  local dest=$(dest_of "$1" "$2")
   if [[ -e $dest || -L $dest ]]; then stash "$1" "$2" "$dest"; fi
   echo "  ${GRN}restore${X} $(short "$dest")  ${D}from $(basename "$3")${X}"
   ((++N_COPY))
@@ -628,7 +617,7 @@ undo_last() { # [confirm]
   N_COPY=0 N_BACKUP=0
   for line in "${lines[@]}"; do
     IFS=$'\t' read -r _ kind n rel saved <<<"$line"
-    dest=$CONFIG/$n/$rel src=$(src_dir "$n")/$rel
+    dest=$(dest_of "$n" "$rel") src=$(src_dir "$n")/$rel
     case $kind in
       stash)
         if [[ -e $saved || -L $saved ]]; then restore_backup "$n" "$rel" "$saved"
@@ -671,11 +660,10 @@ clean_backups() { # days [confirm]
 baseline() {
   local n rel dir count=0
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     dir=$(src_dir "$n")
     while IFS= read -r -d '' rel; do
-      if [[ "$(state "$dir/$rel" "$CONFIG/$n/$rel")" == same ]]; then
-        record_sync "$n/$rel" "$CONFIG/$n/$rel"
+      if [[ "$(state "$dir/$rel" "$(dest_of "$n" "$rel")")" == same ]]; then
+        record_sync "$(dest_of "$n" "$rel")"
         ((++count))
       fi
     done < <(tracked "$n")
@@ -703,7 +691,6 @@ doctor() {
   echo "${B}repo${X}"
   if git -C "$ROOT" rev-parse >/dev/null 2>&1; then d_ok "git repository ($(repo_state))"; else d_bad "not a git repository"; fi
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     while IFS= read -r -d '' rel; do
       path=$(src_dir "$n")/$rel
       if git -C "$ROOT" check-ignore -q -- "$path"; then d_bad "$n/$rel is ignored by .gitignore, so git will not track it"; fi
@@ -813,8 +800,6 @@ sync_tag() {
   esac
 }
 
-omarchy_pending() { [[ -d $ROOT/omarchy && $(omarchy_state) != installed ]]; }
-
 # One line under the status table saying what to do next. Sets PENDING.
 next_step() {
   local st e=0 r=0 b=0 m=0 parts=() list p
@@ -826,7 +811,6 @@ next_step() {
       missing) ((++m)) ;;
     esac
   done <<<"$DIFFS"
-  if omarchy_pending; then ((++m)); fi
   PENDING=$((e + r + b + m))
   if ((PENDING == 0)); then echo "  ${GRN}Everything is in sync.${X}"; return 0; fi
   if ((e)); then parts+=("$e edited in ~/.config"); fi
@@ -845,10 +829,8 @@ sync_review() { # plan lines: act<TAB>name<TAB>rel
   printf '\n  %sReview%s\n\n' "$B$CYA" "$X"
   for p in "$@"; do
     IFS=$'\t' read -r act n rel <<<"$p"
-    src=$(src_dir "$n")/$rel dest=$CONFIG/$n/$rel
-    if [[ $rel == - ]]; then
-      printf '  → ~/.config  %-34s link the hook and settings\n' "omarchy"
-    elif [[ $act == push ]]; then
+    src=$(src_dir "$n")/$rel dest=$(dest_of "$n" "$rel")
+    if [[ $act == push ]]; then
       if [[ -e $dest || -L $dest ]]; then
         printf '  → ~/.config  %-34s%s  replaces it, old copy kept as a backup\n' "$n/$rel" "$(diff_stat "$dest" "$src")"
       else
@@ -871,9 +853,6 @@ menu_sync() {
     line=$(printf '%-38s %s\t%s\t%s\t%s' "$n/$rel" "$(sync_tag "$st")" "$n" "$rel" "$st")
     if [[ $st == conflict ]]; then conf+=("$line"); else safe+=("$line"); fi
   done < <(changed_files all)
-  if omarchy_pending; then
-    safe+=("$(printf '%-38s %s\t%s\t-\t%s' "omarchy (hook and links)" "$(sync_tag missing)" omarchy missing)")
-  fi
   if ((${#safe[@]} + ${#conf[@]} == 0)); then MSG="${GRN}everything is in sync${X}"; return 0; fi
   rows=$(printf '%s\n' "${safe[@]}" "${conf[@]}" | sed '/^$/d')
   preselect="load:select-all"
@@ -882,7 +861,7 @@ menu_sync() {
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
     --prompt "sync > " --pointer ">" --marker "+" \
     --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge\ndiff: - repo, + ~/.config' \
-    --preview "if [ {3} = - ]; then echo 'Links the Omarchy hook and settings (omarchy/install.bash).'; else '$SELF' preview {2} {3}; fi" \
+    --preview "'$SELF' preview {2} {3}" \
     --preview-window 'down,60%,wrap,border-top' \
     --bind "$preselect" \
     --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
@@ -916,8 +895,7 @@ menu_sync() {
   N_COPY=0 N_BACKUP=0
   for p in "${plan[@]}"; do
     IFS=$'\t' read -r act n rel <<<"$p"
-    if [[ $rel == - ]]; then install_entry "$n"
-    elif [[ $act == push ]]; then push_file "$n" "$rel"
+    if [[ $act == push ]]; then push_file "$n" "$rel"
     else pull_file "$n" "$rel"
     fi
   done
@@ -965,7 +943,7 @@ backup_rows() {
     where=
     if [[ $b != "$BACKUP_DIR"/* ]]; then where="  (beside the file)"; fi
     printf '%s\t%-34s %s  %-12s %5s%s\t%s\t%s\t%s\t%s\n' "$mt" "$n/$rel" "$(date -r "$b" '+%F %H:%M')" \
-      "$ago" "$(numfmt --to=iec --suffix=B "$sz")" "$where" "$b" "$CONFIG/$n/$rel" "$n" "$rel"
+      "$ago" "$(numfmt --to=iec --suffix=B "$sz")" "$where" "$b" "$(dest_of "$n" "$rel")" "$n" "$rel"
   done < <(backups) | sort -rn -t$'\t' -k1,1 | cut -f2-
 }
 
@@ -1027,7 +1005,6 @@ menu_select() {
   local picked=() skipped=0 synced=0 pattern
   declare -A keep=()
   while read -r n; do
-    [[ $n == omarchy ]] && continue
     while IFS= read -r -d '' rel; do
       path=$n/$rel
       matches_any "$path" "${ALWAYS_IGNORE[@]}" && continue
@@ -1070,11 +1047,13 @@ menu_tools() {
   local choice
   choice=$(choose "Tools" \
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
+    "Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))." \
     "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
     "Back|Return to the main menu.") || return 0
   case $choice in
     Doctor) doctor || true; pause ;;
-    Omarchy*)
+    "Omarchy: set up") "$ROOT/omarchy/install.bash"; pause ;;
+    "Omarchy: uninstall")
       if gum confirm "Remove the Omarchy hook, links and plugins?"; then
         "$ROOT/omarchy/install.bash" uninstall
         pause
@@ -1140,7 +1119,6 @@ check_names() {
   local t
   for t in "${names[@]}"; do
     resolve_target "$t" || die "unknown name '$t'. Known: $(entries | paste -sd' ')"
-    if [[ $T_NAME == omarchy && -n $T_REL ]]; then die "omarchy has no single files: $t"; fi
   done
 }
 
@@ -1166,7 +1144,6 @@ case $cmd in
   list)
     if [[ ${names[0]:-} == files ]]; then
       while read -r n; do
-        [[ $n == omarchy ]] && continue
         while IFS= read -r -d '' rel; do echo "$n/$rel"; done < <(tracked "$n")
       done < <(entries)
     else

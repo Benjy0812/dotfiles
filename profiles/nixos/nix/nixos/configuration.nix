@@ -20,7 +20,7 @@
   };
 
   # NETWORK
-  networking.hostName = "benjy";
+  networking.hostName = "Benjy-NixOS";
   networking.networkmanager.enable = true;
 
   # TIME / LOCALE

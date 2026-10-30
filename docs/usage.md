@@ -15,6 +15,7 @@ syncs the two. `./dotfiles.bash help` prints a short version of this page.
 - [Config files](#config-files)
 - [Backups and undo](#backups-and-undo)
 - [Omarchy](#omarchy)
+- [NixOS](#nixos)
 - [Environment variables](#environment-variables)
 - [Requirements](#requirements)
 - [Recipes](#recipes)
@@ -167,6 +168,18 @@ On a profile with `hypr/custom.lua` and `omarchy/plugins/`:
   `Widget.qml`, which also replace the bar's workspace widget) or `autostart.lua`.
   Safe to repeat, e.g. after `omarchy refresh hyprland`.
 - `uninstall` removes all of that. Settings stay in the repo.
+
+## NixOS
+
+NixOS needs no sync. `nixos-rebuild` reads the configs straight from this repo
+(`profiles/nixos/`) and home-manager links them into `~/.config`, so the repo is
+the only copy. That is why `dotfiles.bash` skips any profile that contains a
+`nix/` folder: status says "managed by Nix" and push, pull and the menu do nothing.
+
+- Edit files in `profiles/nixos/`, then rebuild:
+  `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
+- Which files are deployed is listed in `profiles/nixos/nix/nixos/dotfiles.nix`.
+- More in [profiles/nixos/nix/README.md](../profiles/nixos/nix/README.md).
 
 ## Environment variables
 

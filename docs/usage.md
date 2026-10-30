@@ -12,6 +12,7 @@ syncs the two. `./dotfiles.bash help` prints a short version of this page.
 - [Options](#options)
 - [Names](#names)
 - [Profiles](#profiles)
+- [Profile settings](#profile-settings)
 - [Config files](#config-files)
 - [Backups and undo](#backups-and-undo)
 - [Omarchy](#omarchy)
@@ -90,6 +91,8 @@ More:
 | `profile` | Show the active and available profiles. |
 | `profile NAME\|auto\|none` | Choose this machine's profile. |
 | `profile new NAME [folder..]` | Create a profile by copying boilerplate (all of `apps/` if no folders named). |
+| `profile set terminal\|editor NAME\|all` | Choose the preferred terminal or editor. |
+| `edit [NAME[/FILE]]` | Open the profile in the preferred editor. |
 | `profile templates` | List the boilerplate folders. |
 | `map` | Show where each folder goes. |
 | `list [files]` | Folder names, or every `NAME/FILE`. |
@@ -131,6 +134,25 @@ home-manager through `nixos-rebuild`, so `dotfiles.bash` never syncs it.
 
 To add an OS: `./dotfiles.bash profile new ubuntu kitty git fish`, then edit
 `profiles/ubuntu/`. The copy is independent of `apps/` and other profiles.
+
+## Profile settings
+
+`profiles/<os>/profile.conf` says which apps this OS prefers. A profile can hold
+every terminal and editor, but only the preferred one of each group is synced;
+the rest stay untouched in the profile folder.
+
+```text
+terminal = kitty     # alacritty kitty foot ghostty
+editor = nvim        # nvim zed
+```
+
+Use `all` (or leave the line out) to sync every member. Change it with
+`./dotfiles.bash profile set terminal kitty`, or Tools > Profile settings in the
+menu. Status shows what is not synced, e.g. `terminal: kitty (alacritty, foot, ghostty not synced)`.
+If the preferred app isn't in the profile, nothing is filtered.
+
+`./dotfiles.bash edit [NAME[/FILE]]` opens the profile (or one folder or file of
+it) in the preferred editor, falling back to `$EDITOR`, then `nvim`.
 
 ## Config files
 

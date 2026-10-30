@@ -62,6 +62,8 @@ ${B}More${X}
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
   profile [NAME|auto|none]  show or choose this machine's profile (the folders that get synced)
+  profile set terminal|editor NAME|all  sync only the preferred terminal or editor (profile.conf)
+  edit [NAME[/FILE]]  open the profile (or a folder or file of it) in the preferred editor
   profile new NAME [folder..]  start a profile from the boilerplate in apps/ and mango/
   map           show where each repo folder goes (rules live in .dotfiles-map)
   help, version
@@ -78,7 +80,8 @@ ${B}Names${X} are folders (\`./dotfiles.bash list\`) or single files (fish/confi
 Without names, push and diff use every out-of-sync folder, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
-${B}Files${X} in the profile folder (profiles/<os>/), all optional: .dotfiles-map (where
+${B}Files${X} in the profile folder (profiles/<os>/), all optional: profile.conf (preferred
+terminal and editor), .dotfiles-map (where
 folders go), .dotfilesignore (paths to skip) and .dotfiles-hosts (which folders belong
 on which machine).
 EOF
@@ -146,13 +149,70 @@ ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 # The settings files live in the profile (profiles/<os>/), never in the repo root.
 pfile() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
 
-# Read the active profile's .dotfilesignore and .dotfiles-map.
+# Preferences: profiles/<os>/profile.conf holds "key = value" lines. A key is a
+# group of alternative apps; only the chosen one is synced, the others stay in
+# the profile folder untouched. "all" (or no line) syncs every member.
+#   terminal = kitty     # alacritty kitty foot ghostty
+#   editor = nvim        # nvim zed
+PREF_KEYS=(terminal editor)
+PREF_terminal=(alacritty kitty foot ghostty)
+PREF_editor=(nvim zed)
+declare -A PREF=()
+
+# "kitty" -> terminal: the group a folder belongs to, if any.
+pref_group_of() {
+  local k m
+  for k in "${PREF_KEYS[@]}"; do
+    declare -n members=PREF_$k
+    for m in "${members[@]}"; do [[ $m == "$1" ]] && { echo "$k"; return 0; }; done
+  done
+  return 1
+}
+
+# A folder that belongs to a group whose chosen app is another one is not synced.
+not_preferred() { # folder
+  local g want
+  g=$(pref_group_of "$1") || return 1
+  want=${PREF[$g]:-all}
+  [[ $want == all || $want == "$1" ]] && return 1
+  [[ -d $(pfile "$want") ]] || return 1 # the chosen app is not in this profile
+  return 0
+}
+
+set_pref() { # key value
+  local f tmp k=$1 v=$2 m ok=0
+  [[ " ${PREF_KEYS[*]} " == *" $k "* ]] || die "unknown setting '$k'. Known: ${PREF_KEYS[*]}"
+  declare -n members=PREF_$k
+  for m in all "${members[@]}"; do [[ $m == "$v" ]] && ok=1; done
+  ((ok)) || die "$k can be: all ${members[*]}"
+  [[ -n $PROFILE ]] || die "no profile is active"
+  f=$(pfile profile.conf)
+  tmp=$(mktemp)
+  if [[ -f $f ]]; then grep -Ev "^[[:space:]]*$k[[:space:]]*=" "$f" >"$tmp" || true; fi
+  printf '%s = %s\n' "$k" "$v" >>"$tmp"
+  mv -f "$tmp" "$f"
+  PREF[$k]=$v
+  load_entries
+}
+
+# Read the active profile's .dotfilesignore, .dotfiles-map and profile.conf.
 # Map rules are "folder/path = target"; the longest match wins; a folder with no
 # rule goes to ~/.config/<folder>/.
 MAP_SRC=() MAP_DST=()
 load_profile_settings() {
   local line src dst i f
   USER_IGNORE=() MAP_SRC=() MAP_DST=()
+  PREF=()
+  f=$(pfile profile.conf)
+  if [[ -f $f ]]; then
+    while IFS= read -r line || [[ -n $line ]]; do
+      line=${line%%#*}
+      [[ $line == *=* ]] || continue
+      src=${line%%=*} dst=${line#*=}
+      src=${src//[[:space:]]/} dst=${dst//[[:space:]]/}
+      [[ -n $src && -n $dst ]] && PREF[$src]=$dst
+    done <"$f"
+  fi
   f=$(pfile .dotfilesignore)
   if [[ -f $f ]]; then
     while IFS= read -r line || [[ -n $line ]]; do
@@ -194,7 +254,7 @@ ENTRY_LIST=()
 load_entries() {
   local host=${DOTFILES_HOST:-$(uname -n)} allowed= e w
   local keep=()
-  mapfile -t ENTRY_LIST < <(all_entries)
+  mapfile -t ENTRY_LIST < <(all_entries | while read -r e; do not_preferred "$e" || echo "$e"; done)
   if [[ -f $(pfile .dotfiles-hosts) ]]; then
     allowed=$(awk -F: -v h="$host" '/^[[:space:]]*#/ {next} $1 == h {print $2}' "$(pfile .dotfiles-hosts)")
   fi
@@ -321,6 +381,20 @@ tally() {
       missing) ((++S_miss)) ;;
     esac
   done < <(tracked "$1")
+}
+
+# "terminal: kitty (alacritty, foot not synced)" lines under the status header.
+note_unpreferred() {
+  local k e skipped
+  for k in "${PREF_KEYS[@]}"; do
+    [[ -n ${PREF[$k]:-} && ${PREF[$k]} != all ]] || continue
+    declare -n members=PREF_$k
+    skipped=()
+    for e in "${members[@]}"; do
+      if [[ -d $(pfile "$e") ]] && not_preferred "$e"; then skipped+=("$e"); fi
+    done
+    if ((${#skipped[@]})); then echo "  ${D}$k: ${PREF[$k]} ($(IFS=,; echo "${skipped[*]}" | sed 's/,/, /g') not synced)${X}"; fi
+  done
 }
 
 # How many files of one folder .dotfilesignore (or the built-in list) skips.
@@ -488,6 +562,7 @@ show_status() {
   local n label parts p skip note
   printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
     "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)${PROFILE:+  ${D}profile $PROFILE${X}}"
+  note_unpreferred
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
   while read -r n; do
     if true; then
@@ -1318,9 +1393,28 @@ menu_profile() {
   MSG="profile: ${PROFILE:-none}"
 }
 
+menu_settings() {
+  local k choice items=()
+  for k in "${PREF_KEYS[@]}"; do
+    items+=("$k|Which $k this profile syncs. Now: ${PREF[$k]:-all}.")
+  done
+  items+=("Back|Return to the tools menu.")
+  k=$(choose "Profile settings ($PROFILE)" "${items[@]}") || return 0
+  [[ $k == Back ]] && return 0
+  declare -n members=PREF_$k
+  items=("all|Sync every $k in this profile.")
+  for choice in "${members[@]}"; do
+    if [[ -d $(pfile "$choice") ]]; then items+=("$choice|Sync only $choice; the other ${k}s stay in the profile, unsynced."); fi
+  done
+  choice=$(choose "Preferred $k" "${items[@]}") || return 0
+  set_pref "$k" "$choice"
+  MSG="$k: $choice"
+}
+
 menu_tools() {
   local choice items=()
   items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
+    "Profile settings|Preferred terminal and editor for this profile; only those are synced."
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
   if omarchy_ready; then
     items+=("Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))."
@@ -1330,6 +1424,7 @@ menu_tools() {
   choice=$(choose "Tools" "${items[@]}") || return 0
   case $choice in
     Profile) menu_profile ;;
+    "Profile settings") [[ -n $PROFILE ]] && menu_settings ;;
     Doctor) doctor || true; pause ;;
     "Omarchy: set up") omarchy_setup; pause ;;
     "Omarchy: uninstall")
@@ -1481,6 +1576,11 @@ case $cmd in
       ((${#names[@]} >= 2)) || die "usage: $0 profile new NAME [folder..]"
       profile_new "${names[@]:1}"
       exit 0
+    elif [[ ${names[0]:-} == set ]]; then
+      ((${#names[@]} == 3)) || die "usage: $0 profile set terminal|editor NAME|all"
+      set_pref "${names[1]}" "${names[2]}"
+      echo "${names[1]} = ${names[2]}"
+      exit 0
     elif ((${#names[@]})); then
       case ${names[0]} in
         auto | none) ;;
@@ -1490,6 +1590,20 @@ case $cmd in
     fi
     echo "profile: ${PROFILE:-none}"
     echo "available: $(profiles_available | paste -sd' ')"
+    for k in "${PREF_KEYS[@]}"; do echo "$k = ${PREF[$k]:-all}"; done
+    ;;
+  edit)
+    ed=${PREF[editor]:-}
+    [[ -n $ed && $ed != all ]] || ed=${EDITOR:-nvim}
+    command -v "$ed" >/dev/null || die "editor '$ed' not found (set one: $0 profile set editor nvim|zed)"
+    if ((${#names[@]})); then
+      check_names
+      resolve_target "${names[0]}"
+      target=$(src_dir "$T_NAME")${T_REL:+/$T_REL}
+    else
+      target=$ROOT/profiles/${PROFILE:-none}
+    fi
+    exec "$ed" "$target"
     ;;
   map)
     while read -r n; do

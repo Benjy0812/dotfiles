@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Copy every app config in this folder into ~/.config, keeping the layout:
 # apps/kitty/kitty.conf -> ~/.config/kitty/kitty.conf. Folders are merged
-# file by file, so other files already in ~/.config/<app>/ stay. Skipped:
+# file by file, so other files already in ~/.config/<app>/ stay. A file that
+# already exists and differs is moved to <file>.bak first. Skipped:
 # READMEs, this script, and fish_variables (fish's own runtime state).
 #
 #   ./install.bash      # copy everything
@@ -26,7 +27,9 @@ place() {
     elif [[ ! -L "$dest" ]] && cmp -s "$src" "$dest"; then
       return # already up to date
     fi
-    # TODO(human): the target exists and differs from the repo copy.
+    # Differs from the repo copy: keep the old one as <file>.bak.
+    echo "backup  $shown.bak"
+    ((DRY)) || mv -T "$dest" "$dest.bak"
   fi
 
   echo "copy    $shown"

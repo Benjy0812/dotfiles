@@ -12,6 +12,7 @@
 !flake.lock
 !fixes/
 !mango/
+!profiles/
 !nix/
 !omarchy/
 

@@ -61,6 +61,7 @@ ${B}More${X}
   watch         notify when a tracked file changes in ~/.config (--auto pulls it)
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
+  profile [NAME|auto|none]  show or choose the profile whose folders replace the shared ones
   map           show where each repo folder goes (rules live in .dotfiles-map)
   help, version
 
@@ -125,6 +126,41 @@ if [[ -f $ROOT/.dotfiles-map ]]; then
   done <"$ROOT/.dotfiles-map"
 fi
 
+# ---- profiles -------------------------------------------------------------
+# profiles/<name>/<folder>/ replaces the shared <folder> on machines that use
+# that profile (omarchy, nixos, ubuntu...). Which one is active: DOTFILES_PROFILE,
+# else the choice saved by `profile NAME`, else detected from the machine.
+PROFILE_FILE="$STATE_DIR/profile"
+PROFILE=
+
+profiles_available() {
+  local d
+  for d in "$ROOT"/profiles/*/; do [[ -d $d ]] && basename "$d"; done
+}
+
+# First profile folder that fits this machine: Omarchy, NixOS, then the distro.
+detect_profile() {
+  local c id cands=()
+  if [[ -d $CONFIG/omarchy ]]; then cands+=(omarchy); fi
+  if [[ -e /etc/NIXOS ]]; then cands+=(nixos nix); fi
+  if [[ -r /etc/os-release ]]; then id=$(. /etc/os-release; echo "${ID:-} ${ID_LIKE:-}"); cands+=($id); fi
+  for c in "${cands[@]}"; do
+    if [[ -d $ROOT/profiles/$c ]]; then echo "$c"; return 0; fi
+  done
+}
+
+resolve_profile() {
+  local want=${DOTFILES_PROFILE:-}
+  if [[ -z $want && -f $PROFILE_FILE ]]; then want=$(<"$PROFILE_FILE"); fi
+  case ${want:-auto} in
+    none) PROFILE= ;;
+    auto) PROFILE=$(detect_profile) ;;
+    *) PROFILE=$want ;;
+  esac
+  if [[ -n $PROFILE && ! -d $ROOT/profiles/$PROFILE ]]; then PROFILE=; fi
+}
+resolve_profile
+
 # Every folder this repo has, one per line.
 all_entries() {
   local d
@@ -136,6 +172,11 @@ all_entries() {
   for d in "${MAP_SRC[@]}"; do
     [[ $d != */* && $d != mango && $d != omarchy && -d $ROOT/$d ]] && echo "$d"
   done
+  if [[ -n $PROFILE ]]; then
+    for d in "$ROOT/profiles/$PROFILE"/*/ "$ROOT/profiles/$PROFILE"/.[!.]*/; do
+      [[ -d $d ]] && basename "$d"
+    done
+  fi
 }
 
 # Folders for this machine: all of them, unless .dotfiles-hosts has a
@@ -144,7 +185,7 @@ ENTRY_LIST=()
 load_entries() {
   local host=${DOTFILES_HOST:-$(uname -n)} allowed= e w
   local keep=()
-  mapfile -t ENTRY_LIST < <(all_entries)
+  mapfile -t ENTRY_LIST < <(all_entries | awk '!seen[$0]++')
   if [[ -f $ROOT/.dotfiles-hosts ]]; then
     allowed=$(awk -F: -v h="$host" '/^[[:space:]]*#/ {next} $1 == h {print $2}' "$ROOT/.dotfiles-hosts")
   fi
@@ -160,7 +201,12 @@ load_entries() {
 load_entries
 entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
 
-src_dir() { if [[ -d $ROOT/apps/$1 ]]; then echo "$ROOT/apps/$1"; else echo "$ROOT/$1"; fi; }
+# The profile's folder wins over the shared one of the same name.
+src_dir() {
+  if [[ -n $PROFILE && -d $ROOT/profiles/$PROFILE/$1 ]]; then echo "$ROOT/profiles/$PROFILE/$1"
+  elif [[ -d $ROOT/apps/$1 ]]; then echo "$ROOT/apps/$1"
+  else echo "$ROOT/$1"; fi
+}
 
 # Where a repo file lives outside the repo: the longest matching rule of the map.
 dest_of() { # name rel
@@ -431,7 +477,7 @@ repo_state() {
 show_status() {
   local n label parts p skip note
   printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
-    "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)"
+    "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)${PROFILE:+  ${D}profile $PROFILE${X}}"
   while read -r n; do
     if true; then
       tally "$n"
@@ -647,7 +693,7 @@ summary() { # VERB
 
 commit_message() {
   local names
-  names=$(printf '%s\n' "${PULLED[@]}" | awk -F/ '{print ($1 == "apps") ? $2 : $1}' | sort -u | paste -sd, | sed 's/,/, /g')
+  names=$(printf '%s\n' "${PULLED[@]}" | awk -F/ '{print ($1 == "apps") ? $2 : ($1 == "profiles") ? $3 : $1}' | sort -u | paste -sd, | sed 's/,/, /g')
   echo "sync config from ~/.config: $names"
 }
 
@@ -851,6 +897,7 @@ doctor() {
   if ((old)); then d_warn "$old backup(s) older than 30 days (clean)"; else d_ok "no old backups"; fi
 
   echo "${B}state${X}"
+  d_ok "profile: ${PROFILE:-none}"
   if [[ -f $SYNCED ]]; then d_ok "$(wc -l <"$SYNCED") file(s) recorded in $(short "$SYNCED")"; else d_warn "no sync record yet (run baseline for exact conflict detection)"; fi
   d_ok "machine $(uname -n): $(entries | paste -sd' ')"
   return "$DOCTOR_BAD"
@@ -1183,14 +1230,34 @@ menu_select() {
   MSG="saved: $skipped file(s) now skipped, $synced synced again"
 }
 
+set_profile() { # auto | none | NAME
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$1" >"$PROFILE_FILE"
+  resolve_profile
+  load_entries
+}
+
+menu_profile() {
+  local items=() p choice
+  items+=("auto|Detect it from this machine (now: ${PROFILE:-none}).")
+  while read -r p; do items+=("$p|Use profiles/$p/. Its folders replace the shared ones of the same name."); done < <(profiles_available)
+  items+=("none|Use only the shared folders." "Back|Keep the current profile.")
+  choice=$(choose "Profile (now: ${PROFILE:-none})" "${items[@]}") || return 0
+  [[ $choice == Back ]] && return 0
+  set_profile "$choice"
+  MSG="profile: ${PROFILE:-none}"
+}
+
 menu_tools() {
   local choice
   choice=$(choose "Tools" \
+    "Profile|Pick which profile folder (omarchy, nixos, ubuntu...) wins on this machine. Now: ${PROFILE:-none}." \
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
     "Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))." \
     "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
     "Back|Return to the main menu.") || return 0
   case $choice in
+    Profile) menu_profile ;;
     Doctor) doctor || true; pause ;;
     "Omarchy: set up") omarchy_setup; pause ;;
     "Omarchy: uninstall")
@@ -1334,6 +1401,17 @@ case $cmd in
   baseline) baseline ;;
   doctor) doctor ;;
   watch) watch_config "${names[@]}" ;;
+  profile)
+    if ((${#names[@]})); then
+      case ${names[0]} in
+        auto | none) ;;
+        *) [[ -d $ROOT/profiles/${names[0]} ]] || die "no profile '${names[0]}'. Available: $(profiles_available | paste -sd' ')" ;;
+      esac
+      set_profile "${names[0]}"
+    fi
+    echo "profile: ${PROFILE:-none}"
+    echo "available: $(profiles_available | paste -sd' ')"
+    ;;
   map)
     while read -r n; do
       d=$(dest_of "$n" "")

@@ -67,7 +67,7 @@ Then put the configs in place, depending on the machine. On any machine,
   "Choose what syncs" (or run `./dotfiles.bash select`), tick the files you want
   and press Enter; unticked files are skipped. It saves them to `.dotfilesignore`.
   `omarchy/` is not file-synced: the install script links it.
-- **Config files:** `.dotfilesignore` lists paths to skip; `.dotfiles-hosts`
+- **Config files:** `.dotfilesignore` (local, not committed) lists paths to skip; `.dotfiles-hosts`
   maps a hostname to the folders it should get (both optional). Fish
   completions live in `apps/fish/completions/dotfiles.bash.fish`.
 

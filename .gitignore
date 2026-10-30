@@ -31,3 +31,6 @@ omarchy/hypr/*
 !omarchy/hypr/custom.lua
 !omarchy/hypr/monitor-workspaces.lua
 !omarchy/hypr/solo-workspaces.lua
+
+# Per-machine list of files dotfiles.bash skips
+.dotfilesignore

@@ -237,6 +237,15 @@ tally() {
   done < <(tracked "$1")
 }
 
+# How many files of one folder .dotfilesignore (or the built-in list) skips.
+skipped_count() {
+  local rel n=0
+  while IFS= read -r -d '' rel; do
+    if ignored "$1/$rel"; then ((++n)); fi
+  done < <(cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0')
+  echo "$n"
+}
+
 # installed | partial | missing, for the Omarchy hook and the two settings links.
 omarchy_state() {
   local ok=0 total=$((${#OMARCHY_SETTINGS[@]} + 1)) f
@@ -279,7 +288,7 @@ repo_state() {
 }
 
 show_status() {
-  local n label parts p
+  local n label parts p skip note
   printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
     "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)"
   while read -r n; do
@@ -296,8 +305,13 @@ show_status() {
       if ((S_conf)); then parts+=("${YEL}✎ $S_conf edited in ~/.config${X}"); fi
       if ((S_repo)); then parts+=("${CYA}↑ $S_repo newer in repo${X}"); fi
       if ((S_miss)); then parts+=("${RED}✗ $S_miss not installed${X}"); fi
-      if ((${#parts[@]} == 0)); then
-        label="${GRN}✔ in sync${X} ${D}($S_same files)${X}"
+      skip=$(skipped_count "$n")
+      note=
+      if ((skip)); then note=", $skip skipped"; fi
+      if ((S_same == 0 && ${#parts[@]} == 0 && skip)); then
+        label="${D}– all $skip files skipped${X}"
+      elif ((${#parts[@]} == 0)); then
+        label="${GRN}✔ in sync${X} ${D}($S_same files$note)${X}"
       else
         label=${parts[0]}
         for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done

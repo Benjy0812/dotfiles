@@ -1,7 +1,9 @@
 # Apps
 
-App configs. Each folder goes to `~/.config/<folder>/`: NixOS deploys some of
-them ([../nix](../nix/README.md)); elsewhere copy the ones you want over.
+Boilerplate app configs. They are not synced from here: `./dotfiles.bash profile new <os>`
+copies the folders you pick into `profiles/<os>/`, and that profile is what a machine
+syncs to `~/.config/<folder>/`. NixOS also deploys some of these through
+home-manager ([../nix](../nix/README.md)).
 
 | Folder | What | Details |
 |---|---|---|

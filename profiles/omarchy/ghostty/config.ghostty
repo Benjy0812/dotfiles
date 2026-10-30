@@ -1,0 +1,45 @@
+# Ghostty, matching the alacritty, kitty and foot configs next to it.
+# Reference: https://ghostty.org/docs/config/reference
+
+# Colors come from the current Omarchy theme, so `omarchy theme set` restyles
+# this too. The ? makes a missing theme file a no-op instead of an error.
+config-file = ?"~/.local/state/omarchy/current/theme/ghostty.conf"
+
+# Nerd Font variant, so icons in prompts, Yazi and lazygit render.
+font-family = "JetBrainsMono Nerd Font"
+font-style = Regular
+font-size = 9
+
+window-theme = ghostty
+window-padding-x = 14
+window-padding-y = 14
+# Close without asking, even with something running.
+confirm-close-surface = false
+# Don't flash the size over the window while it resizes.
+resize-overlay = never
+gtk-toolbar-style = flat
+
+cursor-style = block
+cursor-style-blink = false
+# All shell integration features go in one line: keep the block cursor, and
+# pass Ghostty's terminfo along over SSH.
+shell-integration-features = no-cursor,ssh-env
+
+# Shift/Ctrl+Insert as a second way to paste and copy.
+keybind = shift+insert=paste_from_clipboard
+keybind = control+insert=copy_to_clipboard
+# Send Shift+Enter as CSI-u so TUIs can distinguish it from Enter.
+keybind = shift+enter=csi:13;2u
+# Legacy encoding sends Alt+Shift+Enter the same as Alt+Enter; send CSI-u so tmux can match M-S-Enter.
+keybind = alt+shift+enter=csi:13;4u
+# Resize splits with Super+Ctrl+Shift+Alt+arrows.
+keybind = super+control+shift+alt+arrow_down=resize_split:down,100
+keybind = super+control+shift+alt+arrow_up=resize_split:up,100
+keybind = super+control+shift+alt+arrow_left=resize_split:left,100
+keybind = super+control+shift+alt+arrow_right=resize_split:right,100
+
+# Slightly slower mouse wheel scrolling.
+mouse-scroll-multiplier = 0.95
+
+# Fix general slowness on Hyprland (https://github.com/ghostty-org/ghostty/discussions/3224)
+async-backend = epoll

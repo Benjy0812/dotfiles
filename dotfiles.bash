@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# dotfiles v1.2: compare this repo with ~/.config and sync the two. Each folder
-# in apps/ and mango/ maps to ~/.config/<folder>/; omarchy/ is set up by
-# `setup`. Run `./dotfiles.bash help` for the commands.
+# dotfiles v1.2: compare this repo with ~/.config and sync the two. Only the
+# active profile (profiles/<os>/) is synced; apps/ and mango/ are boilerplate
+# that `profile new` copies into a new profile. Run `./dotfiles.bash help`.
 set -euo pipefail
 
 VERSION=1.2.0
@@ -61,7 +61,8 @@ ${B}More${X}
   watch         notify when a tracked file changes in ~/.config (--auto pulls it)
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
-  profile [NAME|auto|none]  show or choose the profile whose folders replace the shared ones
+  profile [NAME|auto|none]  show or choose this machine's profile (the folders that get synced)
+  profile new NAME [folder..]  start a profile from the boilerplate in apps/ and mango/
   map           show where each repo folder goes (rules live in .dotfiles-map)
   help, version
 
@@ -85,7 +86,7 @@ EOF
 # ---- what is managed ------------------------------------------------------
 
 # Paths ("folder/file", globs allowed) that are never compared or copied.
-ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'omarchy/hypr/custom.lua')
+ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
 USER_IGNORE=() # from .dotfilesignore, which the "Choose what syncs" menu edits
 if [[ -f $ROOT/.dotfilesignore ]]; then
   while IFS= read -r line || [[ -n $line ]]; do
@@ -108,10 +109,9 @@ matches_any() { # path glob..
 }
 ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 
-# Where repo files go. Built in: omarchy/hypr goes to ~/.config/hypr. More rules
-# come from .dotfiles-map ("folder/path = target", the longest match wins); a
+# Where repo files go. Rules come from .dotfiles-map ("folder/path = target", the longest match wins); a
 # folder with no rule goes to ~/.config/<folder>/.
-MAP_SRC=(omarchy/hypr) MAP_DST=("$CONFIG/hypr")
+MAP_SRC=() MAP_DST=()
 if [[ -f $ROOT/.dotfiles-map ]]; then
   while IFS= read -r line || [[ -n $line ]]; do
     line=${line%%#*}
@@ -127,9 +127,11 @@ if [[ -f $ROOT/.dotfiles-map ]]; then
 fi
 
 # ---- profiles -------------------------------------------------------------
-# profiles/<name>/<folder>/ replaces the shared <folder> on machines that use
-# that profile (omarchy, nixos, ubuntu...). Which one is active: DOTFILES_PROFILE,
-# else the choice saved by `profile NAME`, else detected from the machine.
+# Only the active profile is synced: profiles/<name>/<folder>/ goes to
+# ~/.config/<folder>/ (omarchy, nixos, ubuntu...). apps/ and mango/ are
+# boilerplate; `profile new NAME` copies them into a new profile, which then
+# belongs to that OS. Which profile is active: DOTFILES_PROFILE, else the
+# choice saved by `profile NAME`, else detected from the machine.
 PROFILE_FILE="$STATE_DIR/profile"
 PROFILE=
 
@@ -164,14 +166,6 @@ resolve_profile
 # Every folder this repo has, one per line.
 all_entries() {
   local d
-  for d in "$ROOT"/apps/*/ "$ROOT"/apps/.[!.]*/; do
-    [[ -d $d ]] && basename "$d"
-  done
-  echo mango
-  echo omarchy
-  for d in "${MAP_SRC[@]}"; do
-    [[ $d != */* && $d != mango && $d != omarchy && -d $ROOT/$d ]] && echo "$d"
-  done
   if [[ -n $PROFILE ]]; then
     for d in "$ROOT/profiles/$PROFILE"/*/ "$ROOT/profiles/$PROFILE"/.[!.]*/; do
       [[ -d $d ]] && basename "$d"
@@ -185,7 +179,7 @@ ENTRY_LIST=()
 load_entries() {
   local host=${DOTFILES_HOST:-$(uname -n)} allowed= e w
   local keep=()
-  mapfile -t ENTRY_LIST < <(all_entries | awk '!seen[$0]++')
+  mapfile -t ENTRY_LIST < <(all_entries)
   if [[ -f $ROOT/.dotfiles-hosts ]]; then
     allowed=$(awk -F: -v h="$host" '/^[[:space:]]*#/ {next} $1 == h {print $2}' "$ROOT/.dotfiles-hosts")
   fi
@@ -201,12 +195,7 @@ load_entries() {
 load_entries
 entries() { printf '%s\n' "${ENTRY_LIST[@]}"; }
 
-# The profile's folder wins over the shared one of the same name.
-src_dir() {
-  if [[ -n $PROFILE && -d $ROOT/profiles/$PROFILE/$1 ]]; then echo "$ROOT/profiles/$PROFILE/$1"
-  elif [[ -d $ROOT/apps/$1 ]]; then echo "$ROOT/apps/$1"
-  else echo "$ROOT/$1"; fi
-}
+src_dir() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
 
 # Where a repo file lives outside the repo: the longest matching rule of the map.
 dest_of() { # name rel
@@ -331,10 +320,10 @@ skipped_count() {
 # The Omarchy folder is synced like the others. `setup` adds what copying
 # cannot: the hyprland.lua hook, the settings links and the plugin hooks.
 
-# Settings files in omarchy/hypr/ (not custom.lua): linked into ~/.config/hypr/.
+# Settings files in the profile's hypr/ (not custom.lua): linked into ~/.config/hypr/.
 omarchy_settings() {
   local f
-  for f in "$ROOT"/omarchy/hypr/*.lua; do
+  for f in "$(src_dir hypr)"/*.lua; do
     [[ -f $f && $(basename "$f") != custom.lua ]] && basename "$f"
   done
 }
@@ -342,21 +331,21 @@ omarchy_settings() {
 # Plugin ids: every folder in omarchy/plugins/.
 omarchy_plugins() {
   local d
-  for d in "$ROOT"/omarchy/plugins/*/; do [[ -d $d ]] && basename "$d"; done
+  for d in "$(src_dir omarchy)"/plugins/*/; do [[ -d $d ]] && basename "$d"; done
 }
 
 # A plugin with a bar widget hooks into bindings.lua, the others into autostart.lua.
 plugin_hook_file() {
-  if [[ -f $ROOT/omarchy/plugins/$1/Widget.qml ]]; then echo "$HYPR/bindings.lua"; else echo "$HYPR/autostart.lua"; fi
+  if [[ -f $(src_dir omarchy)/plugins/$1/Widget.qml ]]; then echo "$HYPR/bindings.lua"; else echo "$HYPR/autostart.lua"; fi
 }
 
 # installed | partial | missing, for the hyprland.lua hook and the settings links.
 omarchy_state() {
   local ok=0 total=1 f
-  if grep -qs 'omarchy/hypr/custom.lua' "$HYPR/hyprland.lua"; then ((++ok)); fi
+  if grep -qsF "$(src_dir hypr)/custom.lua" "$HYPR/hyprland.lua"; then ((++ok)); fi
   while read -r f; do
     ((++total))
-    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$ROOT/omarchy/hypr/$f" ]]; then ((++ok)); fi
+    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$(src_dir hypr)/$f" ]]; then ((++ok)); fi
   done < <(omarchy_settings)
   if ((ok == total)); then echo installed; elif ((ok > 0)); then echo partial; else echo missing; fi
 }
@@ -384,7 +373,7 @@ plugin_install() { # id
   printf '%s\n' "-- >>> $id >>>" "dofile(\"$dest/${id#*.}.lua\")" "-- <<< $id <<<" >>"$hook"
   echo "  ${GRN}plugin${X}  $id"
   # A plugin with a widget replaces Omarchy's global workspace strip in the bar.
-  if [[ -f $ROOT/omarchy/plugins/$id/Widget.qml && -f $shell ]] && grep -q '"omarchy.workspaces"' "$shell"; then
+  if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]] && grep -q '"omarchy.workspaces"' "$shell"; then
     cp "$shell" "$shell.bak"
     sed -i "s/\"omarchy.workspaces\"/\"$id\"/" "$shell"
     OMARCHY_RESTART=1
@@ -395,7 +384,7 @@ plugin_uninstall() { # id
   local id=$1 shell=$CONFIG/omarchy/shell.json
   remove_hook "$(plugin_hook_file "$id")" "$id"
   rm -rf "$CONFIG/omarchy/plugins/$id"
-  if [[ -f $ROOT/omarchy/plugins/$id/Widget.qml && -f $shell ]]; then
+  if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]]; then
     sed -i "s/\"$id\"/\"omarchy.workspaces\"/" "$shell"
     OMARCHY_RESTART=1
   fi
@@ -408,22 +397,27 @@ omarchy_reload() {
   if ((OMARCHY_RESTART)); then omarchy restart shell >/dev/null 2>&1 || true; fi
 }
 
+# True when the active profile carries the Omarchy files.
+omarchy_ready() { [[ -f $(src_dir hypr)/custom.lua && -d $(src_dir omarchy)/plugins ]]; }
+
 # Load custom.lua from hyprland.lua, link the settings, install the plugins.
 # Safe to run again, e.g. after `omarchy refresh hyprland`.
 omarchy_setup() {
   local hl=$HYPR/hyprland.lua f
   if ((DRY)); then echo "would hook custom.lua into hyprland.lua, link the settings and install the plugins"; return 0; fi
   [[ -f $hl ]] || die "missing $(short "$hl")"
+  omarchy_ready || die "the profile '${PROFILE:-none}' has no hypr/custom.lua and omarchy/plugins/"
   OMARCHY_RESTART=0
   cp "$hl" "$hl.bak"
   # Skip Omarchy's preinstalled app binds; has to be set before its defaults load.
   sed -i 's/^-- *omarchy_preinstalled_bindings = false/omarchy_preinstalled_bindings = false/' "$hl"
-  grep -q 'omarchy/hypr/custom.lua' "$hl" || echo "dofile(\"$ROOT/omarchy/hypr/custom.lua\")" >>"$hl"
+  sed -i '/omarchy\/hypr\/custom.lua/d' "$hl"
+  echo "dofile(\"$(src_dir hypr)/custom.lua\")" >>"$hl"
   echo "  ${GRN}hook${X}    custom.lua loads from hyprland.lua"
   # Link before the plugin hooks run, so the plugins don't create default settings.
   while read -r f; do
     if [[ -e $HYPR/$f && ! -L $HYPR/$f ]]; then stash omarchy "hypr/$f" "$HYPR/$f"; fi
-    ln -sfn "$ROOT/omarchy/hypr/$f" "$HYPR/$f"
+    ln -sfn "$(src_dir hypr)/$f" "$HYPR/$f"
     echo "  ${GRN}link${X}    hypr/$f"
   done < <(omarchy_settings)
   while read -r f; do plugin_install "$f"; done < <(omarchy_plugins)
@@ -437,7 +431,7 @@ omarchy_uninstall() {
   while read -r f; do plugin_uninstall "$f"; done < <(omarchy_plugins)
   # Only remove links pointing here; the settings stay in this repo.
   while read -r f; do
-    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$ROOT/omarchy/hypr/$f" ]]; then rm "$HYPR/$f"; fi
+    if [[ "$(readlink "$HYPR/$f" 2>/dev/null)" == "$(src_dir hypr)/$f" ]]; then rm "$HYPR/$f"; fi
   done < <(omarchy_settings)
   if [[ -f $hl ]]; then
     cp "$hl" "$hl.bak"
@@ -498,7 +492,7 @@ show_status() {
         for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
       fi
     fi
-    if [[ $n == omarchy && $(omarchy_state) != installed ]]; then
+    if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
       label+=" ${D}·${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
     fi
     printf '  %-14s %s\n' "$n" "$label"
@@ -998,6 +992,11 @@ next_step() {
       missing) ((++m)) ;;
     esac
   done <<<"$DIFFS"
+  if [[ -z $PROFILE ]]; then
+    PENDING=0
+    echo "  ${YEL}No profile for this machine.${X} Open Tools > Profile to pick one or start one from the boilerplate."
+    return 0
+  fi
   PENDING=$((e + r + b + m))
   if ((PENDING == 0)); then echo "  ${GRN}Everything is in sync.${X}"; return 0; fi
   if ((e)); then parts+=("$e edited in ~/.config"); fi
@@ -1230,6 +1229,38 @@ menu_select() {
   MSG="saved: $skipped file(s) now skipped, $synced synced again"
 }
 
+# Boilerplate folders a new profile can start from: apps/* and mango.
+templates() {
+  local d
+  for d in "$ROOT"/apps/*/ "$ROOT"/apps/.[!.]*/ "$ROOT"/mango/; do
+    [[ -d $d ]] && echo "${d%/}"
+  done
+}
+
+# Copy boilerplate folders into profiles/NAME/ and switch to it.
+profile_new() { # name [folder..]
+  local name=$1 t f
+  shift
+  [[ $name =~ ^[A-Za-z0-9._-]+$ && $name != auto && $name != none ]] || die "bad profile name '$name'"
+  [[ ! -e $ROOT/profiles/$name ]] || die "profile '$name' already exists"
+  local want=("$@")
+  if ((${#want[@]} == 0)); then
+    while read -r t; do [[ $t == "$ROOT"/mango ]] || want+=("$(basename "$t")"); done < <(templates)
+  fi
+  for f in "${want[@]}"; do
+    t=$ROOT/apps/$f
+    [[ -d $t ]] || t=$ROOT/$f
+    [[ -d $t && $f != profiles ]] || die "no boilerplate folder '$f' (see: $0 profile templates)"
+    if ((DRY)); then echo "  would copy $f"; continue; fi
+    mkdir -p "$ROOT/profiles/$name"
+    cp -rP "$t" "$ROOT/profiles/$name/$f"
+    echo "  ${GRN}copied${X} $f"
+  done
+  if ((DRY)); then return 0; fi
+  set_profile "$name"
+  echo "${B}profile $name${X} created from the boilerplate and now active"
+}
+
 set_profile() { # auto | none | NAME
   mkdir -p "$STATE_DIR"
   printf '%s\n' "$1" >"$PROFILE_FILE"
@@ -1237,25 +1268,43 @@ set_profile() { # auto | none | NAME
   load_entries
 }
 
+menu_profile_new() {
+  need_fzf || return 0
+  local name picked=()
+  name=$(gum input --placeholder "name, e.g. ubuntu" --header "New profile name") || return 0
+  [[ -n $name ]] || return 0
+  mapfile -t picked < <(templates | while read -r t; do basename "$t"; done |
+    fzf --multi --layout=reverse --height=90% --no-info --prompt "copy > " --pointer ">" --marker "+" \
+      --bind 'load:select-all' --header $'ticked folders are copied into the profile\ntab toggles · enter creates · esc cancels' || true)
+  ((${#picked[@]})) || { MSG="nothing picked, no profile created"; return 0; }
+  MSG=$(profile_new "$name" "${picked[@]}" 2>&1 | tail -1)
+}
+
 menu_profile() {
   local items=() p choice
   items+=("auto|Detect it from this machine (now: ${PROFILE:-none}).")
-  while read -r p; do items+=("$p|Use profiles/$p/. Its folders replace the shared ones of the same name."); done < <(profiles_available)
-  items+=("none|Use only the shared folders." "Back|Keep the current profile.")
+  while read -r p; do items+=("$p|Sync profiles/$p/ on this machine."); done < <(profiles_available)
+  items+=("New profile|Start a profile for another OS by copying the boilerplate folders you pick."
+    "none|Sync nothing on this machine." "Back|Keep the current profile.")
   choice=$(choose "Profile (now: ${PROFILE:-none})" "${items[@]}") || return 0
-  [[ $choice == Back ]] && return 0
+  case $choice in
+    Back) return 0 ;;
+    "New profile") menu_profile_new; return 0 ;;
+  esac
   set_profile "$choice"
   MSG="profile: ${PROFILE:-none}"
 }
 
 menu_tools() {
-  local choice
-  choice=$(choose "Tools" \
-    "Profile|Pick which profile folder (omarchy, nixos, ubuntu...) wins on this machine. Now: ${PROFILE:-none}." \
-    "Doctor|Check tools, .gitignore, broken links, old backups and the sync record." \
-    "Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))." \
-    "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua." \
-    "Back|Return to the main menu.") || return 0
+  local choice items=()
+  items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
+    "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
+  if omarchy_ready; then
+    items+=("Omarchy: set up|Load custom.lua from hyprland.lua, link the plugin settings and install the plugins ($(omarchy_state))."
+      "Omarchy: uninstall|Remove the Omarchy hook, links and plugins from hyprland.lua.")
+  fi
+  items+=("Back|Return to the main menu.")
+  choice=$(choose "Tools" "${items[@]}") || return 0
   case $choice in
     Profile) menu_profile ;;
     Doctor) doctor || true; pause ;;
@@ -1402,7 +1451,14 @@ case $cmd in
   doctor) doctor ;;
   watch) watch_config "${names[@]}" ;;
   profile)
-    if ((${#names[@]})); then
+    if [[ ${names[0]:-} == templates ]]; then
+      templates | while read -r t; do basename "$t"; done
+      exit 0
+    elif [[ ${names[0]:-} == new ]]; then
+      ((${#names[@]} >= 2)) || die "usage: $0 profile new NAME [folder..]"
+      profile_new "${names[@]:1}"
+      exit 0
+    elif ((${#names[@]})); then
       case ${names[0]} in
         auto | none) ;;
         *) [[ -d $ROOT/profiles/${names[0]} ]] || die "no profile '${names[0]}'. Available: $(profiles_available | paste -sd' ')" ;;

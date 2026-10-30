@@ -205,6 +205,18 @@ If the preferred app isn't in the profile, nothing is filtered.
 `./dotfiles.bash edit [NAME[/FILE]]` opens the profile (or one folder or file of
 it) in the preferred editor, falling back to `$EDITOR`, then `nvim`.
 
+### Choosing what syncs: which tool
+
+| You want to... | Use |
+|---|---|
+| Keep a whole app out of a machine | Leave its folder out of the profile (`profile new` with only the folders you need, or delete it) |
+| Sync only one terminal or editor | `profile set terminal kitty` / Tools > Profile settings |
+| Give different hostnames different folders | `.dotfiles-hosts` |
+| Skip one file inside a folder you keep (e.g. `omarchy/shell.json`) | `select` (menu: Choose what syncs), fine-grained |
+| Skip a pattern (e.g. `mango/wall/*`) | Edit `.dotfilesignore` by hand |
+
+Start with the folder-level options and use `select` only for single files.
+
 ## Config files
 
 All optional, and per profile: they live in `profiles/<os>/`, never in the repo

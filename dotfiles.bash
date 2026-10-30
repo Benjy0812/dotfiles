@@ -48,7 +48,7 @@ ${B}Everyday${X}
   push          copy repo files into ~/.config; replaced files are kept in the backup folder
   pull          copy files edited in ~/.config back into the repo (--commit commits them)
   restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
-  select        choose which files are synced (the rest go in .dotfilesignore)
+  select        fine-grained: skip single files (see docs/usage.md for folder-level choices)
   undo          put back what the last push, pull or restore changed (--yes to do it)
 
 ${B}More${X}
@@ -1448,7 +1448,7 @@ menu() {
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
     items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
       "Backups|Restore a replaced file, or delete old backups."
-      "Choose what syncs|Tick the files that should sync. Unticked ones are skipped.")
+      "Choose what syncs|Fine-grained: skip single files inside a folder. For whole folders or one terminal/editor use Tools > Profile settings. See docs/usage.md for the best way.")
     run=$(last_run)
     if [[ -n $run ]]; then
       items+=("Undo last sync|Put back what the run from $(run_time "$run") changed ($(run_changes "$run" | wc -l) change(s)).")

@@ -568,24 +568,22 @@ show_status() {
   note_unpreferred
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
   while read -r n; do
-    if true; then
-      tally "$n"
-      parts=()
-      if ((S_both)); then parts+=("${RED}⚠ $S_both changed on both sides${X}"); fi
-      if ((S_conf)); then parts+=("${YEL}✎ $S_conf edited in ~/.config${X}"); fi
-      if ((S_repo)); then parts+=("${CYA}↑ $S_repo newer in repo${X}"); fi
-      if ((S_miss)); then parts+=("${RED}✗ $S_miss not installed${X}"); fi
-      skip=$(skipped_count "$n")
-      note=
-      if ((skip)); then note=", $skip skipped"; fi
-      if ((S_same == 0 && ${#parts[@]} == 0 && skip)); then
-        label="${D}– all $skip files skipped${X}"
-      elif ((${#parts[@]} == 0)); then
-        label="${GRN}✔ in sync${X} ${D}($S_same files$note)${X}"
-      else
-        label=${parts[0]}
-        for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
-      fi
+    tally "$n"
+    parts=()
+    if ((S_both)); then parts+=("${RED}⚠ $S_both changed on both sides${X}"); fi
+    if ((S_conf)); then parts+=("${YEL}✎ $S_conf edited in ~/.config${X}"); fi
+    if ((S_repo)); then parts+=("${CYA}↑ $S_repo newer in repo${X}"); fi
+    if ((S_miss)); then parts+=("${RED}✗ $S_miss not installed${X}"); fi
+    skip=$(skipped_count "$n")
+    note=
+    if ((skip)); then note=", $skip skipped"; fi
+    if ((S_same == 0 && ${#parts[@]} == 0 && skip)); then
+      label="${D}– all $skip files skipped${X}"
+    elif ((${#parts[@]} == 0)); then
+      label="${GRN}✔ in sync${X} ${D}($S_same files$note)${X}"
+    else
+      label=${parts[0]}
+      for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
     fi
     if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
       label+=" ${D}·${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
@@ -601,11 +599,9 @@ status_json() {
   while read -r n; do
     ((first)) || printf ','
     first=0
-    if true; then
-      tally "$n"
-      printf '{"name":"%s","in_sync":%d,"edited_in_config":%d,"newer_in_repo":%d,"conflict":%d,"not_installed":%d}' \
-        "$n" "$S_same" "$S_conf" "$S_repo" "$S_both" "$S_miss"
-    fi
+    tally "$n"
+    printf '{"name":"%s","in_sync":%d,"edited_in_config":%d,"newer_in_repo":%d,"conflict":%d,"not_installed":%d}' \
+      "$n" "$S_same" "$S_conf" "$S_repo" "$S_both" "$S_miss"
   done < <(entries)
   printf ']\n'
 }
@@ -1357,6 +1353,11 @@ profile_new() { # name [folder..]
     echo "  ${GRN}copied${X} $f"
   done
   if ((DRY)); then return 0; fi
+  printf '%s\n' '# Preferred apps for this profile. Only the chosen one of each group is synced;' \
+    '# the others stay in the profile folder. Values: a folder name or "all".' \
+    '#   terminal: alacritty kitty foot ghostty' '#   editor:   nvim zed' \
+    '#   wm:       hypr mango i3 sway niri bspwm awesome river openbox' \
+    'terminal = all' 'editor = all' 'wm = all' >"$ROOT/profiles/$name/profile.conf"
   set_profile "$name"
   echo "${B}profile $name${X} created from the boilerplate and now active"
 }

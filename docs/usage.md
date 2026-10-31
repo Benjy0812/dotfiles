@@ -52,7 +52,7 @@ profile; `apps/` and `mango/` are starting points to copy from.
 | Folder | What | More |
 |---|---|---|
 | `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, two workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md) |
-| `profiles/nixos/` | NixOS: apps, MangoWM, and `nix/` (system, home-manager, WSL) | [README](../profiles/nixos/nix/README.md) |
+| `profiles/nixos/` | NixOS: apps, MangoWM, and `nix/` (system, home-manager) | [README](../profiles/nixos/nix/README.md) |
 | `apps/` | Terminals (alacritty, kitty, foot, ghostty), fish, nvim, yazi, zed, git | [README](../apps/README.md) |
 | `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [README](../mango/README.md) |
 | `fixes/` | Patches applied outside package management, each with revert and verify | [README](../fixes/README.md) |
@@ -199,7 +199,7 @@ editor = nvim        # nvim zed
 wm = hypr            # hypr mango i3 sway niri bspwm awesome river openbox
 ```
 
-Use `all` (or leave the line out) to sync every member. Change it with
+`profile new` writes a starting `profile.conf` with every group set to `all`. Use `all` (or leave the line out) to sync every member. Change it with
 `./dotfiles.bash profile set terminal kitty` (or `editor`, `wm`), or Tools > Profile settings in the
 menu. Status shows what is not synced, e.g. `terminal: kitty (alacritty, foot, ghostty not synced)`.
 If the preferred app isn't in the profile, nothing is filtered.
@@ -268,9 +268,11 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
   `sudo nixos-rebuild switch --flake <repo>#benjy`; set `DOTFILES_NIX_HOST` for a
   different flake host.
 - Every folder in `profiles/nixos/` (except `nix/`) is deployed automatically by
-  `profiles/nixos/nix/nixos/dotfiles.nix`: add a folder, rebuild, done. It also
+  `profiles/nixos/nix/dotfiles.nix`: add a folder, rebuild, done. It also
   honors `profile.conf`, so only the preferred terminal, editor and window manager
-  are deployed. Its group lists mirror the ones in `dotfiles.bash`.
+  are deployed. Its group lists mirror the ones in `dotfiles.bash`. The other config files
+  (`.dotfiles-map`, `.dotfiles-hosts`, `.dotfilesignore`) are not used on NixOS,
+  because `dotfiles.bash` never syncs this profile; only `profile.conf` matters here.
 - More in [profiles/nixos/nix/README.md](../profiles/nixos/nix/README.md).
 
 ## Other folders

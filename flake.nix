@@ -36,7 +36,7 @@
         inherit specialArgs;
 
         modules = [
-          ./profiles/nixos/nix/nixos/configuration.nix
+          ./profiles/nixos/nix/configuration.nix
 
           home-manager.nixosModules.home-manager
           {
@@ -47,8 +47,8 @@
             home-manager.extraSpecialArgs = specialArgs;
             home-manager.users.benjy = {
               imports = [
-                ./profiles/nixos/nix/nixos/home.nix
-                ./profiles/nixos/nix/nixos/dotfiles.nix
+                ./profiles/nixos/nix/home.nix
+                ./profiles/nixos/nix/dotfiles.nix
               ];
             };
           }
@@ -61,8 +61,8 @@
         inherit pkgs;
         extraSpecialArgs = specialArgs;
         modules = [
-          ./profiles/nixos/nix/nixos/home.nix
-          ./profiles/nixos/nix/nixos/standalone.nix
+          ./profiles/nixos/nix/home.nix
+          ./profiles/nixos/nix/standalone.nix
         ];
       };
 

@@ -1713,11 +1713,14 @@ case $cmd in
       [[ -n $host ]] || die "no host folder in profiles/nixos/nix/hosts/"
     fi
     flake="$ROOT#$host"
+    # Build as this user and let nixos-rebuild sudo only for the switch: Nix
+    # refuses a git repo owned by someone else, so `sudo nixos-rebuild` fails
+    # with "not owned by current user".
     if ((DRY)); then
-      echo "would run: sudo nixos-rebuild dry-build --flake $flake"
-      sudo nixos-rebuild dry-build --flake "$flake"
+      echo "would run: nixos-rebuild dry-build --flake $flake"
+      nixos-rebuild dry-build --flake "$flake"
     else
-      sudo nixos-rebuild switch --flake "$flake"
+      nixos-rebuild switch --flake "$flake" --sudo
     fi
     ;;
   map)

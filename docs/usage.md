@@ -66,7 +66,7 @@ cd ~/Projects/dotfiles
 
 - **Omarchy:** `./dotfiles.bash push -n` to preview, `push`, then `setup` (hyprland
   hook, settings links, plugins).
-- **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#<host>` (a folder in `profiles/nixos/nix/hosts/`). No
+- **NixOS:** `nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --sudo` (a folder in `profiles/nixos/nix/hosts/`). No
   sync needed; see [NixOS](#nixos).
 - **Another OS (Ubuntu, Arch...):** `./dotfiles.bash profile new ubuntu kitty git fish nvim`,
   edit `profiles/ubuntu/` to fit, then `push`. Commit the new profile.
@@ -277,7 +277,7 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 
 - Edit files in `profiles/nixos/`, then rebuild with `./dotfiles.bash rebuild`
   (or Tools > NixOS: rebuild; `-n` does a dry build). It runs
-  `sudo nixos-rebuild switch --flake <repo>#<host>`, where host is the
+  `nixos-rebuild switch --flake <repo>#<host> --sudo`, where host is the
   `profiles/nixos/nix/hosts/` folder named like this machine (else the first one);
   set `DOTFILES_NIX_HOST` to override.
 - Every folder in `profiles/nixos/` (except `nix/`) is deployed automatically by

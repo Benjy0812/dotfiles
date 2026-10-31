@@ -30,7 +30,7 @@ profiles/nixos/
 
 ```bash
 # Rebuild from the checked-out repo
-sudo nixos-rebuild switch --flake ~/Projects/dotfiles#<host>
+nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --sudo
 
 # Fresh install on a new machine (the committed hardware config is for benjy's
 # disks and will not boot elsewhere, so give the new machine its own host folder)

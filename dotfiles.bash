@@ -1704,7 +1704,15 @@ case $cmd in
   rebuild)
     nix_managed || die "rebuild is for a Nix-managed profile (one with a nix/ folder); the active profile is '${PROFILE:-none}'"
     command -v nixos-rebuild >/dev/null || die "nixos-rebuild not found; this is not NixOS"
-    flake="$ROOT#${DOTFILES_NIX_HOST:-benjy}"
+    host=${DOTFILES_NIX_HOST:-}
+    if [[ -z $host ]]; then
+      # Prefer the hosts/ folder named like this machine, else the first one.
+      hosts=$ROOT/profiles/nixos/nix/hosts
+      host=$(hostname)
+      [[ -d $hosts/$host ]] || host=$(ls "$hosts" 2>/dev/null | head -n1)
+      [[ -n $host ]] || die "no host folder in profiles/nixos/nix/hosts/"
+    fi
+    flake="$ROOT#$host"
     if ((DRY)); then
       echo "would run: sudo nixos-rebuild dry-build --flake $flake"
       sudo nixos-rebuild dry-build --flake "$flake"

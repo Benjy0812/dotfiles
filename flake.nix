@@ -24,40 +24,54 @@
         config.allowUnfree = true;
       };
 
+      # The one account the configs are built for.
+      username = "benjy";
+
       # `dotfiles` is this repository, so the configs can be deployed straight
       # from the flake without cloning it onto the target machine.
       specialArgs = {
-        inherit inputs;
+        inherit inputs username;
         dotfiles = self;
       };
+
+      # One NixOS configuration per folder in profiles/nixos/nix/hosts/. Each
+      # holds that machine's hardware-configuration.nix, so a new machine is a
+      # new folder; nothing here needs editing.
+      hostsDir = ./profiles/nixos/nix/hosts;
+
+      mkHost =
+        name:
+        nixpkgs.lib.nixosSystem {
+          inherit system specialArgs;
+
+          modules = [
+            ./profiles/nixos/nix/configuration.nix
+            (hostsDir + "/${name}")
+
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              # Back up pre-existing files instead of failing the switch.
+              home-manager.backupFileExtension = "hm-backup";
+              home-manager.extraSpecialArgs = specialArgs;
+              home-manager.users.${username} = {
+                imports = [
+                  ./profiles/nixos/nix/home.nix
+                  ./profiles/nixos/nix/dotfiles.nix
+                ];
+              };
+            }
+          ];
+        };
     in {
-      nixosConfigurations.benjy = nixpkgs.lib.nixosSystem {
-        inherit system;
-        inherit specialArgs;
-
-        modules = [
-          ./profiles/nixos/nix/configuration.nix
-
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            # Back up pre-existing files instead of failing the switch.
-            home-manager.backupFileExtension = "hm-backup";
-            home-manager.extraSpecialArgs = specialArgs;
-            home-manager.users.benjy = {
-              imports = [
-                ./profiles/nixos/nix/home.nix
-                ./profiles/nixos/nix/dotfiles.nix
-              ];
-            };
-          }
-        ];
-      };
+      nixosConfigurations = nixpkgs.lib.mapAttrs (name: _: mkHost name) (
+        nixpkgs.lib.filterAttrs (_: type: type == "directory") (builtins.readDir hostsDir)
+      );
 
       # Standalone profile for non-NixOS machines (e.g. CachyOS).
       # Installs packages only and never touches ~/.config.
-      homeConfigurations.benjy = home-manager.lib.homeManagerConfiguration {
+      homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         extraSpecialArgs = specialArgs;
         modules = [

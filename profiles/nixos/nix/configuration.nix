@@ -1,10 +1,6 @@
-{ config, pkgs, ... }:
+{ config, pkgs, username, ... }:
 
 {
-  imports = [
-    ./hardware-configuration.nix
-  ];
-
   # BOOTLOADER
   boot.loader.grub = {
     enable = true;
@@ -20,7 +16,6 @@
   };
 
   # NETWORK
-  networking.hostName = "Benjy-NixOS";
   networking.networkmanager.enable = true;
 
   # TIME / LOCALE
@@ -81,9 +76,9 @@
   services.pulseaudio.enable = false;
 
   # USER
-  users.users.benjy = {
+  users.users.${username} = {
     isNormalUser = true;
-    description = "Benjy";
+    description = username;
     extraGroups = [ "networkmanager" "wheel" ];
     shell = pkgs.fish;
     packages = with pkgs; [
@@ -130,14 +125,6 @@
     memoryPercent = 100;
     algorithm = "zstd";
   };
-
-  # 16 GiB swap file as a safety net
-  swapDevices = [
-    {
-      device = "/swapfile";
-      size = 16 * 1024; # MiB
-    }
-  ];
 
   # Disable zswap when using zram
   boot.kernelParams = [

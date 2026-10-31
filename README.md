@@ -25,7 +25,7 @@ Then put the configs in place, depending on the machine. On any machine,
 `./dotfiles.bash` compares the repo with `~/.config` and syncs them (menu needs
 `gum` and `fzf`). Or by hand:
 
-- **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#benjy`
+- **NixOS:** `sudo nixos-rebuild switch --flake ~/Projects/dotfiles#<host>` (a folder in `profiles/nixos/nix/hosts/`)
   deploys them through home-manager ([nix](profiles/nixos/nix/README.md)).
 - **Omarchy:** `./dotfiles.bash push`, then `./dotfiles.bash setup`
   ([omarchy](omarchy/README.md)).

@@ -145,7 +145,7 @@ More:
 | `profile new NAME [folder..]` | Create a profile by copying boilerplate (all of `apps/` if no folders named). |
 | `profile set GROUP NAME\|all` | Pick the app of a group to sync (terminal, editor, shell...). |
 | `profile group GROUP NAME NAME..` | Define a group of alternatives in `profile.conf`. |
-| `rebuild` | NixOS only: `nixos-rebuild switch` for this flake (`-n` dry-build). |
+| `rebuild` | NixOS only: `nixos-rebuild switch` for this flake (`-n` dry-build). Without a network it adds `--offline` and builds from the Nix store. |
 | `edit [NAME[/FILE]]` | Open the profile in the preferred editor. |
 | `profile templates` | List the boilerplate folders. |
 | `map` | Show where each folder goes. |

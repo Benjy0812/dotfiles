@@ -1,4 +1,4 @@
-{ config, pkgs, username, ... }:
+{ config, lib, pkgs, inputs, username, ... }:
 
 {
   # BOOTLOADER
@@ -147,6 +147,11 @@
     github-cli
     spotify
   ];
+
+  # Keep the flake inputs (nixpkgs, home-manager, ...) in the system closure so
+  # garbage collection never deletes them and `./dotfiles.bash rebuild` works
+  # offline.
+  system.extraDependencies = map (input: input.outPath) (lib.attrValues (removeAttrs inputs [ "self" ]));
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];

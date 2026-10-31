@@ -1717,11 +1717,18 @@ case $cmd in
     # refuses a git repo owned by someone else, so `sudo nixos-rebuild` fails
     # with "not owned by current user". --impure lets the host read this
     # machine's /etc/nixos/hardware-configuration.nix.
+    args=(--flake "$flake" --impure)
+    # Without a network, build from what is already in the Nix store instead of
+    # failing on downloads (the flake inputs are kept there, see configuration.nix).
+    if ! timeout 3 getent hosts cache.nixos.org >/dev/null 2>&1; then
+      echo "${YEL}No network: rebuilding offline from the Nix store${X}"
+      args+=(--offline)
+    fi
     if ((DRY)); then
-      echo "would run: nixos-rebuild dry-build --flake $flake --impure"
-      nixos-rebuild dry-build --flake "$flake" --impure
+      echo "would run: nixos-rebuild dry-build ${args[*]}"
+      nixos-rebuild dry-build "${args[@]}"
     else
-      nixos-rebuild switch --flake "$flake" --impure --sudo
+      nixos-rebuild switch "${args[@]}" --sudo
     fi
     ;;
   map)

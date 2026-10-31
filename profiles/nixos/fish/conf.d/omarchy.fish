@@ -5,12 +5,18 @@
 
 # Same defaults as Omarchy's bash envs: its editor and browser launchers,
 # and bat for colored man pages.
-set -q EDITOR; or set -gx EDITOR "omarchy-launch-editor --inline"
-set -gx SUDO_EDITOR $EDITOR
-set -q BROWSER; or set -gx BROWSER omarchy-launch-browser
-set -gx BAT_THEME ansi
-set -gx MANROFFOPT -c
-set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"
+if command -q omarchy-launch-editor
+    set -q EDITOR; or set -gx EDITOR "omarchy-launch-editor --inline"
+    set -gx SUDO_EDITOR $EDITOR
+end
+if command -q omarchy-launch-browser
+    set -q BROWSER; or set -gx BROWSER omarchy-launch-browser
+end
+if command -q bat
+    set -gx BAT_THEME ansi
+    set -gx MANROFFOPT -c
+    set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"
+end
 
 # mise manages node, bun and friends; activate puts their versions on PATH.
 command -q mise; and mise activate fish | source

@@ -2,8 +2,8 @@
 
 The flake (`../../../flake.nix`) has two outputs:
 
-- **`nixosConfigurations.benjy`** - full NixOS system. Installs MangoWM, makes
-  it the default SDDM session, and deploys the dotfiles through home-manager.
+- **`nixosConfigurations.benjy`** - full NixOS system. No desktop environment:
+  the ly TUI login manager starts MangoWM, and home-manager deploys the dotfiles.
 - **`homeConfigurations.benjy`** - standalone home-manager profile for
   non-NixOS machines (e.g. CachyOS). Installs packages only and never touches
   `~/.config`.
@@ -19,7 +19,8 @@ profiles/nixos/
 
 | Path in `nix/` | What |
 |---|---|
-| `configuration.nix` | System: boot, SDDM + MangoWM, fish, packages |
+| `configuration.nix` | System: boot, ly login + MangoWM, fish, fonts, packages |
+| `patches/` | Patches built into packages (screen-share fix for the wlr portal) |
 | `hosts/<name>/` | One folder per machine: `default.nix` (hostname, swap) and its generated `hardware-configuration.nix`. Each folder becomes `nixosConfigurations.<name>` |
 | `home.nix` | home-manager packages, shared by both outputs |
 | `dotfiles.nix` | Deploys every folder of the profile into `~/.config` |

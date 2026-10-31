@@ -1,0 +1,46 @@
+--- a/src/screencast/ext_image_copy.c	2026-07-28 18:58:20.000000000 +0200
++++ b/src/screencast/ext_image_copy.c	2026-10-25 22:29:09.980570877 +0100
+@@ -301,10 +301,40 @@
+ 
+ 	ext_image_copy_capture_frame_v1_attach_buffer(cast->ext_session.frame,
+ 			cast->current_frame.xdpw_buffer->buffer);
++
++	/*
++	 * Some compositors report frame damage in output-layout coordinates
++	 * rather than buffer-local coordinates. When the captured output is not
++	 * at the layout origin, those rects fall outside the buffer, and
++	 * ext-image-copy-capture treats that as a fatal protocol error
++	 * ("Invalid buffer damage coordinates"), killing the portal and
++	 * freezing the stream. Damage is only a hint, so if anything is out of
++	 * bounds just report the whole buffer as damaged.
++	 */
++	struct xdpw_buffer *buffer = cast->current_frame.xdpw_buffer;
++	uint32_t buf_w = buffer->width;
++	uint32_t buf_h = buffer->height;
++	bool damage_out_of_bounds = false;
+ 	struct xdpw_frame_damage *damage;
+-	wl_array_for_each(damage, &cast->current_frame.xdpw_buffer->damage) {
+-		ext_image_copy_capture_frame_v1_damage_buffer(
+-				cast->ext_session.frame, damage->x, damage->y, damage->width, damage->height);
++	wl_array_for_each(damage, &buffer->damage) {
++		if (damage->x >= buf_w || damage->y >= buf_h ||
++				(uint64_t)damage->x + damage->width > buf_w ||
++				(uint64_t)damage->y + damage->height > buf_h) {
++			damage_out_of_bounds = true;
++			break;
++		}
++	}
++	if (damage_out_of_bounds) {
++		logprint(TRACE, "ext: damage outside buffer, reporting full buffer");
++		if (buf_w > 0 && buf_h > 0) {
++			ext_image_copy_capture_frame_v1_damage_buffer(
++					cast->ext_session.frame, 0, 0, buf_w, buf_h);
++		}
++	} else {
++		wl_array_for_each(damage, &buffer->damage) {
++			ext_image_copy_capture_frame_v1_damage_buffer(
++					cast->ext_session.frame, damage->x, damage->y, damage->width, damage->height);
++		}
+ 	}
+ 	ext_image_copy_capture_frame_v1_capture(cast->ext_session.frame);
+ 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Autostart applications for MangoWM
 
 # Start the noctalia-shell application in the background, suppressing output

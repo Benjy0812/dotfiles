@@ -1728,6 +1728,12 @@ case $cmd in
       echo "would run: nixos-rebuild dry-build ${args[*]}"
       nixos-rebuild dry-build "${args[@]}"
     else
+      # Ask for the sudo password up front, like any sudo command, and keep it
+      # fresh while Nix builds, so the switch at the end never stops to ask.
+      sudo -v || die "sudo is needed to switch to the new system"
+      while sleep 60; do sudo -n -v 2>/dev/null || exit; done &
+      keepalive=$!
+      trap 'kill $keepalive 2>/dev/null' EXIT
       nixos-rebuild switch "${args[@]}" --sudo
     fi
     ;;

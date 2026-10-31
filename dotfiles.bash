@@ -62,7 +62,8 @@ ${B}More${X}
   setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
   uninstall     undo setup
   profile [NAME|auto|none]  show or choose this machine's profile (the folders that get synced)
-  profile set terminal|editor|wm NAME|all  sync only the preferred terminal, editor or window manager
+  profile set GROUP NAME|all  sync only the chosen app of a group (terminal, editor, shell...)
+  profile group GROUP NAME NAME..  define a group of alternatives in profile.conf
   rebuild       NixOS: nixos-rebuild switch for this repo's flake (-n: dry-build)
   edit [NAME[/FILE]]  open the profile (or a folder or file of it) in the preferred editor
   profile new NAME [folder..]  start a profile from the boilerplate in apps/ and mango/
@@ -82,7 +83,7 @@ Without names, push and diff use every out-of-sync folder, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
 ${B}Files${X} in the profile folder (profiles/<os>/), all optional: profile.conf (preferred
-terminal, editor and window manager), .dotfiles-map (where
+terminal, editor, window manager and shell), .dotfiles-map (where
 folders go), .dotfilesignore (paths to skip) and .dotfiles-hosts (which folders belong
 on which machine).
 EOF
@@ -150,24 +151,28 @@ ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 # The settings files live in the profile (profiles/<os>/), never in the repo root.
 pfile() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
 
-# Preferences: profiles/<os>/profile.conf holds "key = value" lines. A key is a
-# group of alternative apps; only the chosen one is synced, the others stay in
-# the profile folder untouched. "all" (or no line) syncs every member.
-#   terminal = kitty     # alacritty kitty foot ghostty
-#   editor = nvim        # nvim zed
-#   wm = hypr            # hypr mango i3 sway niri bspwm awesome river openbox
-PREF_KEYS=(terminal editor wm)
-PREF_terminal=(alacritty kitty foot ghostty)
-PREF_editor=(nvim zed)
-PREF_wm=(hypr mango i3 sway niri bspwm awesome river openbox)
-declare -A PREF=()
+# Preferences: profiles/<os>/profile.conf holds "key = value" lines.
+#   group.terminal = alacritty kitty foot ghostty   # defines a group of alternatives
+#   terminal = kitty                                # picks one; the rest are not synced
+# Groups are defined per profile, so any OS can have its own (group.launcher = rofi wofi).
+# A group member that is not chosen stays in the profile folder untouched. "all"
+# (or no choice line) syncs every member; a group with no members present is ignored.
+declare -A PREF=() PREF_GROUPS=()
+PREF_ORDER=()
+
+# Starter groups written into a new profile's profile.conf.
+DEFAULT_GROUPS=(
+  "terminal=alacritty kitty foot ghostty"
+  "editor=nvim zed"
+  "wm=hypr mango i3 sway niri bspwm awesome river openbox"
+  "shell=fish zsh bash nushell elvish xonsh"
+)
 
 # "kitty" -> terminal: the group a folder belongs to, if any.
 pref_group_of() {
   local k m
-  for k in "${PREF_KEYS[@]}"; do
-    declare -n members=PREF_$k
-    for m in "${members[@]}"; do [[ $m == "$1" ]] && { echo "$k"; return 0; }; done
+  for k in "${PREF_ORDER[@]}"; do
+    for m in ${PREF_GROUPS[$k]}; do [[ $m == "$1" ]] && { echo "$k"; return 0; }; done
   done
   return 1
 }
@@ -182,20 +187,33 @@ not_preferred() { # folder
   return 0
 }
 
-set_pref() { # key value
-  local f tmp k=$1 v=$2 m ok=0
-  [[ " ${PREF_KEYS[*]} " == *" $k "* ]] || die "unknown setting '$k'. Known: ${PREF_KEYS[*]}"
-  declare -n members=PREF_$k
-  for m in all "${members[@]}"; do [[ $m == "$v" ]] && ok=1; done
-  ((ok)) || die "$k can be: all ${members[*]}"
+# Write "key = value" into profile.conf, replacing a line with the same key.
+write_conf() { # key value
+  local f tmp
   [[ -n $PROFILE ]] || die "no profile is active"
   f=$(pfile profile.conf)
   tmp=$(mktemp)
-  if [[ -f $f ]]; then grep -Ev "^[[:space:]]*$k[[:space:]]*=" "$f" >"$tmp" || true; fi
-  printf '%s = %s\n' "$k" "$v" >>"$tmp"
+  if [[ -f $f ]]; then awk -F= -v k="$1" '{ key=$1; gsub(/[[:space:]]/, "", key); if (key != k) print }' "$f" >"$tmp"; fi
+  printf '%s = %s\n' "$1" "$2" >>"$tmp"
   mv -f "$tmp" "$f"
-  PREF[$k]=$v
+  load_profile_settings
   load_entries
+}
+
+set_pref() { # group value
+  local k=$1 v=$2 m ok=0
+  [[ -n ${PREF_GROUPS[$k]:-} ]] || die "unknown group '$k'. Known: ${PREF_ORDER[*]:-none}. Define one: $0 profile group $k NAME NAME.."
+  for m in all ${PREF_GROUPS[$k]}; do [[ $m == "$v" ]] && ok=1; done
+  ((ok)) || die "$k can be: all ${PREF_GROUPS[$k]}"
+  write_conf "$k" "$v"
+}
+
+define_group() { # name member..
+  local g=$1
+  shift
+  [[ $g =~ ^[a-z][a-z0-9_-]*$ ]] || die "bad group name '$g' (lowercase letters, digits, - and _)"
+  (($# >= 2)) || die "a group needs at least two members: $0 profile group $g NAME NAME.."
+  write_conf "group.$g" "$*"
 }
 
 # Read the active profile's .dotfilesignore, .dotfiles-map and profile.conf.
@@ -205,15 +223,22 @@ MAP_SRC=() MAP_DST=()
 load_profile_settings() {
   local line src dst i f
   USER_IGNORE=() MAP_SRC=() MAP_DST=()
-  PREF=()
+  PREF=() PREF_GROUPS=() PREF_ORDER=()
   f=$(pfile profile.conf)
   if [[ -f $f ]]; then
     while IFS= read -r line || [[ -n $line ]]; do
       line=${line%%#*}
       [[ $line == *=* ]] || continue
       src=${line%%=*} dst=${line#*=}
-      src=${src//[[:space:]]/} dst=${dst//[[:space:]]/}
-      [[ -n $src && -n $dst ]] && PREF[$src]=$dst
+      src=${src//[[:space:]]/}
+      read -ra dst <<<"$dst"
+      [[ -n $src && ${#dst[@]} -gt 0 ]] || continue
+      if [[ $src == group.* ]]; then
+        PREF_GROUPS[${src#group.}]="${dst[*]}"
+        PREF_ORDER+=("${src#group.}")
+      else
+        PREF[$src]=${dst[0]}
+      fi
     done <"$f"
   fi
   f=$(pfile .dotfilesignore)
@@ -389,11 +414,10 @@ tally() {
 # "terminal: kitty (alacritty, foot not synced)" lines under the status header.
 note_unpreferred() {
   local k e skipped
-  for k in "${PREF_KEYS[@]}"; do
+  for k in "${PREF_ORDER[@]}"; do
     [[ -n ${PREF[$k]:-} && ${PREF[$k]} != all ]] || continue
-    declare -n members=PREF_$k
     skipped=()
-    for e in "${members[@]}"; do
+    for e in ${PREF_GROUPS[$k]}; do
       if [[ -d $(pfile "$e") ]] && not_preferred "$e"; then skipped+=("$e"); fi
     done
     if ((${#skipped[@]})); then echo "  ${D}$k: ${PREF[$k]} ($(IFS=,; echo "${skipped[*]}" | sed 's/,/, /g') not synced)${X}"; fi
@@ -1335,7 +1359,7 @@ templates() {
 
 # Copy boilerplate folders into profiles/NAME/ and switch to it.
 profile_new() { # name [folder..]
-  local name=$1 t f
+  local name=$1 t f g
   shift
   [[ $name =~ ^[A-Za-z0-9._-]+$ && $name != auto && $name != none ]] || die "bad profile name '$name'"
   [[ ! -e $ROOT/profiles/$name ]] || die "profile '$name' already exists"
@@ -1353,11 +1377,12 @@ profile_new() { # name [folder..]
     echo "  ${GRN}copied${X} $f"
   done
   if ((DRY)); then return 0; fi
-  printf '%s\n' '# Preferred apps for this profile. Only the chosen one of each group is synced;' \
-    '# the others stay in the profile folder. Values: a folder name or "all".' \
-    '#   terminal: alacritty kitty foot ghostty' '#   editor:   nvim zed' \
-    '#   wm:       hypr mango i3 sway niri bspwm awesome river openbox' \
-    'terminal = all' 'editor = all' 'wm = all' >"$ROOT/profiles/$name/profile.conf"
+  {
+    echo '# Groups of alternative apps. "group.X = a b c" defines one, "X = a" picks it;'
+    echo '# only the picked app is synced, the rest stay in this folder. "all" syncs every one.'
+    for g in "${DEFAULT_GROUPS[@]}"; do echo "group.${g%%=*} = ${g#*=}"; done
+    for g in "${DEFAULT_GROUPS[@]}"; do echo "${g%%=*} = all"; done
+  } >"$ROOT/profiles/$name/profile.conf"
   set_profile "$name"
   echo "${B}profile $name${X} created from the boilerplate and now active"
 }
@@ -1399,15 +1424,18 @@ menu_profile() {
 
 menu_settings() {
   local k choice items=()
-  for k in "${PREF_KEYS[@]}"; do
-    items+=("$k|Which $k this profile syncs; the others stay in the profile, unsynced. Now: ${PREF[$k]:-all}.")
+  if ((${#PREF_ORDER[@]} == 0)); then
+    MSG="no groups in $(short "$(pfile profile.conf)"); add one with: $0 profile group NAME a b"
+    return 0
+  fi
+  for k in "${PREF_ORDER[@]}"; do
+    items+=("$k|Which $k this profile syncs: ${PREF_GROUPS[$k]}. Now: ${PREF[$k]:-all}.")
   done
   items+=("Back|Return to the tools menu.")
   k=$(choose "Profile settings ($PROFILE)" "${items[@]}") || return 0
   [[ $k == Back ]] && return 0
-  declare -n members=PREF_$k
   items=("all|Sync every $k in this profile.")
-  for choice in "${members[@]}"; do
+  for choice in ${PREF_GROUPS[$k]}; do
     if [[ -d $(pfile "$choice") ]]; then items+=("$choice|Sync only $choice; the other ${k}s stay in the profile, unsynced."); fi
   done
   choice=$(choose "Preferred $k" "${items[@]}") || return 0
@@ -1418,7 +1446,7 @@ menu_settings() {
 menu_tools() {
   local choice items=()
   items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
-    "Profile settings|Preferred terminal, editor and window manager for this profile; only those are synced."
+    "Profile settings|Choose one app per group (terminal, editor, shell... as the profile defines them); only that one is synced."
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
   if nix_managed; then
     items+=("NixOS: rebuild|Run nixos-rebuild switch for this repo's flake. The configs are deployed by Nix, not synced.")
@@ -1585,9 +1613,14 @@ case $cmd in
       profile_new "${names[@]:1}"
       exit 0
     elif [[ ${names[0]:-} == set ]]; then
-      ((${#names[@]} == 3)) || die "usage: $0 profile set terminal|editor|wm NAME|all"
+      ((${#names[@]} == 3)) || die "usage: $0 profile set GROUP NAME|all"
       set_pref "${names[1]}" "${names[2]}"
       echo "${names[1]} = ${names[2]}"
+      exit 0
+    elif [[ ${names[0]:-} == group ]]; then
+      ((${#names[@]} >= 4)) || die "usage: $0 profile group GROUP NAME NAME.."
+      define_group "${names[@]:1}"
+      echo "group.${names[1]} = ${names[*]:2}"
       exit 0
     elif ((${#names[@]})); then
       case ${names[0]} in
@@ -1598,12 +1631,12 @@ case $cmd in
     fi
     echo "profile: ${PROFILE:-none}"
     echo "available: $(profiles_available | paste -sd' ')"
-    for k in "${PREF_KEYS[@]}"; do echo "$k = ${PREF[$k]:-all}"; done
+    for k in "${PREF_ORDER[@]}"; do echo "$k = ${PREF[$k]:-all}   (${PREF_GROUPS[$k]})"; done
     ;;
   edit)
     ed=${PREF[editor]:-}
     [[ -n $ed && $ed != all ]] || ed=${EDITOR:-nvim}
-    command -v "$ed" >/dev/null || die "editor '$ed' not found (set one: $0 profile set editor nvim|zed)"
+    command -v "$ed" >/dev/null || die "editor '$ed' not found (set one: $0 profile set editor NAME)"
     if ((${#names[@]})); then
       check_names
       resolve_target "${names[0]}"

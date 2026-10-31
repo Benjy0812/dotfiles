@@ -142,7 +142,8 @@ More:
 | `profile` | Show the active and available profiles. |
 | `profile NAME\|auto\|none` | Choose this machine's profile. |
 | `profile new NAME [folder..]` | Create a profile by copying boilerplate (all of `apps/` if no folders named). |
-| `profile set terminal\|editor NAME\|all` | Choose the preferred terminal or editor. |
+| `profile set GROUP NAME\|all` | Pick the app of a group to sync (terminal, editor, shell...). |
+| `profile group GROUP NAME NAME..` | Define a group of alternatives in `profile.conf`. |
 | `rebuild` | NixOS only: `nixos-rebuild switch` for this flake (`-n` dry-build). |
 | `edit [NAME[/FILE]]` | Open the profile in the preferred editor. |
 | `profile templates` | List the boilerplate folders. |
@@ -189,30 +190,40 @@ To add an OS: `./dotfiles.bash profile new ubuntu kitty git fish`, then edit
 
 ## Profile settings
 
-`profiles/<os>/profile.conf` says which apps this OS prefers. A profile can hold
-every terminal and editor, but only the preferred one of each group is synced;
-the rest stay untouched in the profile folder.
+`profiles/<os>/profile.conf` defines groups of alternative apps and picks one per
+group. A profile can hold every terminal, editor, shell and so on, but only the
+picked one of each group is synced (and, on NixOS, deployed); the rest stay
+untouched in the profile folder.
 
 ```text
-terminal = kitty     # alacritty kitty foot ghostty
-editor = nvim        # nvim zed
-wm = hypr            # hypr mango i3 sway niri bspwm awesome river openbox
+group.terminal = alacritty kitty foot ghostty   # defines a group
+group.editor   = nvim zed
+group.shell    = fish zsh bash nushell elvish xonsh
+terminal = kitty                                # picks one (or "all")
+editor = nvim
+shell = fish
 ```
 
-`profile new` writes a starting `profile.conf` with every group set to `all`. Use `all` (or leave the line out) to sync every member. Change it with
-`./dotfiles.bash profile set terminal kitty` (or `editor`, `wm`), or Tools > Profile settings in the
-menu. Status shows what is not synced, e.g. `terminal: kitty (alacritty, foot, ghostty not synced)`.
-If the preferred app isn't in the profile, nothing is filtered.
+- Groups are per profile, so each OS can have its own alternatives, and you can
+  add any: `./dotfiles.bash profile group launcher rofi wofi`, then
+  `./dotfiles.bash profile set launcher rofi`. Members are folder names.
+- `profile new` writes starter groups (terminal, editor, wm, shell) with every
+  group set to `all`. Use `all` (or leave the choice out) to sync every member.
+- Change a pick with `./dotfiles.bash profile set GROUP NAME`, or Tools > Profile
+  settings in the menu. `./dotfiles.bash profile` lists the groups and picks.
+- Status shows what is not synced, e.g. `terminal: kitty (alacritty, foot, ghostty not synced)`.
+  If the picked app isn't in the profile, nothing is filtered.
+- `dotfiles.nix` reads the same file, so NixOS and `dotfiles.bash` agree.
 
 `./dotfiles.bash edit [NAME[/FILE]]` opens the profile (or one folder or file of
-it) in the preferred editor, falling back to `$EDITOR`, then `nvim`.
+it) in the editor picked in the `editor` group, falling back to `$EDITOR`, then `nvim`.
 
 ### Choosing what syncs: which tool
 
 | You want to... | Use |
 |---|---|
 | Keep a whole app out of a machine | Leave its folder out of the profile (`profile new` with only the folders you need, or delete it) |
-| Sync only one terminal, editor or window manager | `profile set terminal kitty` / Tools > Profile settings |
+| Sync only one app of a group (terminal, editor, shell, wm...) | `profile set terminal kitty` / Tools > Profile settings |
 | Give different hostnames different folders | `.dotfiles-hosts` |
 | Skip one file inside a folder you keep (e.g. `omarchy/shell.json`) | `select` (menu: Choose what syncs), fine-grained |
 | Skip a pattern (e.g. `mango/wall/*`) | Edit `.dotfilesignore` by hand |
@@ -269,8 +280,7 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
   different flake host.
 - Every folder in `profiles/nixos/` (except `nix/`) is deployed automatically by
   `profiles/nixos/nix/dotfiles.nix`: add a folder, rebuild, done. It also
-  honors `profile.conf`, so only the preferred terminal, editor and window manager
-  are deployed. Its group lists mirror the ones in `dotfiles.bash`. The other config files
+  honors `profile.conf`, so only the picked app of each group is deployed. The other config files
   (`.dotfiles-map`, `.dotfiles-hosts`, `.dotfilesignore`) are not used on NixOS,
   because `dotfiles.bash` never syncs this profile; only `profile.conf` matters here.
 - More in [profiles/nixos/nix/README.md](../profiles/nixos/nix/README.md).

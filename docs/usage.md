@@ -124,6 +124,7 @@ Everyday:
 | `push [name..]` | Copy repo to `~/.config`. A different existing file is moved to the backup folder first. |
 | `pull [name..]` | Copy edited files into the repo. Conflicts are skipped unless named. `--commit` commits the pulled files (no push). |
 | `restore [NAME/FILE..]` | Bring back the newest backup; without names pick one with fzf. The current file is backed up first. |
+| `skipped` | List every file and folder that is not synced and why: built-in skips, `.dotfilesignore` patterns, and apps not picked in a group. Also in Tools > What is skipped. |
 | `select` | The "Choose what syncs" picker. |
 | `undo [--yes]` | Lists, then with `--yes` reverses the last push, pull or restore. Undoing is itself undoable. |
 

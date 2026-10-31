@@ -1,6 +1,6 @@
 # Completions for ~/Projects/dotfiles/dotfiles.bash, also when run as ./dotfiles.bash
 set -l dfs ~/Projects/dotfiles/dotfiles.bash
-set -l cmds menu status list push install pull fetch diff preview merge backups restore clean baseline doctor watch uninstall select undo map profile edit rebuild setup help version
+set -l cmds menu status list push install pull fetch diff preview merge backups restore clean baseline doctor watch uninstall select undo map profile skipped edit rebuild setup help version
 
 function __dfs_complete
     complete -c dotfiles.bash $argv

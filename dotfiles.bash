@@ -48,6 +48,7 @@ ${B}Everyday${X}
   push          copy repo files into ~/.config; replaced files are kept in the backup folder
   pull          copy files edited in ~/.config back into the repo (--commit commits them)
   restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
+  skipped       list every file and folder that is not synced, and why
   select        fine-grained: skip single files (see docs/usage.md for folder-level choices)
   undo          put back what the last push, pull or restore changed (--yes to do it)
 
@@ -424,6 +425,46 @@ note_unpreferred() {
   done
 }
 
+# The first glob that matches PATH, or nothing: first_match PATH GLOB..
+first_match() {
+  local path=$1 p
+  shift
+  for p in "$@"; do
+    # shellcheck disable=SC2053 # the pattern is meant to be a glob
+    if [[ $path == $p ]]; then echo "$p"; return 0; fi
+  done
+  return 1
+}
+
+# Everything that is not synced, and why: files skipped by the built-in list or
+# by .dotfilesignore, and whole folders left out by a group pick.
+skipped_report() {
+  local n rel path g m pat total=0 files
+  while read -r n; do
+    while IFS= read -r -d '' rel; do
+      path=$n/$rel
+      if pat=$(first_match "$path" "${ALWAYS_IGNORE[@]}"); then
+        printf '  %-44s %s\n' "$path" "${D}always skipped ($pat)${X}"
+      elif pat=$(first_match "$path" "${USER_IGNORE[@]}"); then
+        printf '  %-44s %s\n' "$path" "${YEL}.dotfilesignore${X} ${D}($pat)${X}"
+      else
+        continue
+      fi
+      ((++total))
+    done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+  done < <(entries)
+  for g in "${PREF_ORDER[@]}"; do
+    [[ -n ${PREF[$g]:-} && ${PREF[$g]} != all ]] || continue
+    for m in ${PREF_GROUPS[$g]}; do
+      [[ -d $(pfile "$m") ]] && not_preferred "$m" || continue
+      files=$(find "$(pfile "$m")" \( -type f -o -type l \) | wc -l)
+      printf '  %-44s %s\n' "$m/ ($files files)" "${CYA}not picked${X} ${D}($g = ${PREF[$g]}; change: $0 profile set $g NAME)${X}"
+      ((++total))
+    done
+  done
+  if ((total == 0)); then echo "  nothing is skipped"; else echo; echo "  ${D}Change it: Tools > Profile settings (folders), Choose what syncs (files), or edit $(short "$(pfile .dotfilesignore)")${X}"; fi
+}
+
 # How many files of one folder .dotfilesignore (or the built-in list) skips.
 skipped_count() {
   local rel n=0
@@ -615,6 +656,18 @@ show_status() {
     printf '  %-14s %s\n' "$n" "$label"
   done < <(entries)
   printf '\n'
+  hint_skipped
+}
+
+# "12 skipped: ./dotfiles.bash skipped" under the status table, when something is.
+hint_skipped() {
+  local n total=0 g m
+  while read -r n; do total=$((total + $(skipped_count "$n"))); done < <(entries)
+  for g in "${PREF_ORDER[@]}"; do
+    [[ -n ${PREF[$g]:-} && ${PREF[$g]} != all ]] || continue
+    for m in ${PREF_GROUPS[$g]}; do [[ -d $(pfile "$m") ]] && not_preferred "$m" && ((++total)); done
+  done
+  if ((total)); then echo "  ${D}Some files and folders are skipped. See what and why: $0 skipped${X}"; echo; fi
 }
 
 status_json() {
@@ -1447,6 +1500,7 @@ menu_tools() {
   local choice items=()
   items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
     "Profile settings|Choose one app per group (terminal, editor, shell... as the profile defines them); only that one is synced."
+    "What is skipped|List every file and folder that is not synced, and why."
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
   if nix_managed; then
     items+=("NixOS: rebuild|Run nixos-rebuild switch for this repo's flake. The configs are deployed by Nix, not synced.")
@@ -1461,6 +1515,7 @@ menu_tools() {
     Profile) menu_profile ;;
     "NixOS: rebuild") "$SELF" rebuild; pause ;;
     "Profile settings") [[ -n $PROFILE ]] && menu_settings ;;
+    "What is skipped") skipped_report; pause ;;
     Doctor) doctor || true; pause ;;
     "Omarchy: set up") omarchy_setup; pause ;;
     "Omarchy: uninstall")
@@ -1666,6 +1721,7 @@ case $cmd in
       done
     done < <(entries)
     ;;
+  skipped) skipped_report ;;
   setup) omarchy_setup ;;
   uninstall) omarchy_uninstall ;;
   help) usage ;;

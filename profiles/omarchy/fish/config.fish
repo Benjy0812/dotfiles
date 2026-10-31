@@ -9,3 +9,5 @@ set -gx BUN_INSTALL "$HOME/.bun"
 
 # Set up PATH (fish sources conf.d/*.fish automatically, so no manual loop here)
 fish_add_path ~/.local/bin $BUN_INSTALL/bin
+
+fish_add_path /home/benjy/.spicetify

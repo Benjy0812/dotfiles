@@ -1,5 +1,10 @@
 -- Plain Neovim, no plugins: learn the built-in motions first.
 -- Docs for any option or key: :help <name>
+--
+-- Terminal in a split: :split | terminal (or :vsplit | terminal).
+-- Typing mode is where keys go to the shell. Press i to enter it, and
+-- Ctrl+\ (kitty) types "exit" to close the shell. Ctrl+\ Ctrl+n
+-- leaves typing mode to Normal mode, and :q closes the window.
 
 vim.g.mapleader = " "
 

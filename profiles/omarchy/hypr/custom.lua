@@ -88,5 +88,18 @@ hl.config({
     -- Dim unfocused windows (0.0 = no dim, 1.0 = fully dimmed).
     dim_inactive = true,
     dim_strength = 0.1,
+
+    -- Blur behind see-through windows (Kitty's background_opacity). Omarchy
+    -- turns it off; same values as mango's appearance.conf on NixOS.
+    blur = {
+      enabled = true,
+      size = 8,          -- strength; higher = blurrier
+      passes = 3,        -- smoothness (1-4); more = smoother but heavier
+      noise = 0.02,      -- grain, hides banding
+      brightness = 0.9,  -- <1 darkens what's behind
+      contrast = 0.9,
+      vibrancy = 0.17,   -- boosts colors behind the window
+      xray = false,      -- true = blur only the wallpaper, not windows behind
+    },
   },
 })

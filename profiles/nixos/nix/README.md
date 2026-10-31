@@ -21,7 +21,7 @@ profiles/nixos/
 |---|---|
 | `configuration.nix` | System: boot, ly login + MangoWM, fish, fonts, packages |
 | `patches/` | Patches built into packages (screen-share fix for the wlr portal) |
-| `hosts/<name>/` | One folder per machine: `default.nix` (hostname, swap) and its generated `hardware-configuration.nix`. Each folder becomes `nixosConfigurations.<name>` |
+| `hosts/<name>/` | One folder per machine: `default.nix` (hostname, swap). Each folder becomes `nixosConfigurations.<name>`. Hardware is read from the machine's own `/etc/nixos/hardware-configuration.nix`, so builds need `--impure` |
 | `home.nix` | home-manager packages, shared by both outputs |
 | `dotfiles.nix` | Deploys every folder of the profile into `~/.config` |
 | `standalone.nix` | Extra settings for the standalone profile |
@@ -29,18 +29,18 @@ profiles/nixos/
 ## Use
 
 ```bash
-# Rebuild from the checked-out repo
-nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --sudo
+# Rebuild from the checked-out repo (same as ./dotfiles.bash rebuild)
+nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --impure --sudo
 
-# Fresh install on a new machine (the committed hardware config is for benjy's
-# disks and will not boot elsewhere, so give the new machine its own host folder)
-git clone https://github.com/Benjy0812/dotfiles && cd dotfiles
-cp -r profiles/nixos/nix/hosts/benjy profiles/nixos/nix/hosts/<name>
-nixos-generate-config --show-hardware-config > profiles/nixos/nix/hosts/<name>/hardware-configuration.nix
-$EDITOR profiles/nixos/nix/hosts/<name>/default.nix   # hostname, swap file
+# New machine: install NixOS normally (that writes
+# /etc/nixos/hardware-configuration.nix), boot it, then as your user:
+nix-shell -p git --run 'git clone https://github.com/Benjy0812/dotfiles ~/Projects/dotfiles'
+cd ~/Projects/dotfiles
+cp -r profiles/nixos/nix/hosts/benjy profiles/nixos/nix/hosts/<name>   # only for another machine
+$EDITOR profiles/nixos/nix/hosts/<name>/default.nix                   # hostname, swap file
 git add -A   # a flake ignores untracked files
-sudo nixos-rebuild switch --flake .#<name> \
-  --extra-experimental-features 'nix-command flakes'   # needed on the installer
+nixos-rebuild switch --flake .#<name> --impure --sudo \
+  --extra-experimental-features 'nix-command flakes'   # until the first switch enables flakes
 
 # Standalone profile on another distro (Nix must be installed)
 nix run github:nix-community/home-manager -- switch --flake ~/Projects/dotfiles#benjy

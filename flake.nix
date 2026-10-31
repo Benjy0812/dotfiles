@@ -34,9 +34,9 @@
         dotfiles = self;
       };
 
-      # One NixOS configuration per folder in profiles/nixos/nix/hosts/. Each
-      # holds that machine's hardware-configuration.nix, so a new machine is a
-      # new folder; nothing here needs editing.
+      # One NixOS configuration per folder in profiles/nixos/nix/hosts/, so a new
+      # machine is a new folder; nothing here needs editing. Hardware comes from
+      # each machine's /etc/nixos/hardware-configuration.nix (build with --impure).
       hostsDir = ./profiles/nixos/nix/hosts;
 
       mkHost =

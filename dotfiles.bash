@@ -1715,12 +1715,13 @@ case $cmd in
     flake="$ROOT#$host"
     # Build as this user and let nixos-rebuild sudo only for the switch: Nix
     # refuses a git repo owned by someone else, so `sudo nixos-rebuild` fails
-    # with "not owned by current user".
+    # with "not owned by current user". --impure lets the host read this
+    # machine's /etc/nixos/hardware-configuration.nix.
     if ((DRY)); then
-      echo "would run: nixos-rebuild dry-build --flake $flake"
-      nixos-rebuild dry-build --flake "$flake"
+      echo "would run: nixos-rebuild dry-build --flake $flake --impure"
+      nixos-rebuild dry-build --flake "$flake" --impure
     else
-      nixos-rebuild switch --flake "$flake" --sudo
+      nixos-rebuild switch --flake "$flake" --impure --sudo
     fi
     ;;
   map)

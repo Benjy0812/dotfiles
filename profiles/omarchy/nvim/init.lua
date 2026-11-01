@@ -57,6 +57,14 @@ map("v", ">", ">gv")
 -- Built-in file explorer
 map("n", "<leader>e", "<cmd>Explore<cr>", { desc = "File explorer" })
 
+-- Rust language server (built into Neovim, no plugin). Needs rust-analyzer on PATH.
+vim.lsp.config("rust_analyzer", {
+  cmd = { "rust-analyzer" },
+  filetypes = { "rust" },
+  root_markers = { "Cargo.toml" },
+})
+vim.lsp.enable("rust_analyzer")
+
 -- Flash the text you just yanked
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function() vim.hl.on_yank() end,

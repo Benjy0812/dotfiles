@@ -109,6 +109,19 @@ The first letter is the mode: `n` is Normal, `v` is Visual.
 | `J` / `K` | Move the selected lines down or up, re-indent them, and keep them selected. Select lines with `V`, then press `J` or `K` repeatedly. |
 | `<` / `>` | Indent the selection left or right and keep it selected (`gv` reselects), so you can press `>` several times in a row. Plain Vim drops the selection after one indent. |
 
+## Autocomplete
+
+```lua
+o.completeopt = { "menuone", "noselect", "popup" }
+vim.api.nvim_create_autocmd("LspAttach", { ... })
+```
+
+Neovim's built-in LSP completion (`:help lsp-completion`) opens a menu as you
+type once a language server is attached. `Tab` / `Shift+Tab` move through the
+items (or insert a normal Tab when no menu is open), `Enter` accepts the
+selection and `Ctrl+e` dismisses the menu. With no server attached nothing
+pops up.
+
 ## Autocommand
 
 ```lua

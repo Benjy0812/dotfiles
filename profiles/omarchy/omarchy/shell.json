@@ -4,19 +4,10 @@
     "layout": {
       "center": [
         {
-          "id": "omarchy.indicators"
-        },
-        {
-          "id": "omarchy.clock",
-          "format": "yyyy-MM-dd HH:mm",
-          "formatAlt": "d MMMM 'W'ww yyyy",
-          "verticalFormat": "HH\n—\nmm"
+          "id": "benjy.monitor-workspaces"
         },
         {
           "id": "omarchy.keyboard-layout"
-        },
-        {
-          "id": "omarchy.weather"
         },
         {
           "id": "omarchy.system-update"
@@ -24,7 +15,7 @@
       ],
       "left": [
         {
-          "id": "benjy.monitor-workspaces"
+          "id": "omarchy.indicators"
         }
       ],
       "right": [
@@ -50,7 +41,10 @@
           "id": "omarchy.monitor"
         },
         {
-          "id": "omarchy.power"
+          "id": "omarchy.clock",
+          "format": "yyyy-MM-dd HH:mm",
+          "formatAlt": "d MMMM 'W'ww yyyy",
+          "verticalFormat": "HH\n—\nmm"
         }
       ]
     },

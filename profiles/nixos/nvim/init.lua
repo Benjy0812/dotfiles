@@ -57,6 +57,17 @@ map("v", ">", ">gv")
 -- Built-in file explorer
 map("n", "<leader>e", "<cmd>Explore<cr>", { desc = "File explorer" })
 
+-- Autocomplete (built-in, Neovim 0.11+): LSP completion pops up as you type.
+-- Tab/Shift-Tab pick items, Enter accepts, Ctrl+e dismisses.
+o.completeopt = { "menuone", "noselect", "popup" }
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    vim.lsp.completion.enable(true, ev.data.client_id, ev.buf, { autotrigger = true })
+  end,
+})
+map("i", "<Tab>", function() return vim.fn.pumvisible() == 1 and "<C-n>" or "<Tab>" end, { expr = true })
+map("i", "<S-Tab>", function() return vim.fn.pumvisible() == 1 and "<C-p>" or "<S-Tab>" end, { expr = true })
+
 -- Flash the text you just yanked
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function() vim.hl.on_yank() end,

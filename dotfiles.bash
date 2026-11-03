@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# dotfiles v1.2: compare this repo with ~/.config and sync the two. Only the
+# dotfiles v1.3: compare this repo with ~/.config and sync the two. Only the
 # active profile (profiles/<os>/) is synced; apps/ and mango/ are boilerplate
 # that `profile new` copies into a new profile. Run `./dotfiles.bash help`.
 set -euo pipefail
 
-VERSION=1.2.0
+VERSION=1.3.0
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SELF="$ROOT/dotfiles.bash"
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -24,7 +24,11 @@ if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
   B=$'\e[1m' D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' X=$'\e[0m'
 else
   B= D= RED= GRN= YEL= CYA= X=
+  export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --no-color"
 fi
+
+# File names are untrusted display text: a name with escape codes must not reach the terminal.
+clean() { printf '%s' "${1//[[:cntrl:]]/?}"; }
 
 # Every push, pull or restore is one run, so undo can put back just that run.
 new_run() { RUN_ID="$(date +%Y%m%d-%H%M%S)-$((++RUN_SEQ))"; }
@@ -49,6 +53,8 @@ ${B}Everyday${X}
   pull          copy files edited in ~/.config back into the repo (--commit commits them)
   restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
   skipped       list every file and folder that is not synced, and why
+  track PATH..  add anything from ~/.config to the repo (a file or folder; secrets and caches held back)
+  untrack NAME  remove from the repo (the ~/.config copy stays)
   select        fine-grained: skip single files (see docs/usage.md for folder-level choices)
   undo          put back what the last push, pull or restore changed (--yes to do it)
 
@@ -75,7 +81,8 @@ ${B}Options${X}
   -n, --dry-run   show what would happen, change nothing
   -y, --yes       let clean delete
   --json          status as JSON
-  --commit        pull: commit the pulled files (no push)
+  --commit        pull, track: commit the changed repo files (no push)
+  -f, --force     track: also add files flagged as possible secrets
   -h, --help      same as help
   -v, --version   same as version
 
@@ -628,8 +635,9 @@ repo_state() {
 
 show_status() {
   local n label parts p skip note
-  printf '\n  %sdotfiles%s %sv%s%s  %s%s → %s%s  %s\n\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" \
-    "$D" "$(short "$ROOT")" "$(short "$CONFIG")" "$X" "$(repo_state)${PROFILE:+  ${D}profile $PROFILE${X}}"
+  printf '\n  %sdotfiles%s %sv%s%s%s\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" "${PROFILE:+  ${D}profile $PROFILE${X}}"
+  printf '  %srepo%s       %s  %s\n' "$CYA" "$X" "$(short "$ROOT/profiles/${PROFILE:-}")" "$(repo_state)"
+  printf '  %s~/.config%s  %s  %s(the live files on this machine)%s\n\n' "$YEL" "$X" "$(short "$CONFIG")" "$D" "$X"
   note_unpreferred
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
   while read -r n; do
@@ -711,7 +719,7 @@ changed_files() { # all | pull
 # " +N -M": lines of file $2 that are new / missing compared with file $1.
 diff_stat() {
   local add del
-  if [[ -L $1 || -L $2 ]]; then return 0; fi
+  if [[ -L $1 || -L $2 || ! -f $1 || ! -f $2 ]]; then return 0; fi
   add=$(diff "$1" "$2" | grep -c '^>' || true)
   del=$(diff "$1" "$2" | grep -c '^<' || true)
   printf ' %s+%s%s %s-%s%s' "$GRN" "$add" "$X" "$RED" "$del" "$X"
@@ -725,7 +733,7 @@ fetch_report() {
     src=$(src_dir "$n")/$rel dest=$(dest_of "$n" "$rel")
     stat=
     if [[ $st != missing ]]; then stat=$(diff_stat "$src" "$dest"); fi
-    printf '  %-38s %s%s\n' "$n/$rel" "$(tag_for "$st")" "$stat"
+    printf '  %-36s %s%s\n' "$n/$rel" "$(sync_tag "$st")" "$stat"
     ((++total))
   done < <(changed_files all)
   if ((total == 0)); then echo "  ${GRN}everything in sync${X}"; else echo; echo "  $total file(s) differ"; fi
@@ -810,23 +818,6 @@ pull_entry() {
   done < <(tracked "$name")
 }
 
-# Colored diff of one file: - is the repo copy, + is the ~/.config copy.
-file_diff() { # name rel
-  local src dest
-  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
-  case "$(state "$src" "$dest")" in
-    same) ;;
-    missing) echo "${RED}not installed${X}  $1/$2" ;;
-    *)
-      if [[ -L $src || -L $dest ]]; then
-        echo "${YEL}link differs${X}  $1/$2"
-      else
-        diff --color=always -u --label "repo/$1/$2" --label "config/$1/$2" "$src" "$dest" || true
-      fi
-      ;;
-  esac
-}
-
 diff_entry() {
   local name=$1 rel
   while IFS= read -r -d '' rel; do file_diff "$name" "$rel"; done < <(tracked "$name")
@@ -871,8 +862,8 @@ offer_commit() {
   local choice msg
   echo
   git -C "$ROOT" diff --stat --color=always -- "${PULLED[@]}" || true
-  choice=$(choose "Commit the pulled files?" \
-    "Commit|Commit the pulled files with the message you edit next." \
+  choice=$(choose "Commit the changed repo files?" \
+    "Commit|Commit the changed repo files with the message you edit next." \
     "Commit and push|Commit, then ask before pushing to origin." \
     "Skip|Leave the files uncommitted; they show in git status.") || return 0
   [[ $choice == Skip ]] && return 0
@@ -952,6 +943,7 @@ undo_last() { # [confirm]
       stash) echo "  ${CYA}←${X} put back the old ~/.config copy of $n/$rel" ;;
       created) echo "  ${RED}×${X} remove $n/$rel from ~/.config (it was new; kept as a backup)" ;;
       pull) echo "  ${CYA}←${X} put back the old repo copy of $n/$rel" ;;
+      added) echo "  ${RED}×${X} remove $n/$rel from the repo again (it was added)" ;;
     esac
   done
   if [[ ${1:-} == confirm ]]; then
@@ -977,8 +969,23 @@ undo_last() { # [confirm]
         if [[ -e $saved ]]; then
           echo "  ${GRN}restore${X} $n/$rel in the repo"
           ((++N_COPY))
-          if ((!DRY)); then save_repo_copy "$n" "$rel" "$src"; cp -P "$saved" "$src"; fi
+          if ((!DRY)); then
+            if [[ -e $src || -L $src ]]; then save_repo_copy "$n" "$rel" "$src"; fi
+            mkdir -p "$(dirname "$src")"
+            cp -P "$saved" "$src"
+          fi
         else echo "  ${RED}old repo copy is gone${X}  $n/$rel"; fi
+        ;;
+      added)
+        if [[ -e $src || -L $src ]]; then
+          echo "  ${YEL}remove${X}  $n/$rel from the repo"
+          ((++N_COPY))
+          if ((!DRY)); then
+            save_repo_copy "$n" "$rel" "$src"
+            rm -f -- "$src"
+            find "$(src_dir "$n")" -type d -empty -delete 2>/dev/null || true
+          fi
+        fi
         ;;
     esac
   done
@@ -1108,6 +1115,406 @@ watch_config() { # [--auto] [name..]
   done < <(inotifywait -m -r -q -e close_write,moved_to --format '%w%f' "${dirs[@]}")
 }
 
+# ---- clear diffs ----------------------------------------------------------
+# Every diff is drawn as the change that would happen: "-" is what the target
+# has now, "+" is what it will have. The header names both real paths, so it is
+# always clear which side is ~/.config and which is the repo.
+
+# Which way a file in this state would be copied: push, pull or conflict.
+act_of() { case $1 in config-newer) echo pull ;; conflict) echo conflict ;; *) echo push ;; esac; }
+
+# Colored direction label.
+act_label() {
+  case $1 in
+    pull) echo "${YEL}~/.config ➜ repo${X}" ;;
+    push) echo "${CYA}repo ➜ ~/.config${X}" ;;
+    *) echo "${RED}⚠ both changed${X}" ;;
+  esac
+}
+
+# Header and colored diff of one file. act: push | pull | conflict (default:
+# what its state suggests). Conflicts show the repo copy against ~/.config.
+change_diff() { # name rel [act]
+  local n=$1 rel=$2 src dest st act old new oldl newl rsrc
+  src=$(src_dir "$n")/$rel dest=$(dest_of "$n" "$rel") rsrc=${src#"$ROOT"/}
+  st=$(state "$src" "$dest")
+  if [[ $st == same ]]; then echo "${GRN}in sync${X}  $n/$rel"; return 0; fi
+  act=${3:-$(act_of "$st")}
+  printf '%s%s%s   %s\n' "$B" "$n/$rel" "$X" "$(act_label "$act")"
+  printf '  %s~/.config%s  %s\n  %srepo%s       %s\n' "$YEL" "$X" "$(short "$dest")" "$CYA" "$X" "$rsrc"
+  if [[ -L $src || -L $dest ]]; then
+    printf '  link differs: repo → %s, ~/.config → %s\n' "$(readlink "$src" 2>/dev/null || echo none)" "$(readlink "$dest" 2>/dev/null || echo none)"
+    return 0
+  fi
+  case $act in
+    pull) old=$src new=$dest oldl="repo now" newl="repo after (the ~/.config copy)" ;;
+    push)
+      old=$dest new=$src oldl="~/.config now" newl="~/.config after (the repo copy)"
+      if [[ ! -e $dest ]]; then old=/dev/null oldl="~/.config now (not installed)"; fi
+      ;;
+    *) old=$src new=$dest oldl="repo" newl="~/.config" ;;
+  esac
+  printf '  %s- %s%s   %s+ %s%s\n' "$RED" "$oldl" "$X" "$GRN" "$newl" "$X"
+  diff --color=always -u --label "$oldl" --label "$newl" "$old" "$new" | tail -n +3 || true
+}
+
+# Same as change_diff but a file that is gone from ~/.config or the repo says so.
+file_diff() { change_diff "$@"; }
+
+# " +N -M" of the change from the target's copy to the new one.
+change_stat() { # name rel act
+  local src dest
+  src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
+  case $3 in
+    pull) diff_stat "$src" "$dest" ;;
+    push) if [[ -e $dest ]]; then diff_stat "$dest" "$src"; fi ;;
+    *) diff_stat "$src" "$dest" ;;
+  esac
+}
+
+# ---- add anything from ~/.config -----------------------------------------
+# `track PATH..` copies files from ~/.config into the active profile, so the
+# repo can hold any config, not just the folders it started with. A path is
+# relative to ~/.config: a file, a folder, or a file inside a folder. Files
+# straight in ~/.config (starship.toml...) go to the profile's config-root/.
+# Caches, logs, databases, credentials and big files are never added; files
+# whose text looks like a secret are flagged and need --force (or a yes).
+
+SKIP_DIRS=(Cache 'Code Cache' GPUCache 'Service Worker' 'Local Storage' IndexedDB 'Session Storage' blob_storage
+  Crashpad logs node_modules .git CacheStorage 'Shared Dictionary' DawnCache GrShaderCache ShaderCache __pycache__
+  .cache 'Cache Storage' 'Network' 'Safe Browsing' 'component_crx_cache')
+# Top-level ~/.config folders that are app data (profiles, caches), not config.
+APP_DATA=(google-chrome google-chrome-beta google-chrome-unstable chromium microsoft-edge microsoft-edge-dev zen
+  BraveSoftware Code Claude Claude-3p JetBrains obsidian ModrinthApp discord Slack dconf ai.l0ng.openidea)
+MAX_BYTES=$((2 * 1024 * 1024))
+SECRET_RE='(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[bap]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api[_-]?key|secret|token|passw(or)?d)["'"'"' ]*[:=][ "'"'"']*[A-Za-z0-9_/+=.-]{16,})'
+FORCE=0
+TR_OK=() TR_WARN=() TR_SKIP=() TR_HAVE=()
+
+is_app_data() { # top-level name
+  local a
+  for a in "${APP_DATA[@]}"; do [[ $1 == "$a" ]] && return 0; done
+  return 1
+}
+
+# NUL list of the files and links under an absolute path (the path itself if it
+# is one), without cache and junk folders.
+collect_files() {
+  local p=$1 args=() d
+  if [[ -f $p || -L $p ]]; then printf '%s\0' "$p"; return 0; fi
+  for d in "${SKIP_DIRS[@]}"; do args+=(-o -name "$d"); done
+  find -P "$p" \( -type d \( -false "${args[@]}" \) -prune \) -o \( -type f -o -type l \) -print0
+}
+
+# ok | skip:reason | warn:reason for one absolute path in ~/.config.
+file_verdict() {
+  local f=$1 lc t size
+  lc=${f##*/}
+  lc=${lc,,}
+  if [[ -L $f ]]; then
+    t=$(readlink -f -- "$f" 2>/dev/null || true)
+    if [[ $t == "$ROOT"/* ]]; then echo "skip:link into this repo"; else echo ok; fi
+    return 0
+  fi
+  [[ -f $f ]] || { echo "skip:not a regular file"; return 0; }
+  case $lc in
+    *.log | *.sqlite* | *.db | *.db-* | *.pyc | *.swp | *~ | .ds_store | *.tmp | *.bak | *.bak.*) echo "skip:cache, log, backup or database"; return 0 ;;
+    *token* | *secret* | *credential* | *password* | *.pem | *.key | id_rsa* | id_ed25519* | hosts.yml | .env | .env.* | *.kdbx | *cookie* | *keyring*)
+      echo "skip:looks like a credential file"; return 0 ;;
+  esac
+  size=$(stat -c %s -- "$f")
+  if ((size > MAX_BYTES)); then echo "skip:bigger than $((MAX_BYTES / 1048576)) MB"; return 0; fi
+  if grep -IqE -- "$SECRET_RE" "$f" 2>/dev/null; then echo "warn:contains something that looks like a secret"; return 0; fi
+  echo ok
+}
+
+# "kitty/kitty.conf" -> T_N=kitty T_R=kitty.conf; "starship.toml" -> config-root.
+repo_target() {
+  if [[ $1 == */* ]]; then T_N=${1%%/*} T_R=${1#*/}; else T_N=config-root T_R=$1; fi
+}
+
+# Sort the files under the given ~/.config paths into TR_OK, TR_WARN (path<TAB>why),
+# TR_SKIP (path<TAB>why) and TR_HAVE (already in the repo).
+plan_track() { # rel..
+  local rel abs f frel v
+  TR_OK=() TR_WARN=() TR_SKIP=() TR_HAVE=()
+  for rel in "$@"; do
+    abs=$CONFIG/$rel
+    if [[ ! -e $abs && ! -L $abs ]]; then TR_SKIP+=("$rel"$'\t'"not found in ~/.config"); continue; fi
+    while IFS= read -r -d '' f; do
+      frel=${f#"$CONFIG"/}
+      repo_target "$frel"
+      if ignored "$T_N/$T_R"; then TR_SKIP+=("$frel"$'\t'"on the ignore list"); continue; fi
+      if [[ -e $(src_dir "$T_N")/$T_R || -L $(src_dir "$T_N")/$T_R ]]; then TR_HAVE+=("$frel"); continue; fi
+      v=$(file_verdict "$f")
+      case $v in
+        ok) TR_OK+=("$frel") ;;
+        warn:*) TR_WARN+=("$frel"$'\t'"${v#warn:}") ;;
+        *) TR_SKIP+=("$frel"$'\t'"${v#skip:}") ;;
+      esac
+    done < <(collect_files "$abs")
+  done
+}
+
+# What plan_track found, as lines under a heading.
+track_report() {
+  local r i=0 cap=25 rp
+  rp=$(short "$ROOT/profiles/${PROFILE:-none}")
+  echo "  ${B}Add to the repo${X}  ${D}~/.config ➜ $rp${X}"
+  echo
+  for r in "${TR_OK[@]}"; do
+    if ((++i > cap)); then break; fi
+    repo_target "$r"
+    printf '  %s+%s %-40s %s→ %s/%s%s\n' "$GRN" "$X" "$(clean "$r")" "$D" "$(clean "$T_N")" "$(clean "$T_R")" "$X"
+  done
+  if ((${#TR_OK[@]} > cap)); then echo "  ${D}… and $((${#TR_OK[@]} - cap)) more${X}"; fi
+  for r in "${TR_WARN[@]}"; do printf '  %s!%s %-40s %s%s (needs a yes)%s\n' "$RED" "$X" "${r%%$'\t'*}" "$RED" "${r#*$'\t'}" "$X"; done
+  i=0
+  for r in "${TR_SKIP[@]}"; do
+    if ((++i > 12)); then break; fi
+    printf '  %s– %-40s not added: %s%s\n' "$D" "${r%%$'\t'*}" "${r#*$'\t'}" "$X"
+  done
+  if ((${#TR_SKIP[@]} > 12)); then echo "  ${D}… and $((${#TR_SKIP[@]} - 12)) more not added${X}"; fi
+  if ((${#TR_HAVE[@]})); then echo "  ${D}${#TR_HAVE[@]} file(s) already in the repo${X}"; fi
+  echo
+}
+
+# The profile's .dotfiles-map rule that sends config-root/ to ~/.config itself.
+ensure_root_map() {
+  local f
+  f=$(pfile .dotfiles-map)
+  grep -qE '^[[:space:]]*config-root[[:space:]]*=' "$f" 2>/dev/null && return 0
+  printf '\n# Files that sit directly in ~/.config (starship.toml, mimeapps.list...)\nconfig-root = ~/.config\n' >>"$f"
+  load_profile_settings
+  load_entries
+}
+
+# Copy the planned files from ~/.config into the repo. $1=1 includes the flagged ones.
+track_apply() { # include_warn
+  local list=("${TR_OK[@]}") r frel dest ignored_note=0 rpath
+  if [[ ${1:-0} == 1 ]]; then for r in "${TR_WARN[@]}"; do list+=("${r%%$'\t'*}"); done; fi
+  ((${#list[@]})) || { echo "  nothing to add"; return 0; }
+  for frel in "${list[@]}"; do
+    repo_target "$frel"
+    if [[ $T_N == config-root ]] && ((!DRY)); then ensure_root_map; fi
+    dest=$(src_dir "$T_N")/$T_R rpath=${dest#"$ROOT"/}
+    echo "  ${GRN}add${X}     $T_N/$T_R  ${D}← ~/.config/$frel${X}"
+    ((++N_COPY))
+    if ((!DRY)); then
+      mkdir -p "$(dirname "$dest")"
+      cp -P "$CONFIG/$frel" "$dest"
+      log_change added "$T_N" "$T_R"
+      record_sync "$CONFIG/$frel"
+      PULLED+=("$rpath")
+      if git -C "$ROOT" check-ignore -q -- "$rpath" 2>/dev/null; then ignored_note=1; fi
+    fi
+  done
+  if ((ignored_note)); then echo "  ${YEL}git ignores some of these paths; add a ! rule to .gitignore to commit them${X}"; fi
+  if ((!DRY)); then
+    load_entries
+    for frel in "${list[@]}"; do
+      repo_target "$frel"
+      if ! entries | grep -qx -- "$T_N"; then echo "  ${YEL}$T_N is not synced on this machine (profile settings or .dotfiles-hosts)${X}"; break; fi
+    done
+  fi
+}
+
+# `track PATH..`: accept ~/.config/x, ./x, x/ and plain x.
+track_cmd() {
+  local rel clean=()
+  ((${#names[@]})) || die "usage: $0 track PATH..   (paths inside ~/.config, e.g. mpv  or  hypr/extra.lua)"
+  [[ -n $PROFILE ]] && ! nix_managed || die "no copyable profile is active (profile: ${PROFILE:-none})"
+  for rel in "${names[@]}"; do
+    rel=${rel/#\~/$HOME}
+    rel=${rel#"$CONFIG"/}
+    rel=${rel#./}
+    rel=${rel%/}
+    [[ -n $rel && $rel != /* && $rel != .. && $rel != ../* && $rel != */../* ]] || die "'$rel' is not inside ~/.config"
+    clean+=("$rel")
+  done
+  plan_track "${clean[@]}"
+  track_report
+  if ((${#TR_OK[@]} + (FORCE ? ${#TR_WARN[@]} : 0) == 0)); then
+    if ((${#TR_WARN[@]})); then echo "  Flagged files are only added with --force after you checked them."; fi
+    return 0
+  fi
+  track_apply "$FORCE"
+  summary added
+  if ((!DRY && ${#PULLED[@]})); then
+    if ((COMMIT)); then commit_pulled "add from ~/.config: $(printf '%s\n' "${PULLED[@]}" | awk -F/ '{print $3}' | sort -u | paste -sd, | sed 's/,/, /g')"
+    else echo "  ${D}Review: git -C $(short "$ROOT") diff · undo: $0 undo --yes${X}"; fi
+  fi
+}
+
+# ---- stop tracking ---------------------------------------------------------
+
+# Remove one file from the repo. The ~/.config copy stays; undo puts it back.
+untrack_file() { # name rel
+  local src
+  src=$(src_dir "$1")/$2
+  if [[ ! -e $src && ! -L $src ]]; then echo "  ${RED}not in the repo${X}  $1/$2"; return 0; fi
+  echo "  ${YEL}remove${X}  $1/$2  ${D}from the repo (stays in ~/.config)${X}"
+  ((++N_COPY))
+  if ((!DRY)); then
+    save_repo_copy "$1" "$2" "$src"
+    rm -f -- "$src"
+    PULLED+=("${src#"$ROOT"/}")
+    find "$(src_dir "$1")" -type d -empty -delete 2>/dev/null || true
+  fi
+}
+
+untrack_entry() { # name
+  local rel
+  while IFS= read -r -d '' rel; do untrack_file "$1" "$rel"; done < <(cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0')
+}
+
+# Short colored preview of a ~/.config path for the add pickers.
+add_preview() { # rel
+  local rel=${1%/} abs n
+  abs=$CONFIG/$rel
+  printf '%s%s%s\n  %s~/.config%s  %s\n' "$B" "$rel" "$X" "$YEL" "$X" "$(short "$abs")"
+  if [[ -d $abs && ! -L $abs ]] && is_app_data "$rel"; then
+    echo
+    echo "  ${YEL}App data, not config.${X} Enter lets you pick single files (settings.json...)."
+    ls -A -- "$abs" | head -n 20 | sed 's/^/    /'
+    return 0
+  fi
+  plan_track "$rel"
+  track_report
+  if [[ -f $abs && ${#TR_OK[@]} -gt 0 ]]; then
+    if command -v bat >/dev/null; then bat --color=always --style=plain --line-range :40 -- "$abs"; else head -n 40 -- "$abs"; fi
+  fi
+}
+
+# Candidate rows for the add picker: display<TAB>path<TAB>flag.
+add_rows() {
+  local p base f frel v n cnt key
+  declare -A have=()
+  while read -r n; do have[$n]=1; done < <(all_entries)
+  for p in "$CONFIG"/* "$CONFIG"/.[!.]*; do
+    [[ -e $p || -L $p ]] || continue
+    base=${p##*/}
+    if [[ -L $p && "$(readlink -f "$p" 2>/dev/null)" == "$ROOT"/* ]]; then continue; fi
+    if [[ -d $p && ! -L $p ]]; then
+      if [[ -n ${have[$base]:-} ]]; then
+        declare -A grp=()
+        while IFS= read -r -d '' f; do
+          frel=${f#"$CONFIG"/}
+          repo_target "$frel"
+          if [[ -e $(src_dir "$T_N")/$T_R || -L $(src_dir "$T_N")/$T_R ]] || ignored "$T_N/$T_R"; then continue; fi
+          v=$(file_verdict "$f")
+          [[ $v == skip:* ]] && continue
+          # Deeper files are grouped by their folder, so a new plugin folder is one row.
+          if [[ $frel == */*/* ]]; then key=${frel%"/${frel#*/*/}"}/; else key=$frel; fi
+          grp[$key]=$((${grp[$key]:-0} + 1))
+        done < <(collect_files "$p")
+        for key in "${!grp[@]}"; do
+          if [[ $key == */ ]]; then
+            printf '%-40s %s\t%s\t\n' "$(clean "$key")" "${CYA}${grp[$key]} new file(s) in $base/${X}" "${key%/}"
+          else
+            printf '%-40s %s\t%s\t\n' "$(clean "$key")" "${CYA}new file in $base/${X}" "$key"
+          fi
+        done
+        unset grp
+      elif [[ -z $(find -P "$p" -type f -print -quit 2>/dev/null) ]]; then
+        continue
+      else
+        cnt=$(find -P "$p" -maxdepth 4 -type f 2>/dev/null | head -n 401 | wc -l || true)
+        if ((cnt > 400)); then printf '%-40s %s\t%s\tapp\n' "$(clean "$base")/" "${YEL}large folder · pick files${X}" "$base"
+        else printf '%-40s %s\t%s\t\n' "$(clean "$base")/" "${GRN}folder · not tracked${X}" "$base"; fi
+      fi
+    else
+      repo_target "$base"
+      if [[ -e $(src_dir "$T_N")/$T_R || -L $(src_dir "$T_N")/$T_R ]] || ignored "$T_N/$T_R"; then continue; fi
+      v=$(file_verdict "$p")
+      [[ $v == skip:* ]] && continue
+      printf '%-40s %s\t%s\t\n' "$(clean "$base")" "${GRN}file · not tracked${X}" "$base"
+    fi
+  done | sort -t$'\t' -k2,2
+}
+
+# Config-looking files inside an app-data folder, for the second picker.
+appdata_files() { # rel
+  local abs=$CONFIG/$1 f d args=()
+  for d in "${SKIP_DIRS[@]}"; do args+=(-o -name "$d"); done
+  while IFS= read -r -d '' f; do
+    [[ $(file_verdict "$f") == skip:* ]] && continue
+    echo "${f#"$CONFIG"/}"
+  done < <(find -P "$abs" -maxdepth 4 \( -type d \( -false "${args[@]}" \) -prune \) -o -type f -size -257k \
+    \( -name '*.json' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' -o -name '*.conf' -o -name '*.ini' -o -name '*.css' -o -name '*.lua' -o -name '*.kdl' \) -print0 2>/dev/null) | sort
+}
+
+menu_add() {
+  need_fzf || return 0
+  if [[ -z $PROFILE ]] || nix_managed; then MSG="${YEL}no copyable profile is active${X}"; return 0; fi
+  local rows picked=() row rel flag final=() inner choice items
+  rows=$(add_rows)
+  if [[ -z $rows ]]; then MSG="nothing new in ~/.config to add"; return 0; fi
+  mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
+    --prompt "add > " --pointer ">" --marker "+" --border=rounded \
+    --header $'Pick what to copy from ~/.config into the repo. Nothing in ~/.config changes.\ntab toggles · enter continues · esc cancels · ctrl-/ hides the preview · type to filter' \
+    --bind 'ctrl-/:toggle-preview' --preview "'$SELF' addpreview {2}" --preview-window 'down,55%,wrap,border-top' <<<"$rows" || true)
+  ((${#picked[@]})) || return 0
+  for row in "${picked[@]}"; do
+    IFS=$'\t' read -r _ rel flag <<<"$row"
+    if [[ $flag == app ]]; then
+      mapfile -t inner < <(appdata_files "$rel" | fzf --multi --layout=reverse --height=90% --no-info --border=rounded \
+        --prompt "$rel > " --pointer ">" --marker "+" \
+        --header $'App data: pick single config files · tab toggles · enter adds · esc skips' \
+        --preview "'$SELF' addpreview {}" --preview-window 'down,55%,wrap,border-top' || true)
+      final+=("${inner[@]}")
+    else
+      final+=("$rel")
+    fi
+  done
+  ((${#final[@]})) || return 0
+  plan_track "${final[@]}"
+  clear
+  echo
+  track_report
+  if ((${#TR_OK[@]} + ${#TR_WARN[@]} == 0)); then pause; return 0; fi
+  items=()
+  if ((${#TR_OK[@]})); then items+=("Add ${#TR_OK[@]} file(s)|Copy them into the repo. ~/.config is not touched; undo puts the repo back."); fi
+  if ((${#TR_WARN[@]})); then items+=("Add all, including ${#TR_WARN[@]} flagged|Also add files that look like they hold a secret. Read them first (git diff) before you commit."); fi
+  items+=("Cancel|Add nothing.")
+  choice=$(choose "Add to the repo?" "${items[@]}") || return 0
+  [[ $choice == Cancel ]] && return 0
+  new_run
+  N_COPY=0 N_BACKUP=0
+  if [[ $choice == "Add all"* ]]; then track_apply 1; else track_apply 0; fi
+  MSG=$(summary added)
+  KEEP=1
+  offer_commit
+}
+
+# Pick tracked files to remove from the repo; ~/.config keeps them.
+menu_untrack() {
+  need_fzf || return 0
+  local rows picked=() n rel
+  rows=$(
+    while read -r n; do
+      while IFS= read -r -d '' rel; do printf '%s\t%s\t%s\n' "$n/$rel" "$n" "$rel"; done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+    done < <(entries)
+  )
+  if [[ -z $rows ]]; then MSG="nothing is tracked"; return 0; fi
+  mapfile -t picked < <(fzf --multi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info --border=rounded \
+    --prompt "stop tracking > " --pointer ">" --marker "x" \
+    --header $'Removes the picked files from the repo. They stay in ~/.config. Undo restores them.\ntab toggles · enter removes · esc cancels' \
+    --preview "bat --color=always --style=plain --line-range :60 '$ROOT/profiles/$PROFILE'/{2}/{3} 2>/dev/null || head -n 60 '$ROOT/profiles/$PROFILE'/{2}/{3}" \
+    --preview-window 'down,50%,wrap,border-top' <<<"$rows" || true)
+  ((${#picked[@]})) || return 0
+  gum confirm --affirmative Remove --negative Cancel "Remove ${#picked[@]} file(s) from the repo? (~/.config keeps them)" || return 0
+  new_run
+  N_COPY=0 N_BACKUP=0
+  for row in "${picked[@]}"; do
+    IFS=$'\t' read -r _ n rel <<<"$row"
+    untrack_file "$n" "$rel"
+  done
+  MSG=$(summary removed)
+  KEEP=1
+  offer_commit
+}
+
 # ---- menu -----------------------------------------------------------------
 
 pause() { read -rp $'\n  enter to continue… ' _ || true; }
@@ -1142,10 +1549,10 @@ need_fzf() {
 # Colored "what Enter will do" label for one differing file.
 sync_tag() {
   case $1 in
-    config-newer) echo "${YEL}← save to repo${X}      edited in ~/.config" ;;
-    repo-newer) echo "${CYA}→ save to ~/.config${X}  newer in repo" ;;
-    conflict) echo "${RED}⚠ both changed${X}       you choose" ;;
-    *) echo "${CYA}→ save to ~/.config${X}  not installed" ;;
+    config-newer) echo "$(act_label pull)  edited in ~/.config" ;;
+    repo-newer) echo "$(act_label push)  newer in repo" ;;
+    conflict) echo "$(act_label conflict)       you choose" ;;
+    *) echo "$(act_label push)  not installed yet" ;;
   esac
 }
 
@@ -1185,21 +1592,33 @@ next_step() {
 sync_review() { # plan lines: act<TAB>name<TAB>rel
   local p act n rel src dest
   clear
-  printf '\n  %sReview%s\n\n' "$B$CYA" "$X"
+  printf '\n  %sReview%s  %s- is what the target has now, + what it gets%s\n\n' "$B$CYA" "$X" "$D" "$X"
   for p in "$@"; do
     IFS=$'\t' read -r act n rel <<<"$p"
     src=$(src_dir "$n")/$rel dest=$(dest_of "$n" "$rel")
     if [[ $act == push ]]; then
       if [[ -e $dest || -L $dest ]]; then
-        printf '  → ~/.config  %-34s%s  replaces it, old copy kept as a backup\n' "$n/$rel" "$(diff_stat "$dest" "$src")"
+        printf '  %s  %-34s%s  replaces ~/.config, old copy kept as a backup\n' "$(act_label push)" "$n/$rel" "$(change_stat "$n" "$rel" push)"
       else
-        printf '  → ~/.config  %-34s  new file\n' "$n/$rel"
+        printf '  %s  %-34s  new file in ~/.config\n' "$(act_label push)" "$n/$rel"
       fi
     else
-      printf '  ← repo       %-34s%s  replaces the repo file, git can undo it\n' "$n/$rel" "$(diff_stat "$src" "$dest")"
+      printf '  %s  %-34s%s  replaces the repo file, git can undo it\n' "$(act_label pull)" "$n/$rel" "$(change_stat "$n" "$rel" pull)"
     fi
   done
   echo
+}
+
+# All planned diffs in one pager, so nothing is applied unseen.
+sync_full_diff() { # plan lines
+  local p act n rel tmp
+  tmp=$(mktemp)
+  for p in "$@"; do
+    IFS=$'\t' read -r act n rel <<<"$p"
+    { change_diff "$n" "$rel" "$act"; echo; } >>"$tmp"
+  done
+  less -R "$tmp"
+  rm -f "$tmp"
 }
 
 # Every file that differs in one fzf list. Files that are safe to apply start
@@ -1209,7 +1628,7 @@ menu_sync() {
   need_fzf || return 0
   local n rel st line safe=() conf=() rows picked row act choice plan=() preselect i p
   while IFS=$'\t' read -r n rel st; do
-    line=$(printf '%-38s %s\t%s\t%s\t%s' "$n/$rel" "$(sync_tag "$st")" "$n" "$rel" "$st")
+    line=$(printf '%-34s %s%s\t%s\t%s\t%s' "$(clean "$n/$rel")" "$(sync_tag "$st")" "$(change_stat "$n" "$rel" "$(act_of "$st")")" "$n" "$rel" "$st")
     if [[ $st == conflict ]]; then conf+=("$line"); else safe+=("$line"); fi
   done < <(changed_files all)
   if ((${#safe[@]} + ${#conf[@]} == 0)); then MSG="${GRN}everything is in sync${X}"; return 0; fi
@@ -1219,11 +1638,11 @@ menu_sync() {
   preselect+="+pos(1)"
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
     --prompt "sync > " --pointer ">" --marker "+" \
-    --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge\ndiff: - repo, + ~/.config' \
+    --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge in nvim · ctrl-/ hide preview\n~/.config = live files · repo = this project · the preview shows what each change would do' \
     --preview "'$SELF' preview {2} {3}" \
     --preview-window 'down,60%,wrap,border-top' \
     --bind "$preselect" \
-    --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
+    --bind 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-/:toggle-preview' \
     --bind "ctrl-e:execute('$SELF' merge {2} {3})" <<<"$rows" || true)
   ((${#picked[@]})) || return 0
   for row in "${picked[@]}"; do
@@ -1248,8 +1667,18 @@ menu_sync() {
     if [[ $act != skip ]]; then plan+=("$act"$'\t'"$n"$'\t'"$rel"); fi
   done
   ((${#plan[@]})) || return 0
-  sync_review "${plan[@]}"
-  gum confirm --affirmative Apply --negative Cancel "Apply ${#plan[@]} change(s)?" || return 0
+  while true; do
+    sync_review "${plan[@]}"
+    choice=$(choose "Apply ${#plan[@]} change(s)?" \
+      "Apply|Copy the files in the directions shown. Replaced files are backed up; Undo reverses it." \
+      "View the full diff|Page through every change before deciding." \
+      "Cancel|Change nothing.") || return 0
+    case $choice in
+      Apply) break ;;
+      "View the full diff") sync_full_diff "${plan[@]}" ;;
+      *) return 0 ;;
+    esac
+  done
   new_run
   N_COPY=0 N_BACKUP=0
   for p in "${plan[@]}"; do
@@ -1500,6 +1929,7 @@ menu_tools() {
   local choice items=()
   items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
     "Profile settings|Choose one app per group (terminal, editor, shell... as the profile defines them); only that one is synced."
+    "Stop tracking files|Remove files from the repo. They stay in ~/.config; Undo brings them back."
     "What is skipped|List every file and folder that is not synced, and why."
     "Doctor|Check tools, .gitignore, broken links, old backups and the sync record.")
   if nix_managed; then
@@ -1515,6 +1945,7 @@ menu_tools() {
     Profile) menu_profile ;;
     "NixOS: rebuild") "$SELF" rebuild; pause ;;
     "Profile settings") [[ -n $PROFILE ]] && menu_settings ;;
+    "Stop tracking files") menu_untrack ;;
     "What is skipped") skipped_report; pause ;;
     Doctor) doctor || true; pause ;;
     "Omarchy: set up") omarchy_setup; pause ;;
@@ -1538,6 +1969,7 @@ menu() {
     echo
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
     items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
+      "Add from ~/.config|Browse ~/.config and copy any file or folder into the repo. Secrets, caches and big files are held back."
       "Backups|Restore a replaced file, or delete old backups."
       "Choose what syncs|Fine-grained: skip single files inside a folder. For whole folders or one terminal/editor use Tools > Profile settings. See docs/usage.md for the best way.")
     run=$(last_run)
@@ -1548,6 +1980,7 @@ menu() {
     choice=$(choose "What next?" "${items[@]}") || break
     case $choice in
       Sync) menu_sync ;;
+      "Add from ~/.config") menu_add ;;
       Backups) menu_backups ;;
       "Choose what syncs") menu_select ;;
       "Undo last sync") undo_last confirm; pause ;;
@@ -1566,6 +1999,7 @@ for a in "$@"; do
     -y | --yes) YES=1 ;;
     --json) JSON=1 ;;
     --commit) COMMIT=1 ;;
+    -f | --force) FORCE=1 ;;
     -h | --help) args=(help) && break ;;
     -v | --version) args=(version) && break ;;
     *) args+=("$a") ;;
@@ -1600,7 +2034,7 @@ run_targets() { # folder_fn file_fn default_list_fn
 # Exactly one NAME FILE pair, for preview and merge.
 file_args() {
   ((${#names[@]} == 2)) || die "usage: $0 $cmd NAME FILE"
-  check_names
+  resolve_target "${names[0]}" && [[ -z $T_REL ]] || die "unknown folder '${names[0]}'. Known: $(entries | paste -sd' ')"
 }
 
 case $cmd in
@@ -1626,6 +2060,16 @@ case $cmd in
     summary pulled
     if ((COMMIT && ${#PULLED[@]})); then commit_pulled "$(commit_message)"; fi
     ;;
+  track | add) track_cmd ;;
+  untrack)
+    ((${#names[@]})) || die "usage: $0 untrack NAME[/FILE]..   (removes from the repo; ~/.config keeps the file)"
+    check_names
+    N_COPY=0 N_BACKUP=0
+    run_targets untrack_entry untrack_file true
+    summary removed
+    if ((COMMIT && ${#PULLED[@]})); then commit_pulled "stop tracking: ${names[*]}"; fi
+    ;;
+  addpreview) add_preview "${names[0]:-}" ;;
   fetch) fetch_report ;;
   diff)
     check_names

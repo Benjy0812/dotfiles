@@ -43,6 +43,10 @@ Then put the configs in place, depending on the machine. On any machine,
   `Tab` toggles, `Ctrl-e` opens `nvim -d`. A review screen lists what will be
   replaced before anything is applied. Conflicts start unticked and ask: keep
   the repo copy, keep the ~/.config copy, merge in nvim, or skip.
+- **Add anything:** `track PATH` (or Add from ~/.config in the menu) copies any file or
+  folder from `~/.config` into the repo; caches, credentials and big files are held back.
+- **Clear diffs:** every change is labeled `repo ➜ ~/.config` or `~/.config ➜ repo`, with
+  both real paths and a diff of exactly what the target would get; review it all before Apply.
 - **Undo:** every push, pull and restore is logged. `undo --yes` (or Undo last sync
   in the menu) puts back the replaced ~/.config files, removes files the run
   created and restores repo files a pull overwrote. Undoing is itself undoable.

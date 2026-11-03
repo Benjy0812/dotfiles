@@ -106,11 +106,12 @@ Needs `gum`; the pickers need `fzf`. The header shows the status table and a
 
 | Entry | What it does |
 |---|---|
-| **Sync** | One list of every differing file. Safe files start ticked, conflicts unticked. Enter shows a review screen, then applies each file in the direction shown. Keys: `Tab` toggle, `Ctrl-a` all, `Ctrl-d` none, `Ctrl-e` open `nvim -d`. A conflict asks: keep repo copy, keep `~/.config` copy, merge in nvim, or skip. After pulls you can commit and push. |
+| **Sync** | One list of every differing file, each labeled with its direction (`repo ➜ ~/.config` or `~/.config ➜ repo`) and `+N -M` lines. The preview shows the diff of the change that would happen (`-` is what the target has now, `+` what it gets) with both real paths in the header. Safe files start ticked, conflicts unticked. Enter shows a review screen with Apply, **View the full diff** (every change in a pager) or Cancel. Keys: `Tab` toggle, `Ctrl-a` all, `Ctrl-d` none, `Ctrl-e` open `nvim -d`. A conflict asks: keep repo copy, keep `~/.config` copy, merge in nvim, or skip. After changes you can commit and push. |
+| **Add from ~/.config** | Browse everything in `~/.config` that the repo does not hold yet (whole folders, single files, and new files inside folders you already track) and copy it in. `~/.config` is never touched. Caches, logs, databases, credential files and files over 2 MB are held back; files whose text looks like a secret are flagged and need an explicit yes. App-data folders (Chrome, Code, Claude...) open a second picker for single config files such as `Code/User/settings.json`. Files directly in `~/.config` (`starship.toml`) go to the profile's `config-root/`, mapped by a `config-root = ~/.config` rule in `.dotfiles-map`. |
 | **Backups** | Restore a backup (type a folder or file name to filter; diff preview) or delete backups older than 7, 30 or 90 days. |
 | **Choose what syncs** | Tick the files that should sync; unticked ones go into `.dotfilesignore`. |
 | **Undo last sync** | Appears once something was applied. |
-| **Tools** | Profile, Doctor, and (on Omarchy profiles) set up / uninstall. |
+| **Tools** | Profile, Stop tracking files (remove from the repo, keep in `~/.config`), Doctor, and (on Omarchy profiles) set up / uninstall. |
 
 ## Commands
 
@@ -126,6 +127,8 @@ Everyday:
 | `restore [NAME/FILE..]` | Bring back the newest backup; without names pick one with fzf. The current file is backed up first. |
 | `skipped` | List every file and folder that is not synced and why: built-in skips, `.dotfilesignore` patterns, and apps not picked in a group. Also in Tools > What is skipped. |
 | `select` | The "Choose what syncs" picker. |
+| `track PATH..` | Add anything from `~/.config` to the repo: a file, a folder or a file in a folder (`track mpv`, `track hypr/extra.lua`, `track starship.toml`). Prints what is added, held back and flagged first; `-n` stops there, `--force` adds flagged files, `--commit` commits. Undo removes them from the repo again. |
+| `untrack NAME[/FILE]..` | Remove from the repo; the `~/.config` copy stays. Undo restores it. |
 | `undo [--yes]` | Lists, then with `--yes` reverses the last push, pull or restore. Undoing is itself undoable. |
 
 More:

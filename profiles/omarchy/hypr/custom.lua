@@ -49,6 +49,11 @@ local cursor = "Bibata-Modern-Classic"
 hl.env("XCURSOR_THEME", cursor)
 hl.env("HYPRCURSOR_THEME", cursor)
 
+-- Mesa (AMD/Intel) shader cache limit, raised so games like Wuthering Waves
+-- don't get their compiled shaders evicted. NVIDIA ignores this; its
+-- equivalent is __GL_SHADER_DISK_CACHE_SIZE.
+hl.env("MESA_SHADER_CACHE_MAX_SIZE", "50G")
+
 -- https://wiki.hypr.land/configuring/core/config-options/#opacity
 hl.window_rule({
     -- Which windows the rule applies to, matched by window class (".*" = all).

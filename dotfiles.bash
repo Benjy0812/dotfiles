@@ -59,7 +59,11 @@ theme_init
 clean() { printf '%s' "${1//[[:cntrl:]]/?}"; }
 
 # Every push, pull or restore is one run, so undo can put back just that run. A run starts with zeroed counters.
-new_run() { RUN_ID="$(date +%Y%m%d-%H%M%S)-$((++RUN_SEQ))" N_COPY=0 N_BACKUP=0; }
+new_run() {
+  RUN_ID="$(date +%Y%m%d-%H%M%S)-$$.$((++RUN_SEQ))" N_COPY=0 N_BACKUP=0
+  # undo copies older than 30 days go, like old backups (clean)
+  if [[ -d $UNDO_DIR ]]; then find "$UNDO_DIR" -mindepth 1 -maxdepth 1 -mtime +30 -exec rm -rf {} + 2>/dev/null || true; fi
+}
 new_run
 
 die() { echo "${RED}$*${X}" >&2; exit 1; }
@@ -571,7 +575,7 @@ plugin_install() { # id
   # A plugin with a widget replaces Omarchy's global workspace strip in the bar.
   if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]] && grep -q '"omarchy.workspaces"' "$shell"; then
     cp "$shell" "$shell.bak"
-    sed -i "s/\"omarchy.workspaces\"/\"$id\"/" "$shell"
+    sed -i "s/\"omarchy\\.workspaces\"/\"${id//./\\.}\"/" "$shell"
     OMARCHY_RESTART=1
   fi
 }
@@ -581,7 +585,7 @@ plugin_uninstall() { # id
   remove_hook "$(plugin_hook_file "$id")" "$id"
   rm -rf "$CONFIG/omarchy/plugins/$id"
   if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]]; then
-    sed -i "s/\"$id\"/\"omarchy.workspaces\"/" "$shell"
+    sed -i "s/\"${id//./\\.}\"/\"omarchy.workspaces\"/" "$shell"
     OMARCHY_RESTART=1
   fi
   echo "  ${YEL}removed${X} plugin $id"
@@ -838,6 +842,11 @@ pull_file() { # name rel
   if [[ ! -e $src && ! -L $src ]]; then echo "  ${RED}not tracked in the repo${X}  $1/$2"; return 0; fi
   if [[ ! -e $dest && ! -L $dest ]]; then echo "  ${RED}not in ~/.config${X}  $1/$2"; return 0; fi
   [[ "$(state "$src" "$dest")" == same ]] && return 0
+  # The repo may be public: a secret that is new in ~/.config stays there unless forced.
+  if ((!FORCE)) && [[ -f $dest ]] && grep -IqE -- "$SECRET_RE" "$dest" 2>/dev/null && ! grep -IqE -- "$SECRET_RE" "$src" 2>/dev/null; then
+    echo "  ${RED}${G_WARN} held back${X}  $1/$2 now looks like it holds a secret (read it, then pull with --force)"
+    return 0
+  fi
   echo "  ${YEL}pull${X}    $1/$2"
   ((++N_COPY))
   if ((!DRY)); then
@@ -868,7 +877,7 @@ pull_entry() {
 
 diff_entry() {
   local name=$1 rel
-  while IFS= read -r -d '' rel; do file_diff "$name" "$rel"; done < <(tracked "$name")
+  while IFS= read -r -d '' rel; do change_diff "$name" "$rel"; done < <(tracked "$name")
 }
 
 # Both copies side by side in nvim (left: repo, right: ~/.config); save the
@@ -1205,9 +1214,6 @@ change_diff() { # name rel [act]
   diff --color=always -u --label "$oldl" --label "$newl" "$old" "$new" | tail -n +3 || true
 }
 
-# Same as change_diff but a file that is gone from ~/.config or the repo says so.
-file_diff() { change_diff "$@"; }
-
 # " +N -M" of the change from the target's copy to the new one.
 change_stat() { # name rel act
   local src dest
@@ -1234,7 +1240,7 @@ SKIP_DIRS=(Cache 'Code Cache' GPUCache 'Service Worker' 'Local Storage' IndexedD
 APP_DATA=(google-chrome google-chrome-beta google-chrome-unstable chromium microsoft-edge microsoft-edge-dev zen
   BraveSoftware Code Claude Claude-3p JetBrains obsidian ModrinthApp discord Slack dconf ai.l0ng.openidea)
 MAX_BYTES=$((2 * 1024 * 1024))
-SECRET_RE='(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[bap]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api[_-]?key|secret|token|passw(or)?d)["'"'"' ]*[:=][ "'"'"']*[A-Za-z0-9_/+=.-]{16,})'
+SECRET_RE='(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[bap]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api[_-]?key|secret|token|passw(or)?d)["'"'"' ]*[:=][ "'"'"']*[A-Za-z0-9_/+=.-]{8,})'
 FORCE=0
 TR_OK=() TR_WARN=() TR_SKIP=() TR_HAVE=()
 
@@ -2143,11 +2149,11 @@ case $cmd in
   fetch) fetch_report ;;
   diff)
     check_names
-    run_targets diff_entry file_diff out_of_sync
+    run_targets diff_entry change_diff out_of_sync
     ;;
   preview)
     file_args
-    file_diff "${names[0]}" "${names[1]}"
+    change_diff "${names[0]}" "${names[1]}"
     ;;
   merge)
     file_args

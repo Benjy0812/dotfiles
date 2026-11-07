@@ -5,6 +5,7 @@
 !apps/
 !README.md
 !dotfiles.bash
+!tests.bash
 !flake.nix
 !flake.lock
 !fixes/

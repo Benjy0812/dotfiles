@@ -5,5 +5,6 @@
   "version": "1.0.0",
   "author": "Benjy0812",
   "description": "Give listed apps a workspace to themselves, moving them to the nearest empty one",
-  "kinds": []
+  "kinds": [],
+  "entryPoints": {}
 }

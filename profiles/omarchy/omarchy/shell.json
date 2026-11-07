@@ -1,16 +1,19 @@
 {
   "bar": {
-    "centerAnchor": "omarchy.clock",
+    "background": "glassy",
     "layout": {
       "center": [
         {
-          "id": "benjy.monitor-workspaces"
-        },
-        {
-          "id": "omarchy.keyboard-layout"
+          "id": "omarchy.workspaces"
         },
         {
           "id": "omarchy.system-update"
+        }
+      ],
+      "centerBegin": [],
+      "centerEnd": [
+        {
+          "id": "omarchy.spacer"
         }
       ],
       "left": [
@@ -38,19 +41,24 @@
           "id": "omarchy.audio"
         },
         {
-          "id": "omarchy.monitor"
-        },
-        {
-          "id": "omarchy.clock",
           "format": "yyyy-MM-dd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
+          "id": "omarchy.clock",
           "verticalFormat": "HH\n—\nmm"
         }
-      ]
+      ],
+      "tray": []
     },
-    "position": "top",
-    "transparent": false
+    "position": "top"
   },
+  "disabledPlugins": [
+    "omarchy.battery",
+    "omarchy.nightlight",
+    "omarchy.wifiqr",
+    "omarchy.disk-speedtest",
+    "omarchy.speedtest",
+    "omarchy.reminders"
+  ],
   "idle": {
     "lock": 300,
     "screensaver": 150

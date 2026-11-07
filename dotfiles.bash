@@ -23,40 +23,43 @@ PULLED=()           # repo paths written by pulls, for the commit offer
 # Colors: a fixed truecolor palette (Catppuccin Mocha) when the terminal says it has
 # truecolor, else the terminal's own 16 ANSI colors. Symbols fall back to ASCII outside
 # a UTF-8 terminal. User FZF_DEFAULT_OPTS come last and win.
-ADD_PREVIEW="right,50%,border-left" # file content beside the list (ctrl-/ hides it)
-FZF_LOOK=(--layout=reverse --height=90% --no-info --border=rounded --gutter " ")
-rgb() { printf '\e[38;2;%d;%d;%dm' "0x${1:0:2}" "0x${1:2:2}" "0x${1:4:2}"; }
-if [[ (-t 1 || -n ${FZF_PREVIEW_COLUMNS:-}) && -z ${NO_COLOR:-} ]]; then # fzf previews are pipes, but show colors
-  B=$'\e[1m' X=$'\e[0m'
-  if [[ ${COLORTERM:-} == *truecolor* || ${COLORTERM:-} == *24bit* ]]; then
-    D=$(rgb 7f849c) RED=$(rgb f38ba8) GRN=$(rgb a6e3a1) YEL=$(rgb f9e2af) CYA=$(rgb 94e2d5) BLU=$(rgb 89b4fa) MAG=$(rgb cba6f7)
-    FZF_LABEL="#cba6f7:bold"
-    FZF_LOOK+=(--color="pointer:#cba6f7,marker:#a6e3a1:bold,hl:#f9e2af,hl+:#f9e2af,prompt:#89b4fa,info:#6c7086,border:#585b70,header:-1:bold,fg+:#cdd6f4:bold,bg+:#3b3a5c,gutter:-1")
+theme_init() {
+  ADD_PREVIEW="right,50%,border-left" # file content beside the list (ctrl-/ hides it)
+  FZF_LOOK=(--layout=reverse --height=90% --no-info --border=rounded --gutter " ")
+  rgb() { printf '\e[38;2;%d;%d;%dm' "0x${1:0:2}" "0x${1:2:2}" "0x${1:4:2}"; }
+  if [[ (-t 1 || -n ${FZF_PREVIEW_COLUMNS:-}) && -z ${NO_COLOR:-} ]]; then # fzf previews are pipes, but show colors
+    B=$'\e[1m' X=$'\e[0m'
+    if [[ ${COLORTERM:-} == *truecolor* || ${COLORTERM:-} == *24bit* ]]; then
+      D=$(rgb 7f849c) RED=$(rgb f38ba8) GRN=$(rgb a6e3a1) YEL=$(rgb f9e2af) CYA=$(rgb 94e2d5) BLU=$(rgb 89b4fa) MAG=$(rgb cba6f7)
+      FZF_LABEL="#cba6f7:bold"
+      FZF_LOOK+=(--color="pointer:#cba6f7,marker:#a6e3a1:bold,hl:#f9e2af,hl+:#f9e2af,prompt:#89b4fa,info:#6c7086,border:#585b70,header:-1:bold,fg+:#cdd6f4:bold,bg+:#3b3a5c,gutter:-1")
+    else
+      D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' BLU=$'\e[34m' MAG=$'\e[35m'
+      FZF_LABEL="magenta:bold"
+      FZF_LOOK+=(--color=pointer:magenta,marker:green:bold,hl:yellow,hl+:yellow,prompt:blue,info:bright-black,border:bright-black,header:-1:bold,fg+:-1:bold,bg+:bright-black)
+    fi
   else
-    D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' BLU=$'\e[34m' MAG=$'\e[35m'
-    FZF_LABEL="magenta:bold"
-    FZF_LOOK+=(--color=pointer:magenta,marker:green:bold,hl:yellow,hl+:yellow,prompt:blue,info:bright-black,border:bright-black,header:-1:bold,fg+:-1:bold,bg+:bright-black)
+    B= D= RED= GRN= YEL= CYA= BLU= MAG= X= FZF_LABEL=-1
+    FZF_LOOK+=(--no-color)
   fi
-else
-  B= D= RED= GRN= YEL= CYA= BLU= MAG= X= FZF_LABEL=-1
-  FZF_LOOK+=(--no-color)
-fi
-if [[ ${LC_ALL:-${LC_CTYPE:-${LANG:-}}} == *[Uu][Tt][Ff]* ]]; then
-  G_OK=✔ G_EDIT=✎ G_NEW=↑ G_WARN=⚠ G_BAD=✗ G_SKIP=– G_ARROW=➜
-  G_SEP=· G_DOT=● G_OFF=○ G_TL=╭ G_TR=╮ G_BL=╰ G_BR=╯ G_V=│ G_H=─
-  FZF_LOOK+=(--pointer "▶ " --marker "● ")
-else
-  G_OK=ok G_EDIT=\* G_NEW=^ G_WARN=! G_BAD=x G_SKIP=- G_ARROW=-\>
-  G_SEP=- G_DOT=\* G_OFF=o G_TL=+ G_TR=+ G_BL=+ G_BR=+ G_V=\| G_H=-
-fi
-FZF_DEFAULT_OPTS="${FZF_LOOK[*]@Q} ${FZF_DEFAULT_OPTS:-}"
-export FZF_DEFAULT_OPTS
+  if [[ ${LC_ALL:-${LC_CTYPE:-${LANG:-}}} == *[Uu][Tt][Ff]* ]]; then
+    G_OK=✔ G_EDIT=✎ G_NEW=↑ G_WARN=⚠ G_BAD=✗ G_SKIP=– G_ARROW=➜
+    G_SEP=· G_DOT=● G_OFF=○ G_TL=╭ G_TR=╮ G_BL=╰ G_BR=╯ G_V=│ G_H=─
+    FZF_LOOK+=(--pointer "▶ " --marker "● ")
+  else
+    G_OK=ok G_EDIT=\* G_NEW=^ G_WARN=! G_BAD=x G_SKIP=- G_ARROW=-\>
+    G_SEP=- G_DOT=\* G_OFF=o G_TL=+ G_TR=+ G_BL=+ G_BR=+ G_V=\| G_H=-
+  fi
+  FZF_DEFAULT_OPTS="${FZF_LOOK[*]@Q} ${FZF_DEFAULT_OPTS:-}"
+  export FZF_DEFAULT_OPTS
+}
+theme_init
 
 # File names are untrusted display text: a name with escape codes must not reach the terminal.
 clean() { printf '%s' "${1//[[:cntrl:]]/?}"; }
 
-# Every push, pull or restore is one run, so undo can put back just that run.
-new_run() { RUN_ID="$(date +%Y%m%d-%H%M%S)-$((++RUN_SEQ))"; }
+# Every push, pull or restore is one run, so undo can put back just that run. A run starts with zeroed counters.
+new_run() { RUN_ID="$(date +%Y%m%d-%H%M%S)-$((++RUN_SEQ))" N_COPY=0 N_BACKUP=0; }
 new_run
 
 die() { echo "${RED}$*${X}" >&2; exit 1; }
@@ -998,7 +1001,6 @@ undo_last() { # [confirm]
     return 0
   fi
   new_run
-  N_COPY=0 N_BACKUP=0
   for line in "${lines[@]}"; do
     IFS=$'\t' read -r _ kind n rel saved <<<"$line"
     dest=$(dest_of "$n" "$rel") src=$(src_dir "$n")/$rel
@@ -1506,7 +1508,7 @@ menu_add() {
   local rows picked=() row rel flag final=() inner choice items sel i nw
   rows=$(add_rows)
   if [[ -z $rows ]]; then MSG="nothing new in ~/.config to add"; return 0; fi
-  mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
+  mapfile -t picked < <(fzf_tab --multi --ansi \
     --prompt "add > " --border=rounded \
     --header $'Pick what to copy from ~/.config into the repo. Nothing in ~/.config changes.\ntab toggles · enter continues (a folder opens its file list) · esc cancels · ctrl-/ hides the preview' \
     --bind 'ctrl-/:toggle-preview' --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" <<<"$rows" || true)
@@ -1514,7 +1516,7 @@ menu_add() {
   for row in "${picked[@]}"; do
     IFS=$'\t' read -r _ rel flag <<<"$row"
     if [[ $flag == app ]]; then
-      mapfile -t inner < <(appdata_files "$rel" | awk '{print $0 "\t" $0}' | fzf --multi --delimiter=$'\t' --with-nth=1 \
+      mapfile -t inner < <(appdata_files "$rel" | awk '{print $0 "\t" $0}' | fzf_tab --multi \
         --prompt "$rel > " \
         --header $'App data: pick single config files · tab toggles · enter adds · esc skips' \
         --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" | cut -f2 || true)
@@ -1524,7 +1526,7 @@ menu_add() {
       rows=$(folder_files "$rel")
       sel=load:select-all
       for ((i = 1, nw = $(grep -c $'\twarn$' <<<"$rows" || true); i <= nw; i++)); do sel+="+pos(-$i)+deselect"; done
-      mapfile -t inner < <(fzf --multi --ansi --delimiter=$'\t' --with-nth=1 <<<"$rows" \
+      mapfile -t inner < <(fzf_tab --multi --ansi <<<"$rows" \
         --prompt "$rel/ > " \
         --header $'tab toggles · enter adds ticked files · esc skips' \
         --bind "$sel+pos(1)" --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" | cut -f2 || true)
@@ -1546,7 +1548,6 @@ menu_add() {
   choice=$(choose "Add to the repo?" "${items[@]}") || return 0
   [[ $choice == Cancel ]] && return 0
   new_run
-  N_COPY=0 N_BACKUP=0
   if [[ $choice == "Add all"* ]]; then track_apply 1; else track_apply 0; fi
   MSG=$(summary added)
   KEEP=1
@@ -1563,7 +1564,7 @@ menu_untrack() {
     done < <(entries)
   )
   if [[ -z $rows ]]; then MSG="nothing is tracked"; return 0; fi
-  mapfile -t picked < <(fzf --multi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info --border=rounded \
+  mapfile -t picked < <(fzf_tab --multi \
     --prompt "stop tracking > " --marker "$G_BAD" \
     --header $'Removes the picked files from the repo. They stay in ~/.config. Undo restores them.\ntab toggles · enter removes · esc cancels' \
     --preview "bat --color=always --style=plain --line-range :60 '$ROOT/profiles/$PROFILE'/{2}/{3} 2>/dev/null || head -n 60 '$ROOT/profiles/$PROFILE'/{2}/{3}" \
@@ -1571,7 +1572,6 @@ menu_untrack() {
   ((${#picked[@]})) || return 0
   gum confirm --affirmative Remove --negative Cancel "Remove ${#picked[@]} file(s) from the repo? (~/.config keeps them)" || return 0
   new_run
-  N_COPY=0 N_BACKUP=0
   for row in "${picked[@]}"; do
     IFS=$'\t' read -r _ n rel <<<"$row"
     untrack_file "$n" "$rel"
@@ -1604,6 +1604,9 @@ choose() {
     gum choose --header "$header" --cursor "> " "${labels[@]}"
   fi
 }
+
+# fzf over "shown<TAB>hidden..." rows: only the first column is displayed.
+fzf_tab() { fzf --delimiter=$'\t' --with-nth=1 "$@"; }
 
 need_fzf() {
   command -v fzf >/dev/null && return 0
@@ -1702,7 +1705,7 @@ menu_sync() {
   preselect="load:select-all"
   for ((i = 1; i <= ${#conf[@]}; i++)); do preselect+="+pos(-$i)+deselect"; done
   preselect+="+pos(1)"
-  mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
+  mapfile -t picked < <(fzf_tab --multi --ansi \
     --prompt "sync > " \
     --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge in nvim · ctrl-/ hide preview\n~/.config = live files · repo = this project · the preview shows what each change would do' \
     --preview "'$SELF' preview {2} {3}" \
@@ -1746,7 +1749,6 @@ menu_sync() {
     esac
   done
   new_run
-  N_COPY=0 N_BACKUP=0
   for p in "${plan[@]}"; do
     IFS=$'\t' read -r act n rel <<<"$p"
     if [[ $act == push ]]; then push_file "$n" "$rel"
@@ -1807,7 +1809,7 @@ backup_restore_pick() {
   local rows picked n rel b
   rows=$(backup_rows)
   if [[ -z $rows ]]; then MSG="no backups yet"; return 0; fi
-  picked=$(fzf --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
+  picked=$(fzf_tab \
     --prompt "" --gutter ' ' --border=rounded \
     --header $'Type a folder or file name to filter. The current file is backed up first.\nenter restore · esc cancel · diff: - backup, + current file' \
     --preview "diff --color=always -u --label backup --label current {2} {3}; true" \
@@ -1869,7 +1871,7 @@ menu_select() {
     if matches_any "${paths[i]}" "${USER_IGNORE[@]}"; then preselect+="+pos($((i + 1)))+deselect"; fi
   done
   preselect+="+pos(1)"
-  mapfile -t picked < <(printf '%s\n' "${paths[@]}" | fzf --multi --layout=reverse --height=90% --no-info \
+  mapfile -t picked < <(printf '%s\n' "${paths[@]}" | fzf --multi \
     --prompt "syncs > " --bind "$preselect" \
     --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
     --header $'ticked files are synced · tab toggles · type a folder name, then ctrl-a, to tick it all\nenter saves to .dotfilesignore · esc cancels' || true)
@@ -1951,7 +1953,7 @@ menu_profile_new() {
   name=$(gum input --placeholder "name, e.g. ubuntu" --header "New profile name") || return 0
   [[ -n $name ]] || return 0
   mapfile -t picked < <(templates | while read -r t; do basename "$t"; done |
-    fzf --multi --layout=reverse --height=90% --no-info --prompt "copy > " \
+    fzf --multi --prompt "copy > " \
       --bind 'load:select-all' --header $'ticked folders are copied into the profile\ntab toggles · enter creates · esc cancels' || true)
   ((${#picked[@]})) || { MSG="nothing picked, no profile created"; return 0; }
   MSG=$(profile_new "$name" "${picked[@]}" 2>&1 | tail -1)

@@ -564,7 +564,7 @@ remove_hook() { # file id
 plugin_install() { # id
   local id=$1 hook dest=$CONFIG/omarchy/plugins/$1 shell=$CONFIG/omarchy/shell.json rel
   hook=$(plugin_hook_file "$id")
-  [[ -f $hook ]] || die "missing $(short "$hook")"
+  [[ -f $hook ]] || { echo "  ${YEL}skipped${X} plugin $id: $(short "$hook") is missing"; return 0; }
   cp "$hook" "$hook.bak"
   remove_hook "$hook" "$id"
   while IFS= read -r -d '' rel; do
@@ -620,6 +620,16 @@ omarchy_setup() {
     ln -sfn "$(src_dir hypr)/$f" "$HYPR/$f"
     echo "  ${GRN}link${X}    hypr/$f"
   done < <(omarchy_settings)
+  # Plugins hook into autostart.lua: make sure it exists and hyprland.lua loads it.
+  if [[ ! -f $HYPR/autostart.lua ]]; then
+    cp /usr/share/omarchy/config/hypr/autostart.lua "$HYPR/autostart.lua" 2>/dev/null || echo "-- Extra autostart processes." >"$HYPR/autostart.lua"
+    echo "  ${GRN}create${X}  hypr/autostart.lua"
+  fi
+  if ! grep -q 'require("hypr.autostart")' "$hl"; then
+    sed -i '/^require("hypr.looknfeel")/a require("hypr.autostart")' "$hl"
+    grep -q 'require("hypr.autostart")' "$hl" || sed -i '/omarchy\/hypr\/custom.lua/i require("hypr.autostart")' "$hl"
+    echo "  ${GRN}hook${X}    autostart.lua loads from hyprland.lua"
+  fi
   while read -r f; do plugin_install "$f"; done < <(omarchy_plugins)
   omarchy_reload
 }

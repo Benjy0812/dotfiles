@@ -75,7 +75,7 @@ hl.monitor({
 
 hl.monitor({
   output = "desc:AOC C27G4ZXU 1O0Q7JA008205",
-  mode = "1920x1080@280.00",
+  mode = "1920x1080@240.00",
   position = "0x0",
   scale = 1,
   vrr = 0,

@@ -20,12 +20,24 @@ DRY=0 JSON=0 COMMIT=0 YES=0
 N_COPY=0 N_BACKUP=0 # counted by push/pull/restore for the summary line
 PULLED=()           # repo paths written by pulls, for the commit offer
 
+# Colors are the terminal's own 16 ANSI colors, so every theme works; symbols fall
+# back to ASCII outside a UTF-8 terminal. User FZF_DEFAULT_OPTS come last and win.
+FZF_LOOK=(--layout=reverse --height=90% --no-info --border=rounded)
 if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
   B=$'\e[1m' D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' X=$'\e[0m'
+  FZF_LOOK+=(--color=pointer:cyan,marker:green:bold,hl:cyan,hl+:cyan,prompt:cyan,info:bright-black,border:bright-black,header:-1:bold,fg+:-1:bold,bg+:bright-black)
 else
   B= D= RED= GRN= YEL= CYA= X=
-  export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --no-color"
+  FZF_LOOK+=(--no-color)
 fi
+if [[ ${LC_ALL:-${LC_CTYPE:-${LANG:-}}} == *[Uu][Tt][Ff]* ]]; then
+  G_OK=✔ G_EDIT=✎ G_NEW=↑ G_WARN=⚠ G_BAD=✗ G_SKIP=– G_ARROW=➜
+  FZF_LOOK+=(--pointer "▶ " --marker "● ")
+else
+  G_OK=ok G_EDIT=\* G_NEW=^ G_WARN=! G_BAD=x G_SKIP=- G_ARROW=-\>
+fi
+FZF_DEFAULT_OPTS="${FZF_LOOK[*]@Q} ${FZF_DEFAULT_OPTS:-}"
+export FZF_DEFAULT_OPTS
 
 # File names are untrusted display text: a name with escape codes must not reach the terminal.
 clean() { printf '%s' "${1//[[:cntrl:]]/?}"; }
@@ -320,12 +332,15 @@ dest_of() { # name rel
   if ((bi >= 0)); then echo "${MAP_DST[bi]}${key#"${MAP_SRC[bi]}"}"; else echo "$CONFIG/$key"; fi
 }
 
-# Files and links of one entry, relative to its folder (NUL separated).
+# Every file and link of one entry, relative to its folder (NUL separated).
+repo_files() { (cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0'); }
+
+# Files and links of one entry that are not ignored (NUL separated).
 tracked() {
   local rel
   while IFS= read -r -d '' rel; do
     ignored "$1/$rel" || printf '%s\0' "$rel"
-  done < <(cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0')
+  done < <(repo_files "$1")
 }
 
 # "NAME" or "NAME/FILE" -> T_NAME and T_REL. Longest folder name wins.
@@ -458,7 +473,7 @@ skipped_report() {
         continue
       fi
       ((++total))
-    done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+    done < <(repo_files "$n" | sort -z)
   done < <(entries)
   for g in "${PREF_ORDER[@]}"; do
     [[ -n ${PREF[$g]:-} && ${PREF[$g]} != all ]] || continue
@@ -477,7 +492,7 @@ skipped_count() {
   local rel n=0
   while IFS= read -r -d '' rel; do
     if ignored "$1/$rel"; then ((++n)); fi
-  done < <(cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0')
+  done < <(repo_files "$1")
   echo "$n"
 }
 
@@ -644,17 +659,17 @@ show_status() {
   while read -r n; do
     tally "$n"
     parts=()
-    if ((S_both)); then parts+=("${RED}⚠ $S_both changed on both sides${X}"); fi
-    if ((S_conf)); then parts+=("${YEL}✎ $S_conf edited in ~/.config${X}"); fi
-    if ((S_repo)); then parts+=("${CYA}↑ $S_repo newer in repo${X}"); fi
-    if ((S_miss)); then parts+=("${RED}✗ $S_miss not installed${X}"); fi
+    if ((S_both)); then parts+=("${RED}${G_WARN} $S_both changed on both sides${X}"); fi
+    if ((S_conf)); then parts+=("${YEL}${G_EDIT} $S_conf edited in ~/.config${X}"); fi
+    if ((S_repo)); then parts+=("${CYA}${G_NEW} $S_repo newer in repo${X}"); fi
+    if ((S_miss)); then parts+=("${RED}${G_BAD} $S_miss not installed${X}"); fi
     skip=$(skipped_count "$n")
     note=
     if ((skip)); then note=", $skip skipped"; fi
     if ((S_same == 0 && ${#parts[@]} == 0 && skip)); then
-      label="${D}– all $skip files skipped${X}"
+      label="${D}${G_SKIP} all $skip files skipped${X}"
     elif ((${#parts[@]} == 0)); then
-      label="${GRN}✔ in sync${X} ${D}($S_same files$note)${X}"
+      label="${GRN}${G_OK} in sync${X} ${D}($S_same files$note)${X}"
     else
       label=${parts[0]}
       for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
@@ -690,16 +705,6 @@ status_json() {
       "$n" "$S_same" "$S_conf" "$S_repo" "$S_both" "$S_miss"
   done < <(entries)
   printf ']\n'
-}
-
-# State -> colored label.
-tag_for() {
-  case $1 in
-    config-newer) echo "${YEL}✎ edited in ~/.config${X}" ;;
-    repo-newer) echo "${CYA}↑ newer in repo${X}" ;;
-    conflict) echo "${RED}⚠ changed on both sides${X}" ;;
-    *) echo "${RED}✗ not installed${X}" ;;
-  esac
 }
 
 # Tab-separated "name rel state" for every file that differs. Mode "pull"
@@ -814,7 +819,7 @@ pull_entry() {
   while IFS= read -r -d '' rel; do
     case "$(state "$(src_dir "$name")/$rel" "$(dest_of "$name" "$rel")")" in
       config-newer) pull_file "$name" "$rel" ;;
-      conflict) echo "  ${RED}⚠ skipped${X}  $name/$rel changed on both sides (use merge, or pull the file by name)" ;;
+      conflict) echo "  ${RED}${G_WARN} skipped${X}  $name/$rel changed on both sides (use merge, or pull the file by name)" ;;
     esac
   done < <(tracked "$name")
 }
@@ -1028,9 +1033,9 @@ baseline() {
 
 # ---- doctor and watch -----------------------------------------------------
 
-d_ok() { echo "  ${GRN}✔${X} $*"; }
+d_ok() { echo "  ${GRN}${G_OK}${X} $*"; }
 d_warn() { echo "  ${YEL}!${X} $*"; }
-d_bad() { echo "  ${RED}✗${X} $*"; DOCTOR_BAD=1; }
+d_bad() { echo "  ${RED}${G_BAD}${X} $*"; DOCTOR_BAD=1; }
 
 doctor() {
   DOCTOR_BAD=0
@@ -1127,9 +1132,9 @@ act_of() { case $1 in config-newer) echo pull ;; conflict) echo conflict ;; *) e
 # Colored direction label.
 act_label() {
   case $1 in
-    pull) echo "${YEL}~/.config ➜ repo${X}" ;;
-    push) echo "${CYA}repo ➜ ~/.config${X}" ;;
-    *) echo "${RED}⚠ both changed${X}" ;;
+    pull) echo "${YEL}~/.config ${G_ARROW} repo${X}" ;;
+    push) echo "${CYA}repo ${G_ARROW} ~/.config${X}" ;;
+    *) echo "${RED}${G_WARN} both changed${X}" ;;
   esac
 }
 
@@ -1261,7 +1266,7 @@ plan_track() { # rel..
 track_report() {
   local r i=0 cap=25 rp
   rp=$(short "$ROOT/profiles/${PROFILE:-none}")
-  echo "  ${B}Add to the repo${X}  ${D}~/.config ➜ $rp${X}"
+  echo "  ${B}Add to the repo${X}  ${D}~/.config ${G_ARROW} $rp${X}"
   echo
   for r in "${TR_OK[@]}"; do
     if ((++i > cap)); then break; fi
@@ -1273,7 +1278,7 @@ track_report() {
   i=0
   for r in "${TR_SKIP[@]}"; do
     if ((++i > 12)); then break; fi
-    printf '  %s– %-40s not added: %s%s\n' "$D" "${r%%$'\t'*}" "${r#*$'\t'}" "$X"
+    printf '  %s%s %-40s not added: %s%s\n' "$D" "$G_SKIP" "${r%%$'\t'*}" "${r#*$'\t'}" "$X"
   done
   if ((${#TR_SKIP[@]} > 12)); then echo "  ${D}… and $((${#TR_SKIP[@]} - 12)) more not added${X}"; fi
   if ((${#TR_HAVE[@]})); then echo "  ${D}${#TR_HAVE[@]} file(s) already in the repo${X}"; fi
@@ -1366,7 +1371,7 @@ untrack_file() { # name rel
 
 untrack_entry() { # name
   local rel
-  while IFS= read -r -d '' rel; do untrack_file "$1" "$rel"; done < <(cd "$(src_dir "$1")" && find . \( -type f -o -type l \) -printf '%P\0')
+  while IFS= read -r -d '' rel; do untrack_file "$1" "$rel"; done < <(repo_files "$1")
 }
 
 # Short colored preview of a ~/.config path for the add pickers.
@@ -1452,7 +1457,7 @@ menu_add() {
   rows=$(add_rows)
   if [[ -z $rows ]]; then MSG="nothing new in ~/.config to add"; return 0; fi
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
-    --prompt "add > " --pointer ">" --marker "+" --border=rounded \
+    --prompt "add > " --border=rounded \
     --header $'Pick what to copy from ~/.config into the repo. Nothing in ~/.config changes.\ntab toggles · enter continues · esc cancels · ctrl-/ hides the preview · type to filter' \
     --bind 'ctrl-/:toggle-preview' --preview "'$SELF' addpreview {2}" --preview-window 'down,55%,wrap,border-top' <<<"$rows" || true)
   ((${#picked[@]})) || return 0
@@ -1460,7 +1465,7 @@ menu_add() {
     IFS=$'\t' read -r _ rel flag <<<"$row"
     if [[ $flag == app ]]; then
       mapfile -t inner < <(appdata_files "$rel" | fzf --multi --layout=reverse --height=90% --no-info --border=rounded \
-        --prompt "$rel > " --pointer ">" --marker "+" \
+        --prompt "$rel > " \
         --header $'App data: pick single config files · tab toggles · enter adds · esc skips' \
         --preview "'$SELF' addpreview {}" --preview-window 'down,55%,wrap,border-top' || true)
       final+=("${inner[@]}")
@@ -1494,12 +1499,12 @@ menu_untrack() {
   local rows picked=() n rel
   rows=$(
     while read -r n; do
-      while IFS= read -r -d '' rel; do printf '%s\t%s\t%s\n' "$n/$rel" "$n" "$rel"; done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+      while IFS= read -r -d '' rel; do printf '%s\t%s\t%s\n' "$n/$rel" "$n" "$rel"; done < <(repo_files "$n" | sort -z)
     done < <(entries)
   )
   if [[ -z $rows ]]; then MSG="nothing is tracked"; return 0; fi
   mapfile -t picked < <(fzf --multi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info --border=rounded \
-    --prompt "stop tracking > " --pointer ">" --marker "x" \
+    --prompt "stop tracking > " --marker "$G_BAD" \
     --header $'Removes the picked files from the repo. They stay in ~/.config. Undo restores them.\ntab toggles · enter removes · esc cancels' \
     --preview "bat --color=always --style=plain --line-range :60 '$ROOT/profiles/$PROFILE'/{2}/{3} 2>/dev/null || head -n 60 '$ROOT/profiles/$PROFILE'/{2}/{3}" \
     --preview-window 'down,50%,wrap,border-top' <<<"$rows" || true)
@@ -1531,7 +1536,7 @@ choose() {
   if command -v fzf >/dev/null; then
     for item in "$@"; do printf '%s\t%s\n' "${item%%|*}" "${item#*|}"; done |
       fzf --layout=reverse --height=$(($# + 8)) --border=rounded --no-info --no-scrollbar \
-        --delimiter=$'\t' --with-nth=1 --header "$header" --prompt "" --pointer ">" --gutter ' ' \
+        --delimiter=$'\t' --with-nth=1 --border-label " $header " --color=label:cyan:bold --no-input --prompt "" --gutter ' ' \
         --preview 'printf "%s\n" {2}' --preview-window 'down,2,wrap,border-top' |
       cut -f1
   else
@@ -1632,13 +1637,13 @@ menu_sync() {
     line=$(printf '%-34s %s%s\t%s\t%s\t%s' "$(clean "$n/$rel")" "$(sync_tag "$st")" "$(change_stat "$n" "$rel" "$(act_of "$st")")" "$n" "$rel" "$st")
     if [[ $st == conflict ]]; then conf+=("$line"); else safe+=("$line"); fi
   done < <(changed_files all)
-  if ((${#safe[@]} + ${#conf[@]} == 0)); then MSG="${GRN}everything is in sync${X}"; return 0; fi
+  if ((${#safe[@]} + ${#conf[@]} == 0)); then return 0; fi # the status block above already says so
   rows=$(printf '%s\n' "${safe[@]}" "${conf[@]}" | sed '/^$/d')
   preselect="load:select-all"
   for ((i = 1; i <= ${#conf[@]}; i++)); do preselect+="+pos(-$i)+deselect"; done
   preselect+="+pos(1)"
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 \
-    --prompt "sync > " --pointer ">" --marker "+" \
+    --prompt "sync > " \
     --header $'ticked files are applied on enter · tab toggles · ctrl-a all · ctrl-d none · ctrl-e merge in nvim · ctrl-/ hide preview\n~/.config = live files · repo = this project · the preview shows what each change would do' \
     --preview "'$SELF' preview {2} {3}" \
     --preview-window 'down,60%,wrap,border-top' \
@@ -1743,7 +1748,7 @@ backup_restore_pick() {
   rows=$(backup_rows)
   if [[ -z $rows ]]; then MSG="no backups yet"; return 0; fi
   picked=$(fzf --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
-    --prompt "" --pointer ">" --gutter ' ' --border=rounded \
+    --prompt "" --gutter ' ' --border=rounded \
     --header $'Type a folder or file name to filter. The current file is backed up first.\nenter restore · esc cancel · diff: - backup, + current file' \
     --preview "diff --color=always -u --label backup --label current {2} {3}; true" \
     --preview-window 'down,60%,wrap,border-top' <<<"$rows" || true)
@@ -1798,14 +1803,14 @@ menu_select() {
       path=$n/$rel
       matches_any "$path" "${ALWAYS_IGNORE[@]}" && continue
       paths+=("$path")
-    done < <(cd "$(src_dir "$n")" && find . \( -type f -o -type l \) -printf '%P\0' | sort -z)
+    done < <(repo_files "$n" | sort -z)
   done < <(entries)
   for i in "${!paths[@]}"; do
     if matches_any "${paths[i]}" "${USER_IGNORE[@]}"; then preselect+="+pos($((i + 1)))+deselect"; fi
   done
   preselect+="+pos(1)"
   mapfile -t picked < <(printf '%s\n' "${paths[@]}" | fzf --multi --layout=reverse --height=90% --no-info \
-    --prompt "syncs > " --pointer ">" --marker "+" --bind "$preselect" \
+    --prompt "syncs > " --bind "$preselect" \
     --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
     --header $'ticked files are synced · tab toggles · type a folder name, then ctrl-a, to tick it all\nenter saves to .dotfilesignore · esc cancels' || true)
   ((${#picked[@]})) || { MSG="nothing ticked, nothing changed"; return 0; }
@@ -1886,7 +1891,7 @@ menu_profile_new() {
   name=$(gum input --placeholder "name, e.g. ubuntu" --header "New profile name") || return 0
   [[ -n $name ]] || return 0
   mapfile -t picked < <(templates | while read -r t; do basename "$t"; done |
-    fzf --multi --layout=reverse --height=90% --no-info --prompt "copy > " --pointer ">" --marker "+" \
+    fzf --multi --layout=reverse --height=90% --no-info --prompt "copy > " \
       --bind 'load:select-all' --header $'ticked folders are copied into the profile\ntab toggles · enter creates · esc cancels' || true)
   ((${#picked[@]})) || { MSG="nothing picked, no profile created"; return 0; }
   MSG=$(profile_new "$name" "${picked[@]}" 2>&1 | tail -1)

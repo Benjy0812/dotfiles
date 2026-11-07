@@ -639,6 +639,7 @@ show_status() {
   printf '  %srepo%s       %s  %s\n' "$CYA" "$X" "$(short "$ROOT/profiles/${PROFILE:-}")" "$(repo_state)"
   printf '  %s~/.config%s  %s  %s(the live files on this machine)%s\n\n' "$YEL" "$X" "$(short "$CONFIG")" "$D" "$X"
   note_unpreferred
+  if [[ -z $PROFILE ]]; then echo "  ${YEL}No profile yet.${X} Start one with: $0 profile new NAME, then add files from ~/.config (menu: Add from ~/.config)"; fi
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
   while read -r n; do
     tally "$n"
@@ -1851,12 +1852,12 @@ profile_new() { # name [folder..]
   if ((${#want[@]} == 0)); then
     while read -r t; do [[ $t == "$ROOT"/mango ]] || want+=("$(basename "$t")"); done < <(templates)
   fi
+  if ((!DRY)); then mkdir -p "$ROOT/profiles/$name"; fi # works with no boilerplate: an empty profile
   for f in "${want[@]}"; do
     t=$ROOT/apps/$f
     [[ -d $t ]] || t=$ROOT/$f
     [[ -d $t && $f != profiles ]] || die "no boilerplate folder '$f' (see: $0 profile templates)"
     if ((DRY)); then echo "  would copy $f"; continue; fi
-    mkdir -p "$ROOT/profiles/$name"
     cp -rP "$t" "$ROOT/profiles/$name/$f"
     echo "  ${GRN}copied${X} $f"
   done

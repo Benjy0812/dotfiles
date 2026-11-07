@@ -20,21 +20,34 @@ DRY=0 JSON=0 COMMIT=0 YES=0
 N_COPY=0 N_BACKUP=0 # counted by push/pull/restore for the summary line
 PULLED=()           # repo paths written by pulls, for the commit offer
 
-# Colors are the terminal's own 16 ANSI colors, so every theme works; symbols fall
-# back to ASCII outside a UTF-8 terminal. User FZF_DEFAULT_OPTS come last and win.
-FZF_LOOK=(--layout=reverse --height=90% --no-info --border=rounded)
-if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
-  B=$'\e[1m' D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' X=$'\e[0m'
-  FZF_LOOK+=(--color=pointer:cyan,marker:green:bold,hl:cyan,hl+:cyan,prompt:cyan,info:bright-black,border:bright-black,header:-1:bold,fg+:-1:bold,bg+:bright-black)
+# Colors: a fixed truecolor palette (Catppuccin Mocha) when the terminal says it has
+# truecolor, else the terminal's own 16 ANSI colors. Symbols fall back to ASCII outside
+# a UTF-8 terminal. User FZF_DEFAULT_OPTS come last and win.
+ADD_PREVIEW="right,50%,border-left" # file content beside the list (ctrl-/ hides it)
+FZF_LOOK=(--layout=reverse --height=90% --no-info --border=rounded --gutter " ")
+rgb() { printf '\e[38;2;%d;%d;%dm' "0x${1:0:2}" "0x${1:2:2}" "0x${1:4:2}"; }
+if [[ (-t 1 || -n ${FZF_PREVIEW_COLUMNS:-}) && -z ${NO_COLOR:-} ]]; then # fzf previews are pipes, but show colors
+  B=$'\e[1m' X=$'\e[0m'
+  if [[ ${COLORTERM:-} == *truecolor* || ${COLORTERM:-} == *24bit* ]]; then
+    D=$(rgb 7f849c) RED=$(rgb f38ba8) GRN=$(rgb a6e3a1) YEL=$(rgb f9e2af) CYA=$(rgb 94e2d5) BLU=$(rgb 89b4fa) MAG=$(rgb cba6f7)
+    FZF_LABEL="#cba6f7:bold"
+    FZF_LOOK+=(--color="pointer:#cba6f7,marker:#a6e3a1:bold,hl:#f9e2af,hl+:#f9e2af,prompt:#89b4fa,info:#6c7086,border:#585b70,header:-1:bold,fg+:#cdd6f4:bold,bg+:#3b3a5c,gutter:-1")
+  else
+    D=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YEL=$'\e[33m' CYA=$'\e[36m' BLU=$'\e[34m' MAG=$'\e[35m'
+    FZF_LABEL="magenta:bold"
+    FZF_LOOK+=(--color=pointer:magenta,marker:green:bold,hl:yellow,hl+:yellow,prompt:blue,info:bright-black,border:bright-black,header:-1:bold,fg+:-1:bold,bg+:bright-black)
+  fi
 else
-  B= D= RED= GRN= YEL= CYA= X=
+  B= D= RED= GRN= YEL= CYA= BLU= MAG= X= FZF_LABEL=-1
   FZF_LOOK+=(--no-color)
 fi
 if [[ ${LC_ALL:-${LC_CTYPE:-${LANG:-}}} == *[Uu][Tt][Ff]* ]]; then
   G_OK=✔ G_EDIT=✎ G_NEW=↑ G_WARN=⚠ G_BAD=✗ G_SKIP=– G_ARROW=➜
+  G_DOT=● G_OFF=○ G_TL=╭ G_BL=╰ G_V=│ G_H=─
   FZF_LOOK+=(--pointer "▶ " --marker "● ")
 else
   G_OK=ok G_EDIT=\* G_NEW=^ G_WARN=! G_BAD=x G_SKIP=- G_ARROW=-\>
+  G_DOT=\* G_OFF=o G_TL=+ G_BL=+ G_V=\| G_H=-
 fi
 FZF_DEFAULT_OPTS="${FZF_LOOK[*]@Q} ${FZF_DEFAULT_OPTS:-}"
 export FZF_DEFAULT_OPTS
@@ -645,18 +658,20 @@ repo_state() {
   local branch dirty
   branch=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
   dirty=$(git -C "$ROOT" status --porcelain | wc -l)
-  if ((dirty > 0)); then echo "$branch ${YEL}●$dirty${X}"; else echo "$branch ${GRN}clean${X}"; fi
+  if ((dirty > 0)); then echo "${MAG}$branch${X} ${YEL}●$dirty${X}"; else echo "${MAG}$branch${X} ${GRN}clean${X}"; fi
 }
 
 show_status() {
   local n label parts p skip note
-  printf '\n  %sdotfiles%s %sv%s%s%s\n' "$B$CYA" "$X" "$D" "$VERSION" "$X" "${PROFILE:+  ${D}profile $PROFILE${X}}"
-  printf '  %srepo%s       %s  %s\n' "$CYA" "$X" "$(short "$ROOT/profiles/${PROFILE:-}")" "$(repo_state)"
-  printf '  %s~/.config%s  %s  %s(the live files on this machine)%s\n\n' "$YEL" "$X" "$(short "$CONFIG")" "$D" "$X"
+  printf '\n  %sdotfiles%s %sv%s%s%s  %s\n' "$B$MAG" "$X" "$D" "$VERSION" "$X" "${PROFILE:+  ${D}profile${X} ${B}${MAG}$PROFILE${X}}" "$(repo_state)"
+  printf '  %srepo%s  %s%s%s   %slive%s  %s%s%s\n\n' "$D" "$X" "$BLU" "$(short "$ROOT/profiles/${PROFILE:-}")" "$X" "$D" "$X" "$BLU" "$(short "$CONFIG")" "$X"
   note_unpreferred
   if [[ -z $PROFILE ]]; then echo "  ${YEL}No profile yet.${X} Start one with: $0 profile new NAME, then add files from ~/.config (menu: Add from ~/.config)"; fi
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
+  local rule dot first=1
+  rule=$(printf '%*s' 58 '' | sed "s/ /$G_H/g")
   while read -r n; do
+    if ((first)); then printf '  %s%s%s%s\n' "$D" "$G_TL" "$rule" "$X"; first=0; fi
     tally "$n"
     parts=()
     if ((S_both)); then parts+=("${RED}${G_WARN} $S_both changed on both sides${X}"); fi
@@ -667,18 +682,20 @@ show_status() {
     note=
     if ((skip)); then note=", $skip skipped"; fi
     if ((S_same == 0 && ${#parts[@]} == 0 && skip)); then
-      label="${D}${G_SKIP} all $skip files skipped${X}"
+      dot="${D}${G_OFF}${X}" label="${D}all $skip files skipped${X}"
     elif ((${#parts[@]} == 0)); then
-      label="${GRN}${G_OK} in sync${X} ${D}($S_same files$note)${X}"
+      dot="${GRN}${G_DOT}${X}" label="${GRN}in sync${X} ${D}($S_same files$note)${X}"
     else
+      if ((S_both || S_miss)); then dot="${RED}${G_DOT}${X}"; elif ((S_conf)); then dot="${YEL}${G_DOT}${X}"; else dot="${CYA}${G_DOT}${X}"; fi
       label=${parts[0]}
       for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
     fi
     if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
       label+=" ${D}·${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
     fi
-    printf '  %-14s %s\n' "$n" "$label"
+    printf '  %s%s%s %s %-13s %s\n' "$D" "$G_V" "$X" "$dot" "$n" "$label"
   done < <(entries)
+  if ((!first)); then printf '  %s%s%s%s\n' "$D" "$G_BL" "$rule" "$X"; fi
   printf '\n'
   hint_skipped
 }
@@ -1385,11 +1402,13 @@ add_preview() { # rel
     ls -A -- "$abs" | head -n 20 | sed 's/^/    /'
     return 0
   fi
+  if [[ -f $abs ]]; then # a file: just its content (the list already says what gets added)
+    echo
+    if command -v bat >/dev/null; then bat --color=always --style=numbers --line-range :80 -- "$abs"; else head -n 80 -- "$abs"; fi
+    return 0
+  fi
   plan_track "$rel"
   track_report
-  if [[ -f $abs && ${#TR_OK[@]} -gt 0 ]]; then
-    if command -v bat >/dev/null; then bat --color=always --style=plain --line-range :40 -- "$abs"; else head -n 40 -- "$abs"; fi
-  fi
 }
 
 # Candidate rows for the add picker: display<TAB>path<TAB>flag.
@@ -1427,7 +1446,7 @@ add_rows() {
       else
         cnt=$(find -P "$p" -maxdepth 4 -type f 2>/dev/null | head -n 401 | wc -l || true)
         if ((cnt > 400)); then printf '%-40s %s\t%s\tapp\n' "$(clean "$base")/" "${YEL}large folder · pick files${X}" "$base"
-        else printf '%-40s %s\t%s\t\n' "$(clean "$base")/" "${GRN}folder · not tracked${X}" "$base"; fi
+        else printf '%-40s %s\t%s\t\n' "$(clean "$base")/" "${GRN}folder · $cnt file(s), pick which${X}" "$base"; fi
       fi
     else
       repo_target "$base"
@@ -1437,6 +1456,15 @@ add_rows() {
       printf '%-40s %s\t%s\t\n' "$(clean "$base")" "${GRN}file · not tracked${X}" "$base"
     fi
   done | sort -t$'\t' -k2,2
+}
+
+# Files of a small folder that can be added: display<TAB>path. Possible secrets are
+# listed too, marked, and start unticked (see menu_add).
+folder_files() { # rel
+  local r
+  plan_track "$1"
+  for r in "${TR_OK[@]}"; do printf '%s\t%s\t\n' "$(clean "$r")" "$r"; done
+  for r in "${TR_WARN[@]}"; do printf '%s  %s\t%s\twarn\n' "$(clean "${r%%$'\t'*}")" "${YEL}${G_WARN} ${r#*$'\t'}${X}" "${r%%$'\t'*}"; done
 }
 
 # Config-looking files inside an app-data folder, for the second picker.
@@ -1453,21 +1481,31 @@ appdata_files() { # rel
 menu_add() {
   need_fzf || return 0
   if [[ -z $PROFILE ]] || nix_managed; then MSG="${YEL}no copyable profile is active${X}"; return 0; fi
-  local rows picked=() row rel flag final=() inner choice items
+  local rows picked=() row rel flag final=() inner choice items sel i nw
   rows=$(add_rows)
   if [[ -z $rows ]]; then MSG="nothing new in ~/.config to add"; return 0; fi
   mapfile -t picked < <(fzf --multi --ansi --layout=reverse --height=90% --delimiter=$'\t' --with-nth=1 --no-info \
     --prompt "add > " --border=rounded \
-    --header $'Pick what to copy from ~/.config into the repo. Nothing in ~/.config changes.\ntab toggles · enter continues · esc cancels · ctrl-/ hides the preview · type to filter' \
-    --bind 'ctrl-/:toggle-preview' --preview "'$SELF' addpreview {2}" --preview-window 'down,55%,wrap,border-top' <<<"$rows" || true)
+    --header $'Pick what to copy from ~/.config into the repo. Nothing in ~/.config changes.\ntab toggles · enter continues (a folder opens its file list) · esc cancels · ctrl-/ hides the preview' \
+    --bind 'ctrl-/:toggle-preview' --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" <<<"$rows" || true)
   ((${#picked[@]})) || return 0
   for row in "${picked[@]}"; do
     IFS=$'\t' read -r _ rel flag <<<"$row"
     if [[ $flag == app ]]; then
-      mapfile -t inner < <(appdata_files "$rel" | fzf --multi --layout=reverse --height=90% --no-info --border=rounded \
+      mapfile -t inner < <(appdata_files "$rel" | awk '{print $0 "\t" $0}' | fzf --multi --delimiter=$'\t' --with-nth=1 \
         --prompt "$rel > " \
         --header $'App data: pick single config files · tab toggles · enter adds · esc skips' \
-        --preview "'$SELF' addpreview {}" --preview-window 'down,55%,wrap,border-top' || true)
+        --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" | cut -f2 || true)
+      final+=("${inner[@]}")
+    elif [[ -d $CONFIG/$rel && ! -L $CONFIG/$rel ]]; then
+      # a folder: show its files, all ticked except possible secrets, with the content on the right
+      rows=$(folder_files "$rel")
+      sel=load:select-all
+      for ((i = 1, nw = $(grep -c $'\twarn$' <<<"$rows" || true); i <= nw; i++)); do sel+="+pos(-$i)+deselect"; done
+      mapfile -t inner < <(fzf --multi --ansi --delimiter=$'\t' --with-nth=1 <<<"$rows" \
+        --prompt "$rel/ > " \
+        --header $'tab toggles · enter adds ticked files · esc skips' \
+        --bind "$sel+pos(1)" --preview "'$SELF' addpreview {2}" --preview-window "$ADD_PREVIEW" | cut -f2 || true)
       final+=("${inner[@]}")
     else
       final+=("$rel")
@@ -1536,7 +1574,7 @@ choose() {
   if command -v fzf >/dev/null; then
     for item in "$@"; do printf '%s\t%s\n' "${item%%|*}" "${item#*|}"; done |
       fzf --layout=reverse --height=$(($# + 8)) --border=rounded --no-info --no-scrollbar \
-        --delimiter=$'\t' --with-nth=1 --border-label " $header " --color=label:cyan:bold --no-input --prompt "" --gutter ' ' \
+        --delimiter=$'\t' --with-nth=1 --border-label " $header " --color=label:$FZF_LABEL --no-input --prompt "" --gutter ' ' \
         --preview 'printf "%s\n" {2}' --preview-window 'down,2,wrap,border-top' |
       cut -f1
   else
@@ -1584,14 +1622,14 @@ next_step() {
     return 0
   fi
   PENDING=$((e + r + b + m))
-  if ((PENDING == 0)); then echo "  ${GRN}Everything is in sync.${X}"; return 0; fi
+  if ((PENDING == 0)); then echo "  ${GRN}${G_OK}${X} ${B}Everything is in sync.${X}"; return 0; fi
   if ((e)); then parts+=("$e edited in ~/.config"); fi
   if ((r)); then parts+=("$r newer in repo"); fi
   if ((b)); then parts+=("$b changed on both sides"); fi
   if ((m)); then parts+=("$m not installed"); fi
   list=${parts[0]}
   for p in "${parts[@]:1}"; do list+=", $p"; done
-  echo "  ${B}Next:${X} open Sync to review $PENDING file(s): $list"
+  echo "  ${B}${MAG}Next${X} ${D}${G_ARROW}${X} ${YEL}open Sync to review $PENDING file(s): $list${X}"
 }
 
 # The list of changes the user is about to approve.

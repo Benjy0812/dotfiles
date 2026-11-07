@@ -43,11 +43,11 @@ else
 fi
 if [[ ${LC_ALL:-${LC_CTYPE:-${LANG:-}}} == *[Uu][Tt][Ff]* ]]; then
   G_OK=✔ G_EDIT=✎ G_NEW=↑ G_WARN=⚠ G_BAD=✗ G_SKIP=– G_ARROW=➜
-  G_DOT=● G_OFF=○ G_TL=╭ G_BL=╰ G_V=│ G_H=─
+  G_SEP=· G_DOT=● G_OFF=○ G_TL=╭ G_TR=╮ G_BL=╰ G_BR=╯ G_V=│ G_H=─
   FZF_LOOK+=(--pointer "▶ " --marker "● ")
 else
   G_OK=ok G_EDIT=\* G_NEW=^ G_WARN=! G_BAD=x G_SKIP=- G_ARROW=-\>
-  G_DOT=\* G_OFF=o G_TL=+ G_BL=+ G_V=\| G_H=-
+  G_SEP=- G_DOT=\* G_OFF=o G_TL=+ G_TR=+ G_BL=+ G_BR=+ G_V=\| G_H=-
 fi
 FZF_DEFAULT_OPTS="${FZF_LOOK[*]@Q} ${FZF_DEFAULT_OPTS:-}"
 export FZF_DEFAULT_OPTS
@@ -661,6 +661,30 @@ repo_state() {
   if ((dirty > 0)); then echo "${MAG}$branch${X} ${YEL}●$dirty${X}"; else echo "${MAG}$branch${X} ${GRN}clean${X}"; fi
 }
 
+# Draw rows in a rounded box sized to the longest one (colors do not count). On a
+# terminal too narrow for that, the right edge is left open instead of wrapping.
+box_rows() {
+  local r plain w=0 len cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)} rule right=1
+  ((${#@})) || return 0
+  for r in "$@"; do
+    plain=$(sed $'s/\e\\[[0-9;]*m//g' <<<"$r")
+    len=${#plain}
+    if ((len > w)); then w=$len; fi
+  done
+  if ((w + 8 > cols)); then right=0; fi
+  rule=$(printf '%*s' $((w + 2)) '' | sed "s/ /$G_H/g")
+  printf '  %s%s%s%s%s\n' "$D" "$G_TL" "$rule" "$( ((right)) && echo "${G_TR}" )" "$X"
+  for r in "$@"; do
+    plain=$(sed $'s/\e\\[[0-9;]*m//g' <<<"$r")
+    if ((right)); then
+      printf '  %s%s%s %s%*s %s%s%s\n' "$D" "$G_V" "$X" "$r" $((w - ${#plain})) '' "$D" "$G_V" "$X"
+    else
+      printf '  %s%s%s %s\n' "$D" "$G_V" "$X" "$r"
+    fi
+  done
+  printf '  %s%s%s%s%s\n' "$D" "$G_BL" "$rule" "$( ((right)) && echo "${G_BR}" )" "$X"
+}
+
 show_status() {
   local n label parts p skip note
   printf '\n  %sdotfiles%s %sv%s%s%s  %s\n' "$B$MAG" "$X" "$D" "$VERSION" "$X" "${PROFILE:+  ${D}profile${X} ${B}${MAG}$PROFILE${X}}" "$(repo_state)"
@@ -668,10 +692,8 @@ show_status() {
   note_unpreferred
   if [[ -z $PROFILE ]]; then echo "  ${YEL}No profile yet.${X} Start one with: $0 profile new NAME, then add files from ~/.config (menu: Add from ~/.config)"; fi
   if nix_managed; then echo "  ${CYA}Profile $PROFILE is managed by Nix${X} ${D}(nixos-rebuild deploys it; nothing to sync)${X}"; fi
-  local rule dot first=1
-  rule=$(printf '%*s' 58 '' | sed "s/ /$G_H/g")
+  local dot rows=()
   while read -r n; do
-    if ((first)); then printf '  %s%s%s%s\n' "$D" "$G_TL" "$rule" "$X"; first=0; fi
     tally "$n"
     parts=()
     if ((S_both)); then parts+=("${RED}${G_WARN} $S_both changed on both sides${X}"); fi
@@ -688,14 +710,14 @@ show_status() {
     else
       if ((S_both || S_miss)); then dot="${RED}${G_DOT}${X}"; elif ((S_conf)); then dot="${YEL}${G_DOT}${X}"; else dot="${CYA}${G_DOT}${X}"; fi
       label=${parts[0]}
-      for p in "${parts[@]:1}"; do label+=" ${D}·${X} $p"; done
+      for p in "${parts[@]:1}"; do label+=" ${D}${G_SEP}${X} $p"; done
     fi
     if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
-      label+=" ${D}·${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
+      label+=" ${D}${G_SEP}${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
     fi
-    printf '  %s%s%s %s %-13s %s\n' "$D" "$G_V" "$X" "$dot" "$n" "$label"
+    rows+=("$(printf '%s %-13s %s' "$dot" "$n" "$label")")
   done < <(entries)
-  if ((!first)); then printf '  %s%s%s%s\n' "$D" "$G_BL" "$rule" "$X"; fi
+  box_rows "${rows[@]}"
   printf '\n'
   hint_skipped
 }

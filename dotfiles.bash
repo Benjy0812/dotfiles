@@ -1824,10 +1824,12 @@ menu_select() {
       fi
     else
       matches_any "$path" "${USER_IGNORE[@]}" && continue
-      printf '%s\n' "$path" >>"$f"
+      grep -qxF -- "$path" "$f" || printf '%s\n' "$path" >>"$f"
       ((++skipped))
     fi
   done
+  awk '!seen[$0]++' "$f" >"$f.tmp" && mv -f "$f.tmp" "$f" # drop duplicate lines
+  load_profile_settings && load_entries # the menu keeps running on the new list
   MSG="saved: $skipped file(s) now skipped, $synced synced again"
 }
 

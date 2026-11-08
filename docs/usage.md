@@ -15,6 +15,7 @@ version of the usage part.
 - [Options](#options)
 - [Names](#names)
 - [Profiles](#profiles)
+- [Global and OS copies](#global-and-os-copies)
 - [Profile settings](#profile-settings)
 - [Config files](#config-files)
 - [Backups and undo](#backups-and-undo)
@@ -125,6 +126,7 @@ Everyday:
 | `push [name..]` | Copy repo to `~/.config`. A different existing file is moved to the backup folder first. |
 | `pull [name..]` | Copy edited files into the repo. Conflicts are skipped unless named. `--commit` commits the pulled files (no push). |
 | `restore [NAME/FILE..]` | Bring back the newest backup; without names pick one with fzf. The current file is backed up first. |
+| `layer [NAME global|os|auto]` | Choose per folder between the shared `profiles/global/` copy and this OS's own copy. |
 | `skipped` | List every file and folder that is not synced and why: built-in skips, `.dotfilesignore` patterns, and apps not picked in a group. Also in Tools > What is skipped. |
 | `select` | The "Choose what syncs" picker. |
 | `track PATH..` | Add anything from `~/.config` to the repo: a file, a folder or a file in a folder (`track mpv`, `track hypr/extra.lua`, `track starship.toml`). Prints what is added, held back and flagged first; `-n` stops there, `--force` adds flagged files, `--commit` commits. Undo removes them from the repo again. |
@@ -191,6 +193,29 @@ home-manager through `nixos-rebuild`, so `dotfiles.bash` never syncs it.
 
 To add an OS: `./dotfiles.bash profile new ubuntu kitty git fish`, then edit
 `profiles/ubuntu/`. The copy is independent of `apps/` and other profiles.
+
+## Global and OS copies
+
+Configs every machine should share go in `profiles/global/<folder>/`. A machine syncs a
+folder from its own profile when the profile has that folder, and from `global` otherwise:
+
+```text
+profiles/
+  global/    kitty/  nvim/        shared by every OS
+  omarchy/   hypr/  nvim/         nvim here overrides global/nvim on Omarchy
+```
+
+Choose per folder with `./dotfiles.bash layer` (or Tools > Global or OS copies):
+
+| Command | Result |
+|---|---|
+| `layer` | List each folder and which copy it uses. |
+| `layer NAME global` | Sync from `profiles/global/NAME`. Copied from the OS copy if global has none. |
+| `layer NAME os` | Sync from this OS's copy only. Copied from global if the profile has none, which starts an OS override. |
+| `layer NAME auto` | The default: the OS copy if there is one, else global. |
+
+The choice is saved in the profile's `profile.conf` as `layer.NAME = global`. Status marks
+global folders with `global`. `global` is not a profile you can select.
 
 ## Profile settings
 

@@ -85,6 +85,20 @@ echo b >"$T/home/.config/kitty/kitty.conf"
 "$D" undo --yes >/dev/null
 check "undo puts the repo file back" grep -qx a "$T/repo/profiles/p/kitty/kitty.conf"
 
+echo layers
+fresh
+mkdir -p "$T/repo/profiles/global/starship"
+echo g >"$T/repo/profiles/global/starship/starship.toml"
+check "global-only folder is listed" has "starship" "$("$D" status)"
+"$D" push starship >/dev/null
+check "global folder is pushed" grep -qx g "$T/home/.config/starship/starship.toml"
+check "OS copy wins by default" has "uses p" "$("$D" layer | grep kitty)"
+"$D" layer kitty global >/dev/null
+check "layer global copies the OS folder to global" test -f "$T/repo/profiles/global/kitty/kitty.conf"
+check "layer global is used" has "uses global" "$("$D" layer | grep kitty)"
+"$D" layer kitty os >/dev/null
+check "layer os switches back" has "uses p" "$("$D" layer | grep kitty)"
+
 echo
 if ((fails)); then echo "$fails of $n failed"; exit 1; fi
 echo "all $n passed"

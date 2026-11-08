@@ -93,6 +93,7 @@ ${B}Everyday${X}
   untrack NAME  remove from the repo; the ~/.config copy stays
   select        choose which single files are synced, with a diff preview
   skipped       list every file and folder that is not synced, and why
+  layer [NAME global|os|auto]  choose per folder: shared copy (profiles/global/) or this OS's own copy
 
 ${B}More${X}
   fetch         list every file that differs with +/- line counts; changes nothing
@@ -142,11 +143,15 @@ EOF
 # belongs to that OS. Which profile is active: DOTFILES_PROFILE, else the
 # choice saved by `profile NAME`, else detected from the machine.
 PROFILE_FILE="$STATE_DIR/profile"
+# Shared configs live in profiles/global/<folder>/. A folder in the active profile (the OS
+# copy) wins; otherwise the global one is used. "layer.NAME = global|os" in profile.conf forces one.
+GLOBAL="$ROOT/profiles/global"
+declare -A LAYER=()
 PROFILE=
 
 profiles_available() {
   local d
-  for d in "$ROOT"/profiles/*/; do [[ -d $d ]] && basename "$d"; done
+  for d in "$ROOT"/profiles/*/; do [[ -d $d && $d != "$GLOBAL"/ ]] && basename "$d"; done
 }
 
 # First profile folder that fits this machine: Omarchy, NixOS, then the distro.
@@ -227,7 +232,7 @@ not_preferred() { # folder
   g=$(pref_group_of "$1") || return 1
   want=${PREF[$g]:-all}
   [[ $want == all || $want == "$1" ]] && return 1
-  [[ -d $(pfile "$want") ]] || return 1 # the chosen app is not in this profile
+  has_folder "$want" || return 1 # the chosen app is not in this profile
   return 0
 }
 
@@ -267,7 +272,7 @@ MAP_SRC=() MAP_DST=()
 load_profile_settings() {
   local line src dst i f
   USER_IGNORE=() MAP_SRC=() MAP_DST=()
-  PREF=() PREF_GROUPS=() PREF_ORDER=()
+  PREF=() PREF_GROUPS=() PREF_ORDER=() LAYER=()
   f=$(pfile profile.conf)
   if [[ -f $f ]]; then
     while IFS= read -r line || [[ -n $line ]]; do
@@ -280,6 +285,8 @@ load_profile_settings() {
       if [[ $src == group.* ]]; then
         PREF_GROUPS[${src#group.}]="${dst[*]}"
         PREF_ORDER+=("${src#group.}")
+      elif [[ $src == layer.* ]]; then
+        LAYER[${src#layer.}]=${dst[0]}
       else
         PREF[$src]=${dst[0]}
       fi
@@ -314,9 +321,9 @@ load_profile_settings() {
 all_entries() {
   local d
   if [[ -n $PROFILE ]] && ! nix_managed; then
-    for d in "$ROOT/profiles/$PROFILE"/*/ "$ROOT/profiles/$PROFILE"/.[!.]*/; do
+    for d in "$ROOT/profiles/$PROFILE"/*/ "$ROOT/profiles/$PROFILE"/.[!.]*/ "$GLOBAL"/*/ "$GLOBAL"/.[!.]*/; do
       [[ -d $d ]] && basename "$d"
-    done
+    done | awk '!seen[$0]++' # an OS folder and a global one with the same name count once
   fi
 }
 
@@ -343,7 +350,14 @@ load_profile_settings
 load_entries
 entries() { if ((${#ENTRY_LIST[@]})); then printf '%s\n' "${ENTRY_LIST[@]}"; fi; }
 
-src_dir() { echo "$ROOT/profiles/${PROFILE:-none}/$1"; }
+# The repo folder a name is synced from: the OS copy, or the global one when the profile
+# has none (or layer.NAME = global says so).
+src_dir() {
+  local os=$ROOT/profiles/${PROFILE:-none}/$1
+  if { [[ ${LAYER[$1]:-} == global ]] || [[ ! -d $os ]]; } && [[ -d $GLOBAL/$1 ]]; then echo "$GLOBAL/$1"; else echo "$os"; fi
+}
+# True when the active profile or the global layer has this folder.
+has_folder() { [[ -d $ROOT/profiles/${PROFILE:-none}/$1 || -d $GLOBAL/$1 ]]; }
 
 # Where a repo file lives outside the repo: the longest matching rule of the map.
 dest_of() { # name rel
@@ -465,7 +479,7 @@ note_unpreferred() {
     [[ -n ${PREF[$k]:-} && ${PREF[$k]} != all ]] || continue
     skipped=()
     for e in ${PREF_GROUPS[$k]}; do
-      if [[ -d $(pfile "$e") ]] && not_preferred "$e"; then skipped+=("$e"); fi
+      if has_folder "$e" && not_preferred "$e"; then skipped+=("$e"); fi
     done
     if ((${#skipped[@]})); then echo "  ${D}$k: ${PREF[$k]} ($(IFS=,; echo "${skipped[*]}" | sed 's/,/, /g') not synced)${X}"; fi
   done
@@ -502,8 +516,8 @@ skipped_report() {
   for g in "${PREF_ORDER[@]}"; do
     [[ -n ${PREF[$g]:-} && ${PREF[$g]} != all ]] || continue
     for m in ${PREF_GROUPS[$g]}; do
-      [[ -d $(pfile "$m") ]] && not_preferred "$m" || continue
-      files=$(find "$(pfile "$m")" \( -type f -o -type l \) | wc -l)
+      has_folder "$m" && not_preferred "$m" || continue
+      files=$(find "$(src_dir "$m")" \( -type f -o -type l \) | wc -l)
       printf '  %-44s %s\n' "$m/ ($files files)" "${CYA}not picked${X} ${D}($g = ${PREF[$g]}; change: $0 profile set $g NAME)${X}"
       ((++total))
     done
@@ -736,6 +750,7 @@ show_status() {
     if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
       label+=" ${D}${G_SEP}${X} ${YEL}Omarchy setup: $(omarchy_state)${X} ${D}(Tools > Omarchy: set up)${X}"
     fi
+    if [[ $(src_dir "$n") == "$GLOBAL"/* ]]; then label+=" ${D}${G_SEP} global${X}"; fi
     rows+=("$(printf '%s %-13s %s' "$dot" "$n" "$label")")
   done < <(entries)
   box_rows "${rows[@]}"
@@ -749,7 +764,7 @@ hint_skipped() {
   while read -r n; do total=$((total + $(skipped_count "$n"))); done < <(entries)
   for g in "${PREF_ORDER[@]}"; do
     [[ -n ${PREF[$g]:-} && ${PREF[$g]} != all ]] || continue
-    for m in ${PREF_GROUPS[$g]}; do [[ -d $(pfile "$m") ]] && not_preferred "$m" && ((++total)); done
+    for m in ${PREF_GROUPS[$g]}; do has_folder "$m" && not_preferred "$m" && ((++total)); done
   done
   if ((total)); then echo "  ${D}Some files and folders are skipped. See what and why: $0 skipped${X}"; echo; fi
 }
@@ -1926,6 +1941,58 @@ menu_select() {
   MSG="saved: $skipped file(s) now skipped, $synced synced again"
 }
 
+# Choose which copy of a folder is synced: global (profiles/global/), os (the active profile)
+# or auto (the OS copy if the profile has one, else the global one). The chosen copy is
+# created from the other one when it does not exist yet, so you can start an OS override.
+layer_set() { # name global|os|auto
+  local n=$1 want=$2 from to
+  [[ -n $PROFILE ]] || die "no profile is active"
+  [[ $want == global || $want == os || $want == auto ]] || die "layer must be global, os or auto"
+  from=$ROOT/profiles/$PROFILE/$n to=$GLOBAL/$n
+  if [[ $want == os ]]; then from=$GLOBAL/$n to=$ROOT/profiles/$PROFILE/$n; fi
+  if [[ $want != auto && ! -d $to ]]; then
+    [[ -d $from ]] || die "no folder '$n' in the profile or in global"
+    if ((DRY)); then echo "  would copy $(short "$from") to $(short "$to")"; return 0; fi
+    mkdir -p "$(dirname "$to")"
+    cp -rP "$from" "$to"
+    echo "  ${GRN}copied${X} $(short "$from") ${G_ARROW} $(short "$to")"
+  fi
+  if ((DRY)); then echo "  would set layer.$n = $want"; return 0; fi
+  write_conf "layer.$n" "$want"
+  echo "  ${GRN}$n${X} now syncs from the $(if [[ $(src_dir "$n") == "$GLOBAL"/* ]]; then echo global; else echo "$PROFILE"; fi) copy"
+}
+
+layer_list() {
+  local n os glob where
+  while read -r n; do
+    os=; glob=
+    [[ -d $ROOT/profiles/$PROFILE/$n ]] && os=yes
+    [[ -d $GLOBAL/$n ]] && glob=yes
+    if [[ $(src_dir "$n") == "$GLOBAL"/* ]]; then where="global"; else where="$PROFILE"; fi
+    printf '  %-14s uses %-8s %s\n' "$n" "$where" "${D}(${os:+$PROFILE}${os:+${glob:+ + }}${glob:+global} available)${X}"
+  done < <(entries)
+}
+
+menu_layers() {
+  need_fzf || return 0
+  local n items=() choice where
+  while read -r n; do
+    if [[ $(src_dir "$n") == "$GLOBAL"/* ]]; then where=global; else where=$PROFILE; fi
+    items+=("$n|Syncs from the $where copy. Pick to change.")
+  done < <(entries)
+  items+=("Back|Return to the tools menu.")
+  n=$(choose "Global or ${PROFILE:-OS} copy" "${items[@]}") || return 0
+  [[ $n == Back ]] && return 0
+  choice=$(choose "$n syncs from" \
+    "global|Use profiles/global/$n, shared by every OS. Copied from the OS copy if global has none." \
+    "os|Use the ${PROFILE} copy only for this OS. Copied from global if the profile has none." \
+    "auto|The ${PROFILE} copy if there is one, otherwise the global copy." \
+    "Back|Change nothing.") || return 0
+  [[ $choice == Back ]] && return 0
+  layer_set "$n" "$choice" >/dev/null
+  MSG="$n now uses the $(if [[ $(src_dir "$n") == "$GLOBAL"/* ]]; then echo global; else echo "$PROFILE"; fi) copy"
+}
+
 # Boilerplate folders a new profile can start from: apps/* and mango.
 templates() {
   local d
@@ -2013,7 +2080,7 @@ menu_settings() {
   [[ $k == Back ]] && return 0
   items=("all|Sync every $k in this profile.")
   for choice in ${PREF_GROUPS[$k]}; do
-    if [[ -d $(pfile "$choice") ]]; then items+=("$choice|Sync only $choice; the other ${k}s stay in the profile, unsynced."); fi
+    if has_folder "$choice"; then items+=("$choice|Sync only $choice; the other ${k}s stay in the profile, unsynced."); fi
   done
   choice=$(choose "Preferred $k" "${items[@]}") || return 0
   set_pref "$k" "$choice"
@@ -2022,7 +2089,8 @@ menu_settings() {
 
 menu_tools() {
   local choice items=()
-  items+=("Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
+  items+=("Global or OS copies|Choose per folder whether it syncs from the shared global copy or this OS's own copy."
+    "Profile|Pick the profile for this machine, or start one from the boilerplate. Now: ${PROFILE:-none}."
     "Profile settings|Choose one app per group (terminal, editor, shell... as the profile defines them); only that one is synced."
     "Stop tracking files|Remove files from the repo. They stay in ~/.config; Undo brings them back."
     "What is skipped|List every file and folder that is not synced, and why."
@@ -2038,6 +2106,7 @@ menu_tools() {
   choice=$(choose "Tools" "${items[@]}") || return 0
   case $choice in
     Profile) menu_profile ;;
+    "Global or OS copies") menu_layers ;;
     "NixOS: rebuild") "$SELF" rebuild; pause ;;
     "Profile settings") [[ -n $PROFILE ]] && menu_settings ;;
     "Stop tracking files") menu_untrack ;;
@@ -2287,6 +2356,9 @@ case $cmd in
     done < <(entries)
     ;;
   skipped) skipped_report ;;
+  layer)
+    if ((${#names[@]} == 0)); then layer_list; else ((${#names[@]} == 2)) || die "usage: $0 layer NAME global|os|auto"; layer_set "${names[0]}" "${names[1]}"; fi
+    ;;
   setup) omarchy_setup ;;
   uninstall) omarchy_uninstall ;;
   help) usage ;;

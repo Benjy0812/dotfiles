@@ -6,6 +6,7 @@ its own README with the details.
 | Folder | What | Details |
 |---|---|---|
 | `profiles/<os>/` | What is synced on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md) |
+| `profiles/global/` | Optional shared configs, used by every OS unless a profile has its own copy of the folder | [usage guide](docs/usage.md#global-and-os-copies) |
 | `apps/`, `mango/` | Boilerplate: starting configs that `profile new` copies into a new profile | [apps/README.md](apps/README.md) |
 | `flake.nix` | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/` | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
 | `docs/` | Guides, starting with [the dotfiles.bash usage](docs/usage.md) | [docs/README.md](docs/README.md) |

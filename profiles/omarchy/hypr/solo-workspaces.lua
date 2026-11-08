@@ -2,7 +2,8 @@
 -- dotfiles.bash setup. Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.
-  apps = { "org.jellyfin.JellyfinDesktop", "chrome-discord.com__channels_@me-Default" },
+  -- An entry starting with "^" is a Lua pattern; "^steam_app_%d+$" = every Steam game.
+  apps = { "org.jellyfin.JellyfinDesktop", "chrome-discord.com__channels_@me-Default", "^steam_app_%d+$" },
   -- When another window lands on a solo app's workspace:
   -- true = that window moves away, false = it stays and shares.
   push_others = true,

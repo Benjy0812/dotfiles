@@ -52,7 +52,9 @@ end, { timeout = 2000, type = "repeat" })
 local function is_solo(class)
   if not class then return false end
   for _, app in ipairs(M.apps) do
-    if app:lower() == class:lower() then return true end
+    -- shortcut: an entry starting with "^" is a Lua pattern, anything else an exact class
+    local a, c = app:lower(), class:lower()
+    if a == c or (a:sub(1, 1) == "^" and c:match(a)) then return true end
   end
   return false
 end

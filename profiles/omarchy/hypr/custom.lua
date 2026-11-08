@@ -109,134 +109,64 @@ hl.config({
   },
 })
 
--- ============================================================================
--- GAMING
--- ============================================================================
--- Everything here is aimed at Steam/Proton games, which all get the window
--- class "steam_app_<appid>". Find the class of any other game's window with:
---   hyprctl clients | grep -i -A3 class      (run it while the game is open)
--- Then reuse the rules below with that class (see "SPECIFIC GAMES" at the end).
---
--- Rules apply in order and later ones win, so put exceptions BELOW the general
--- ones. Check for typos after editing: hyprctl reload && hyprctl configerrors
+-- Gaming. Steam/Proton windows have the class steam_app_<appid>; for other
+-- launchers, find the class with `hyprctl clients | grep class` while the game
+-- runs. Later rules win, so put per-game exceptions below the general one.
+-- After editing: hyprctl reload && hyprctl configerrors
 
--- The class pattern every rule below uses. It is a regex:
---   "^steam_app_[0-9]+$"             every Steam game (the default)
---   "^steam_app_3513350$"         one specific Steam game (appid is in its store URL)
---   "^(steam_app_[0-9]+|gamescope)$" Steam games plus gamescope windows
---   "^(lutris|heroic|.*[.]exe)$"   Lutris/Heroic launched games and bare Wine .exe windows
--- (Hyprland uses regex, not Lua patterns: write [0-9] for a digit and [.] for a dot.)
+-- Class regex for "every Steam game". Hyprland uses regex, not Lua patterns:
+-- write [0-9] for a digit and [.] for a dot.
 local games = "^steam_app_[0-9]+$"
 
--- --- Tearing / latency ------------------------------------------------------
--- allow_tearing only PERMITS tearing; nothing tears until a window rule
--- below asks for it. true = allowed, false = never (Omarchy's default).
--- Cost: with tearing a frame can show half old, half new image. Gain: lower
--- input lag, which matters in fast shooters. Needs the game fullscreen.
 hl.config({
-  general = {
-    allow_tearing = true,
-  },
+  -- Lets windows tear (lower input lag, but a frame can show two images).
+  -- Only applies to fullscreen windows that ask for it with `immediate`.
+  general = { allow_tearing = true },
 
-  render = {
-    -- Direct scanout: when a game is fullscreen and covers the whole monitor,
-    -- its frames go straight to the screen and skip the compositor. Less lag
-    -- and a bit less GPU load.
-    --   0 = off
-    --   1 = on for every fullscreen window (can glitch with video/browsers)
-    --   2 = on only for fullscreen windows Hyprland detects as games (safe pick)
-    direct_scanout = 2,
-  },
+  -- Fullscreen windows skip the compositor: 0 off, 1 every fullscreen window,
+  -- 2 only detected games (1 can glitch video and browsers).
+  render = { direct_scanout = 2 },
 
-  misc = {
-    -- Variable refresh rate (FreeSync/G-Sync) is OFF: these monitors don't
-    -- support it, so tearing (allow_tearing + `immediate` below) is the
-    -- low-latency option instead. If you get a VRR monitor later: set this to 3
-    -- (0 off, 1 always, 2 fullscreen only, 3 fullscreen games/video) AND change
-    -- `vrr = 0` to `vrr = 3` in its hl.monitor() block, which overrides this.
-    vrr = 0,
-  },
+  -- Variable refresh rate stays off, these monitors have no FreeSync. With one:
+  -- 3 = fullscreen games/video only, and set vrr = 3 in its hl.monitor() too,
+  -- which overrides this.
+  misc = { vrr = 0 },
 })
 
--- --- Per-window rules for games --------------------------------------------
--- Each field below is an optional effect; delete a line to turn it off, or
--- copy the whole block for a different game.
+-- Delete a line to turn that effect off.
 hl.window_rule({
   name = "games",
   match = { class = games },
 
-  -- Open the game fullscreen automatically (true) or leave it windowed
-  -- (remove the line). Options: true | "maximize" for fullscreen with bar visible.
   fullscreen = true,
-
-  -- Allow this window to tear. Only has an effect while the window is
-  -- fullscreen AND general.allow_tearing is true. Turn off for games that
-  -- flicker or look broken when tearing (some Proton titles do).
+  -- Tear while fullscreen. Remove for games that flicker with it.
   immediate = true,
-
-  -- No blur or animations on the game window: saves GPU time, avoids stutter
-  -- when it opens/closes. Remove these if you want the game to fade in.
+  -- No blur or animations on the game window.
   no_blur = true,
   no_anim = true,
-
-  -- Stop the screen locking/going idle while the game is fullscreen, so the
-  -- lock screen doesn't appear mid-match with a controller. Options:
-  -- "none" | "always" | "focus" (while focused) | "fullscreen" (while fullscreen).
+  -- No idle lock while the game is fullscreen. Also: "none", "always", "focus".
   idle_inhibit = "fullscreen",
 
-  -- Send every game to slot 1 of the 240Hz monitor (DP-3). With
-  -- monitor-workspaces that monitor owns ids 11-20, so slot 1 is id 11; the
-  -- 144Hz one owns 1-10. If the monitors ever swap blocks
-  -- change 11 to 1. Check which monitor owns which block with:
-  --   cat ~/.local/state/omarchy/monitor-workspaces   (block 0 = ids 1-10, 1 = 11-20)
-  --   hyprctl workspaces | grep -E "workspace ID|monitor:"   (id -> monitor)
-  --   hyprctl monitors | grep -E "^Monitor|@"                (monitor -> refresh rate)
-  --   hyprctl clients | grep -E "class|workspace:"           (where each window is)
-  -- The solo-workspaces plugin (see
-  -- ~/.config/hypr/solo-workspaces.lua, which lists the same Steam pattern)
-  -- keeps games alone: if 1 is busy the game goes to the nearest empty one.
-  -- Delete the line to open on the current workspace.
+  -- Slot 1 of the 240Hz monitor (DP-3). With monitor-workspaces it owns ids
+  -- 11-20 and the 144Hz one 1-10, so use 1 if they ever swap. Check with:
+  --   cat ~/.local/state/omarchy/monitor-workspaces   (block 0 = 1-10, 1 = 11-20)
+  --   hyprctl workspaces | grep -E "workspace ID|monitor:"
+  --   hyprctl monitors | grep -E "^Monitor|@"
+  -- The solo-workspaces plugin keeps games alone on it (same pattern in
+  -- ~/.config/hypr/solo-workspaces.lua); a busy workspace sends the game to
+  -- the nearest empty one.
   workspace = "11",
 })
 
--- --- SPECIFIC GAMES ---------------------------------------------------------
--- Copy a block per game. Because it comes after "games", it overrides it.
--- Examples (uncomment and change the class to use):
---
--- A game that must stay windowed (e.g. it breaks in fullscreen):
--- hl.window_rule({
---   name = "game-windowed",
---   match = { class = "^steam_app_3513350$" },
---   fullscreen = false,
---   immediate = false,
--- })
---
--- A game that tears badly or flickers: just turn tearing off for it.
--- hl.window_rule({
---   name = "game-no-tearing",
---   match = { class = "^steam_app_1245620$" },
---   immediate = false,
--- })
---
--- A non-Steam game (find its class with hyprctl clients):
--- hl.window_rule({
---   name = "game-minecraft",
---   match = { class = "^Minecraft.*" },
---   fullscreen = true,
---   immediate = true,
--- })
---
--- Games you want on a different monitor or at a fixed size (floating):
--- hl.window_rule({
---   name = "game-float",
---   match = { class = "^steam_app_12345$" },
---   float = true,
---   size = "1280 720",
---   center = true,
--- })
---
--- Steam launch options (Steam > game > Properties) that pair with this:
---   gamemoderun %command%            CPU/GPU performance mode (pacman -S gamemode)
---   gamescope -f -W 1920 -H 1080 -r 240 -- %command%   own fullscreen/scaling layer
---   PROTON_ENABLE_WAYLAND=1 %command%   run Proton games as native Wayland
---   mangohud %command%               fps overlay (pacman -S mangohud)
+-- Per-game overrides: copy a block, change the class, put it below "games".
+-- Game that flickers with tearing:
+-- hl.window_rule({ match = { class = "^steam_app_1245620$" }, immediate = false })
+-- Non-Steam game:
+-- hl.window_rule({ match = { class = "^Minecraft.*" }, fullscreen = true, immediate = true })
+-- Floating, fixed size:
+-- hl.window_rule({ match = { class = "^steam_app_12345$" }, float = true, size = "1280 720", center = true })
+
+-- Steam launch options that pair with this:
+--   gamemoderun %command%        performance mode (pacman -S gamemode)
+--   mangohud %command%           fps overlay (pacman -S mangohud)
+--   gamescope -f -W 1920 -H 1080 -r 240 -- %command%   own fullscreen layer

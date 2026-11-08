@@ -71,61 +71,65 @@ short() { echo "${1/#$HOME/\~}"; }
 
 usage() {
   cat <<EOF
-${B}dotfiles${X} v$VERSION: compare this repo with ~/.config and sync the two
+${B}dotfiles${X} v$VERSION: keep this repo and ~/.config in sync
+
+"repo" is this project's copy of your configs (profiles/<os>/). "~/.config" is the live copy
+your apps read. Only the active profile is synced.
 
 ${B}Usage${X}
   ./dotfiles.bash [command] [options] [name..]
+  A name is a folder (see \`./dotfiles.bash list\`) or one file (fish/config.fish).
 
 ${B}Everyday${X}
-  (no command)  interactive menu: Sync, Backups, Tools (needs gum and fzf)
-  status        one row per folder: in sync, edited in ~/.config, newer in repo,
-                changed on both sides (--json for scripts)
-  diff          show what differs
-  push          copy repo files into ~/.config; replaced files are kept in the backup folder
-  pull          copy files edited in ~/.config back into the repo (--commit commits them)
-  restore       bring a backup back (NAME/FILE for the newest, or pick with fzf)
+  (no command)  open the menu: Sync, Add, Backups, Undo, Tools (needs gum and fzf)
+  status        one line per folder: in sync, edited in ~/.config, repo is newer,
+                changed on both sides, or not in ~/.config yet (--json for scripts)
+  diff          show exactly what differs, line by line
+  push          copy repo -> ~/.config; a file it replaces is saved as a backup first
+  pull          copy ~/.config -> repo for files you edited there (--commit also commits them)
+  undo          reverse the last push, pull or restore (shows the changes; add --yes to do it)
+  restore       bring a backup back (NAME/FILE for the newest one, or pick from a list)
+  track PATH..  copy a file or folder from ~/.config into the repo (secrets, caches and big files are held back)
+  untrack NAME  remove from the repo; the ~/.config copy stays
+  select        choose which single files are synced, with a diff preview
   skipped       list every file and folder that is not synced, and why
-  track PATH..  add anything from ~/.config to the repo (a file or folder; secrets and caches held back)
-  untrack NAME  remove from the repo (the ~/.config copy stays)
-  select        fine-grained: skip single files (see docs/usage.md for folder-level choices)
-  undo          put back what the last push, pull or restore changed (--yes to do it)
 
 ${B}More${X}
-  fetch         list every file that differs, with +/- line counts; changes nothing
-  merge NAME FILE  open both copies of a file in nvim -d
+  fetch         list every file that differs with +/- line counts; changes nothing
+  merge NAME FILE  open the repo and ~/.config copies side by side in nvim
   backups       list the backups of tracked files
-  clean [DAYS]  list backups older than DAYS (default 30); --yes deletes them
-  baseline      record everything that is in sync as the common starting point
-  doctor        check tools, .gitignore, backups and links
+  clean [DAYS]  list backups older than DAYS (default 30); add --yes to delete them
+  baseline      record all identical files as the starting point, so later conflicts are detected exactly
+  doctor        check the tools, .gitignore, broken links and old backups
   watch         notify when a tracked file changes in ~/.config (--auto pulls it)
-  setup         hook Omarchy's custom.lua into hyprland.lua, link the settings, install the plugins
-  uninstall     undo setup
-  profile [NAME|auto|none]  show or choose this machine's profile (the folders that get synced)
-  profile set GROUP NAME|all  sync only the chosen app of a group (terminal, editor, shell...)
-  profile group GROUP NAME NAME..  define a group of alternatives in profile.conf
-  rebuild       NixOS: nixos-rebuild switch for this repo's flake (-n: dry-build)
-  edit [NAME[/FILE]]  open the profile (or a folder or file of it) in the preferred editor
+  setup         Omarchy: load custom.lua from hyprland.lua, link the settings, install the plugins
+  uninstall     Omarchy: undo setup
+  profile [NAME|auto|none]  show or choose this machine's profile
+  profile set GROUP NAME|all  sync only one app of a group (terminal, editor, shell...)
+  profile group GROUP NAME NAME..  define a group of alternative apps in profile.conf
   profile new NAME [folder..]  start a profile from the boilerplate in apps/ and mango/
-  map           show where each repo folder goes (rules live in .dotfiles-map)
+  rebuild       NixOS: run nixos-rebuild switch for this repo's flake (-n: dry-build)
+  edit [NAME[/FILE]]  open the profile, a folder or a file in your preferred editor
+  map           show which ~/.config path each repo folder goes to (rules: .dotfiles-map)
   help, version
 
 ${B}Options${X}
-  -n, --dry-run   show what would happen, change nothing
-  -y, --yes       let clean delete
-  --json          status as JSON
-  --commit        pull, track: commit the changed repo files (no push)
-  -f, --force     track: also add files flagged as possible secrets
+  -n, --dry-run   show what would happen and change nothing
+  -y, --yes       confirm: needed for clean and undo when not using the menu
+  --json          status: print JSON
+  --commit        pull, track: commit the changed repo files (does not push)
+  -f, --force     track, pull: also copy files that look like they contain a secret
   -h, --help      same as help
   -v, --version   same as version
 
-${B}Names${X} are folders (\`./dotfiles.bash list\`) or single files (fish/config.fish).
-Without names, push and diff use every out-of-sync folder, and pull uses every
+Without names, push and diff use every folder that is out of sync, and pull uses every
 folder with edits in ~/.config. NO_COLOR=1 turns colors off.
 
-${B}Files${X} in the profile folder (profiles/<os>/), all optional: profile.conf (preferred
-terminal, editor, window manager and shell), .dotfiles-map (where
-folders go), .dotfilesignore (paths to skip) and .dotfiles-hosts (which folders belong
-on which machine).
+${B}Settings files${X} in the profile folder (profiles/<os>/), all optional:
+  profile.conf     which app to sync per group (terminal, editor, window manager, shell)
+  .dotfiles-map    where a repo folder goes if not ~/.config/<folder>
+  .dotfilesignore  files that are never synced
+  .dotfiles-hosts  which folders belong on which machine
 EOF
 }
 
@@ -715,8 +719,8 @@ show_status() {
     parts=()
     if ((S_both)); then parts+=("${RED}${G_WARN} $S_both changed on both sides${X}"); fi
     if ((S_conf)); then parts+=("${YEL}${G_EDIT} $S_conf edited in ~/.config${X}"); fi
-    if ((S_repo)); then parts+=("${CYA}${G_NEW} $S_repo newer in repo${X}"); fi
-    if ((S_miss)); then parts+=("${RED}${G_BAD} $S_miss not installed${X}"); fi
+    if ((S_repo)); then parts+=("${CYA}${G_NEW} $S_repo repo is newer${X}"); fi
+    if ((S_miss)); then parts+=("${RED}${G_BAD} $S_miss not in ~/.config yet${X}"); fi
     skip=$(skipped_count "$n")
     note=
     if ((skip)); then note=", $skip skipped"; fi
@@ -730,7 +734,7 @@ show_status() {
       for p in "${parts[@]:1}"; do label+=" ${D}${G_SEP}${X} $p"; done
     fi
     if [[ $n == omarchy ]] && omarchy_ready && [[ $(omarchy_state) != installed ]]; then
-      label+=" ${D}${G_SEP}${X} ${YEL}hook $(omarchy_state)${X} ${D}(Tools)${X}"
+      label+=" ${D}${G_SEP}${X} ${YEL}Omarchy setup: $(omarchy_state)${X} ${D}(Tools > Omarchy: set up)${X}"
     fi
     rows+=("$(printf '%s %-13s %s' "$dot" "$n" "$label")")
   done < <(entries)
@@ -817,7 +821,7 @@ backup_path() { # name rel
 stash() { # name rel file
   local bak
   bak=$(backup_path "$1" "$2")
-  echo "  ${YEL}backup${X}  $(short "$bak")"
+  echo "  ${YEL}backup${X}  old file saved to $(short "$bak")"
   ((++N_BACKUP))
   if ((!DRY)); then
     mkdir -p "$(dirname "$bak")"
@@ -835,7 +839,7 @@ push_file() { # name rel
   st=$(state "$src" "$dest")
   [[ $st == same ]] && return 0
   if [[ $st != missing ]]; then stash "$1" "$2" "$dest"; fi
-  echo "  ${GRN}copy${X}    $(short "$dest")"
+  echo "  ${GRN}copy${X}    repo ${G_ARROW} $(short "$dest")"
   ((++N_COPY))
   if ((!DRY)); then
     mkdir -p "$(dirname "$dest")"
@@ -857,7 +861,7 @@ pull_file() { # name rel
     echo "  ${RED}${G_WARN} held back${X}  $1/$2 now looks like it holds a secret (read it, then pull with --force)"
     return 0
   fi
-  echo "  ${YEL}pull${X}    $1/$2"
+  echo "  ${YEL}copy${X}    ~/.config ${G_ARROW} repo  $1/$2"
   ((++N_COPY))
   if ((!DRY)); then
     save_repo_copy "$1" "$2" "$src"
@@ -880,7 +884,7 @@ pull_entry() {
   while IFS= read -r -d '' rel; do
     case "$(state "$(src_dir "$name")/$rel" "$(dest_of "$name" "$rel")")" in
       config-newer) pull_file "$name" "$rel" ;;
-      conflict) echo "  ${RED}${G_WARN} skipped${X}  $name/$rel changed on both sides (use merge, or pull the file by name)" ;;
+      conflict) echo "  ${RED}${G_WARN} skipped${X}  $name/$rel changed on both sides (open it with: merge NAME FILE, or pull it by name)" ;;
     esac
   done < <(tracked "$name")
 }
@@ -905,7 +909,7 @@ summary() { # VERB
   if ((N_COPY + N_BACKUP == 0)); then
     echo "${GRN}nothing to do${X}"
   else
-    echo "${B}$did:${X} $N_COPY file(s), $N_BACKUP backup(s)$note"
+    echo "${B}$did:${X} $N_COPY file(s) copied, $N_BACKUP old file(s) backed up$note"
   fi
 }
 
@@ -974,7 +978,7 @@ restore_backup() { # name rel backup
   fi
 }
 
-restore_entry() { echo "  ${RED}restore takes NAME/FILE${X}  $1"; }
+restore_entry() { echo "  ${RED}restore needs a file, like fish/config.fish${X}  (got: $1)"; }
 
 restore_target() { # name rel
   local b
@@ -1016,7 +1020,7 @@ undo_last() { # [confirm]
   if [[ ${1:-} == confirm ]]; then
     gum confirm --affirmative Undo --negative Cancel "Undo these ${#lines[@]} change(s)?" || return 0
   elif ((!YES && !DRY)); then
-    echo "Pass --yes to undo."
+    echo "Nothing was changed. Run again with --yes to undo these changes."
     return 0
   fi
   new_run
@@ -1088,7 +1092,7 @@ baseline() {
       fi
     done < <(tracked "$n")
   done < <(entries)
-  echo "recorded $count file(s) as in sync ${D}($(short "$SYNCED"))${X}"
+  echo "recorded $count identical file(s) as the starting point for conflict detection ${D}($(short "$SYNCED"))${X}"
 }
 
 # ---- doctor and watch -----------------------------------------------------
@@ -1129,11 +1133,11 @@ doctor() {
   while IFS=$'\t' read -r n rel b; do
     if [[ -n $(find "$b" -maxdepth 0 -mtime +30) ]]; then ((++old)); fi
   done < <(backups)
-  if ((old)); then d_warn "$old backup(s) older than 30 days (clean)"; else d_ok "no old backups"; fi
+  if ((old)); then d_warn "$old backup(s) older than 30 days (delete them with: clean --yes)"; else d_ok "no old backups"; fi
 
   echo "${B}state${X}"
   d_ok "profile: ${PROFILE:-none}"
-  if [[ -f $SYNCED ]]; then d_ok "$(wc -l <"$SYNCED") file(s) recorded in $(short "$SYNCED")"; else d_warn "no sync record yet (run baseline for exact conflict detection)"; fi
+  if [[ -f $SYNCED ]]; then d_ok "$(wc -l <"$SYNCED") file(s) recorded in $(short "$SYNCED")"; else d_warn "no sync record yet (run baseline so conflicts are detected exactly)"; fi
   d_ok "machine $(uname -n): $(entries | paste -sd' ')"
   return "$DOCTOR_BAD"
 }
@@ -1635,9 +1639,9 @@ need_fzf() {
 sync_tag() {
   case $1 in
     config-newer) echo "$(act_label pull)  edited in ~/.config" ;;
-    repo-newer) echo "$(act_label push)  newer in repo" ;;
+    repo-newer) echo "$(act_label push)  repo is newer" ;;
     conflict) echo "$(act_label conflict)       you choose" ;;
-    *) echo "$(act_label push)  not installed yet" ;;
+    *) echo "$(act_label push)  not in ~/.config yet" ;;
   esac
 }
 
@@ -1665,9 +1669,9 @@ next_step() {
   PENDING=$((e + r + b + m))
   if ((PENDING == 0)); then echo "  ${GRN}${G_OK}${X} ${B}Everything is in sync.${X}"; return 0; fi
   if ((e)); then parts+=("$e edited in ~/.config"); fi
-  if ((r)); then parts+=("$r newer in repo"); fi
+  if ((r)); then parts+=("$r where the repo is newer"); fi
   if ((b)); then parts+=("$b changed on both sides"); fi
-  if ((m)); then parts+=("$m not installed"); fi
+  if ((m)); then parts+=("$m not in ~/.config yet"); fi
   list=${parts[0]}
   for p in "${parts[@]:1}"; do list+=", $p"; done
   echo "  ${B}${MAG}Next${X} ${D}${G_ARROW}${X} ${YEL}open Sync to review $PENDING file(s): $list${X}"
@@ -1792,7 +1796,7 @@ backup_summary() {
     if ((age > oldest)); then oldest=$age; fi
   done < <(backups)
   if ((count == 0)); then
-    echo "  ${D}no backups yet. They appear when a push replaces a different file.${X}"
+    echo "  ${D}no backups yet. A backup is made whenever a push or restore replaces a different file.${X}"
   else
     echo "  ${B}$count${X} backup(s) of ${B}${#files[@]}${X} file(s) · $(numfmt --to=iec --suffix=B "$bytes") · oldest $oldest day(s)"
     echo "  ${D}$(short "$BACKUP_DIR")${X}"
@@ -1873,7 +1877,7 @@ menu_backups() {
 # .dotfilesignore as exact paths; other lines there (comments, globs) stay.
 menu_select() {
   need_fzf || return 0
-  local f; f=$(pfile .dotfilesignore); local n rel path rows=() paths=() i preselect=load:select-all
+  local f; f=$(pfile .dotfilesignore); local n rel path rows=() paths=() i preselect=load:select-all st tag
   local picked=() skipped=0 synced=0 pattern
   declare -A keep=()
   while read -r n; do
@@ -1881,16 +1885,21 @@ menu_select() {
       path=$n/$rel
       matches_any "$path" "${ALWAYS_IGNORE[@]}" && continue
       paths+=("$path")
+      # Second column says whether the file differs, so the diff is easy to find.
+      st=$(state "$(src_dir "$n")/$rel" "$(dest_of "$n" "$rel")")
+      if [[ $st == same ]]; then tag="${D}in sync${X}"; else tag="${YEL}differs${X}$(change_stat "$n" "$rel" "$(act_of "$st")")"; fi
+      rows+=("$(printf '%s\t%s\t%s\t%s' "$(clean "$path")" "$tag" "$n" "$rel")")
     done < <(repo_files "$n" | sort -z)
   done < <(entries)
   for i in "${!paths[@]}"; do
     if matches_any "${paths[i]}" "${USER_IGNORE[@]}"; then preselect+="+pos($((i + 1)))+deselect"; fi
   done
   preselect+="+pos(1)"
-  mapfile -t picked < <(printf '%s\n' "${paths[@]}" | fzf --multi \
+  mapfile -t picked < <(printf '%s\n' "${rows[@]}" | fzf --multi --ansi --delimiter=$'\t' --with-nth=1,2 \
     --prompt "syncs > " --bind "$preselect" \
-    --bind 'ctrl-a:select-all,ctrl-d:deselect-all' \
-    --header $'ticked files are synced · tab toggles · type a folder name, then ctrl-a, to tick it all\nenter saves to .dotfilesignore · esc cancels' || true)
+    --bind 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-/:toggle-preview' \
+    --preview "'$SELF' preview {3} {4}" --preview-window 'down,50%,wrap,border-top' \
+    --header $'ticked = synced, unticked = left out · tab toggles · type a folder name, then ctrl-a, to tick it all\nthe preview shows how the repo and ~/.config copies differ · enter saves to .dotfilesignore · esc cancels' | cut -f1 || true)
   ((${#picked[@]})) || { MSG="nothing ticked, nothing changed"; return 0; }
   for path in "${picked[@]}"; do keep[$path]=1; done
   touch "$f"
@@ -2054,10 +2063,11 @@ menu() {
     next_step
     echo
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
+    SYNCS_LABEL="Choose what syncs${PROFILE:+ (${PROFILE^})}"
     items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
       "Add from ~/.config|Browse ~/.config and copy any file or folder into the repo. Secrets, caches and big files are held back."
       "Backups|Restore a replaced file, or delete old backups."
-      "Choose what syncs|Fine-grained: skip single files inside a folder. For whole folders or one terminal/editor use Tools > Profile settings. See docs/usage.md for the best way.")
+      "$SYNCS_LABEL|Tick the files to sync and untick the ones to leave out, with a diff preview. For whole folders or one terminal/editor use Tools > Profile settings.")
     run=$(last_run)
     if [[ -n $run ]]; then
       items+=("Undo last sync|Put back what the run from $(run_time "$run") changed ($(run_changes "$run" | wc -l) change(s)).")
@@ -2068,7 +2078,7 @@ menu() {
       Sync) menu_sync ;;
       "Add from ~/.config") menu_add ;;
       Backups) menu_backups ;;
-      "Choose what syncs") menu_select ;;
+      "$SYNCS_LABEL") menu_select ;;
       "Undo last sync") undo_last confirm; pause ;;
       Tools) menu_tools ;;
       Quit) break ;;

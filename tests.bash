@@ -36,7 +36,7 @@ check "edit in ~/.config is seen" has "edited in ~/.config" "$("$D" status)"
 "$D" pull -y >/dev/null
 check "pull copies it into the repo" grep -qx b "$T/repo/profiles/p/kitty/kitty.conf"
 echo c >"$T/repo/profiles/p/kitty/kitty.conf"
-check "edit in the repo is seen" has "newer in repo" "$("$D" status)"
+check "edit in the repo is seen" has "repo is newer" "$("$D" status)"
 "$D" push -y >/dev/null
 check "push copies it to ~/.config" grep -qx c "$T/home/.config/kitty/kitty.conf"
 check "push keeps a backup" has "kitty" "$(ls "$T/state/dotfiles/backups" 2>&1)"
@@ -73,7 +73,7 @@ fresh
 echo x >"$T/home/.config/kitty/extra.conf"
 "$D" track kitty >/dev/null
 mkdir -p "$T/bin"
-printf '#!/bin/bash\ngrep -v -x -F kitty/extra.conf\n' >"$T/bin/fzf"
+printf '#!/bin/bash\ngrep -v -F kitty/extra.conf\n' >"$T/bin/fzf"
 chmod +x "$T/bin/fzf"
 for _ in 1 2 3; do PATH=$T/bin:$PATH "$D" select </dev/null >/dev/null; done
 check "no duplicate ignore lines" test "$(grep -cx 'kitty/extra.conf' "$T/repo/profiles/p/.dotfilesignore")" = 1

@@ -81,9 +81,9 @@ cd ~/Projects/dotfiles
 - **State of a file:**
   - `in sync`: identical on both sides.
   - `edited in ~/.config` (`← save to repo`): only `~/.config` changed since the last sync.
-  - `newer in repo` (`→ save to ~/.config`): only the repo changed.
+  - `repo is newer` (`→ save to ~/.config`): only the repo changed.
   - `changed on both sides`: both changed; you choose.
-  - `not installed`: missing from `~/.config`.
+  - `not in ~/.config yet`: missing from `~/.config`.
 - **Baseline:** for each file the script saves a checksum from the last time both
   sides matched (`~/.local/state/dotfiles/synced.tsv`). Every push or pull updates it.
   Without one it guesses from modification times and cannot see conflicts.
@@ -342,7 +342,7 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 
 - **"No profile for this machine":** no `profiles/<os>/` matches. Run
   `./dotfiles.bash profile` to see what exists, then `profile NAME` or `profile new NAME`.
-- **Everything shows "newer in repo" or "not installed" on a new machine:** expected
+- **Everything shows "repo is newer" or "not in ~/.config yet" on a new machine:** expected
   before the first `push`. Run `push -n` first to preview.
 - **A file shows "changed on both sides":** open Sync and choose, or run
   `merge NAME FILE`. Run `fetch` to see all differences first.

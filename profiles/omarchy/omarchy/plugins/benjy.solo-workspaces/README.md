@@ -29,6 +29,8 @@ return {
 }
 ```
 
+Entries starting with `^` are Lua patterns and match case-sensitively; other entries match ignoring case.
+
 Changes apply on their own within 2 seconds of saving. If an edit breaks the
 file you get a notification and the last working settings stay active.
 

@@ -49,14 +49,31 @@ hl.timer(function()
   end
 end, { timeout = 2000, type = "repeat" })
 
-local function is_solo(class)
-  if not class then return false end
-  for _, app in ipairs(M.apps) do
-    -- shortcut: an entry starting with "^" is a Lua pattern, anything else an exact class
-    local a, c = app:lower(), class:lower()
-    if a == c or (a:sub(1, 1) == "^" and c:match(a)) then return true end
+-- Entries starting with "^" are case-sensitive Lua patterns (lowercasing would break %D, %S...); other entries match the class name ignoring case.
+-- Bad patterns are reported once each, since matches runs on every window event.
+local reported = {}
+local function matches(apps, class)
+  for _, app in ipairs(apps) do
+    if app:sub(1, 1) == "^" then
+      local ok, hit = pcall(string.match, class, app)
+      if not ok and not reported[app] then
+        reported[app] = true
+        hl.exec_cmd("notify-send -u critical 'Solo workspaces' '" .. (app .. ": " .. hit):gsub("'", "'\\''") .. "'")
+      end
+      if ok and hit then
+        return true
+      end
+    elseif app:lower() == class:lower() then
+      return true
+    end
   end
   return false
+end
+M.matches = matches
+
+local function is_solo(class)
+  if not class then return false end
+  return matches(M.apps, class)
 end
 
 -- Real workspace id of `slot` on `monitor`, via monitor-workspaces if loaded.

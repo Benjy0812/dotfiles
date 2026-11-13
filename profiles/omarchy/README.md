@@ -30,8 +30,7 @@ Safe to run again; do so after `omarchy refresh hyprland` or `omarchy refresh sh
 live one alone). App configs
 (terminals, git, ...) sit next to this file in the profile.
 An existing plugin settings file that isn't a link yet is kept as `*.bak`.
-Every folder in `plugins/` is installed, and a plugin with a `Widget.qml` also
-replaces the bar's workspace widget.
+Every folder in `plugins/` is installed and hooked into `~/.config/hypr/autostart.lua`.
 
 What it does by hand: `custom.lua` is loaded from `~/.config/hypr/hyprland.lua`, which needs two edits:
 

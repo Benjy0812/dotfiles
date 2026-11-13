@@ -13,6 +13,7 @@ a verification script, and revert instructions.
 | # | Fix | Affects | Status | Date |
 |---|-----|---------|--------|------|
 | 001 | [Vesktop/Discord screen share freezes after ~5s](001-xdg-portal-damage-freeze/README.md) | `xdg-desktop-portal-wlr` 0.8.4 + `mangowm` 0.18.3 | applied, verified | 2026-10-25 |
+| 002 | [Steam (X11) ignores the cursor theme](002-steam-x11-cursor/README.md) | Steam under Xwayland, any cursor theme | applied, verified | 2026-11-13 |
 
 ## Conventions
 

@@ -409,14 +409,14 @@ synced_hash() {
 }
 
 # Remember that this file was identical on both sides just now.
-record_sync() { # file in ~/.config
+record_sync() { # file in ~/.config [file to hash, default the same]
   if ((DRY)) || [[ -L $1 || ! -f $1 ]]; then return 0; fi
   mkdir -p "$STATE_DIR"
   local tmp key=${1#"$CONFIG"/}
   tmp=$(mktemp "$STATE_DIR/.synced.XXXXXX")
   {
     if [[ -f $SYNCED ]]; then awk -F'\t' -v k="$key" '$1 != k' "$SYNCED"; fi
-    printf '%s\t%s\n' "$key" "$(hash_of "$1")"
+    printf '%s\t%s\n' "$key" "$(hash_of "${2:-$1}")"
   } >"$tmp"
   mv -f "$tmp" "$SYNCED"
 }
@@ -1075,7 +1075,8 @@ undo_last() { # [confirm]
     dest=$(dest_of "$n" "$rel") src=$(src_dir "$n")/$rel
     case $kind in
       stash)
-        if [[ -e $saved || -L $saved ]]; then restore_backup "$n" "$rel" "$saved"
+        # The restored file is the common point again, so a repo edit stays "repo is newer".
+        if [[ -e $saved || -L $saved ]]; then restore_backup "$n" "$rel" "$saved"; record_sync "$dest"
         else echo "  ${RED}backup is gone${X}  $n/$rel"; fi
         ;;
       created)
@@ -1089,6 +1090,8 @@ undo_last() { # [confirm]
             if [[ -e $src || -L $src ]]; then save_repo_copy "$n" "$rel" "$src"; fi
             mkdir -p "$(dirname "$src")"
             cp -P "$saved" "$src"
+            # The old repo copy is the common point again, so the live edit stays "edited in ~/.config".
+            record_sync "$dest" "$src"
           fi
         else echo "  ${RED}old repo copy is gone${X}  $n/$rel"; fi
         ;;
@@ -1217,6 +1220,7 @@ watch_config() { # [--auto] [name..]
     case $st in
       config-newer)
         if ((auto)); then
+          new_run # each auto-pull is its own run, so undo reverses only that one
           pull_file "$T_NAME" "$T_REL"
         else
           echo "$(date +%T)  ${YEL}edited${X}  $key"
@@ -1882,7 +1886,7 @@ backup_restore_pick() {
     --preview-window 'down,60%,wrap,border-top' <<<"$rows" || true)
   [[ -n $picked ]] || return 0
   IFS=$'\t' read -r _ b _ n rel <<<"$picked"
-  N_COPY=0 N_BACKUP=0
+  new_run
   restore_backup "$n" "$rel" "$b"
   MSG=$(summary restored)
 }

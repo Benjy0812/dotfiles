@@ -17,7 +17,7 @@ is moved to the backup folder first
 (`~/.local/state/dotfiles/backups/nvim/init.lua/`). Other LazyVim files in `~/.config/nvim/`
 (`lua/`, `lazy-lock.json`) are left alone and go unused, and LazyVim's theme
 hot-reload stops working. To go back, run `../../dotfiles.bash restore nvim/init.lua`. NixOS deploys
-the file through home-manager ([../../nix](../../nix/README.md)).
+the file through home-manager ([../nix](../nix/README.md)).
 
 Check what it would do with `../../dotfiles.bash push -n nvim`.
 

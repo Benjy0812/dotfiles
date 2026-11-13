@@ -41,6 +41,12 @@ check "edit in the repo is seen" has "repo is newer" "$("$D" status)"
 check "push copies it to ~/.config" grep -qx c "$T/home/.config/kitty/kitty.conf"
 check "push keeps a backup" has "kitty" "$(ls "$T/state/dotfiles/backups" 2>&1)"
 
+echo "fetch"
+fresh
+echo b >>"$T/home/.config/kitty/kitty.conf"
+check "fetch with a differing file exits 0" "$D" fetch
+check "fetch counts the added line" has "+1 -0" "$("$D" fetch)"
+
 echo "conflict"
 fresh
 echo repo >"$T/repo/profiles/p/kitty/kitty.conf"
@@ -110,6 +116,20 @@ check "layer global copies the OS folder to global" test -f "$T/repo/profiles/gl
 check "layer global is used" has "uses global" "$("$D" layer | grep kitty)"
 "$D" layer kitty os >/dev/null
 check "layer os switches back" has "uses p" "$("$D" layer | grep kitty)"
+
+echo "omarchy setup"
+fresh
+mkdir -p "$T/repo/profiles/p/hypr" "$T/repo/profiles/p/omarchy/plugins/x.y" "$T/home/.config/hypr" "$T/bin"
+echo '-- custom' >"$T/repo/profiles/p/hypr/custom.lua"
+echo '-- plugin' >"$T/repo/profiles/p/omarchy/plugins/x.y/y.lua"
+echo 'require("hypr.looknfeel")' >"$T/home/.config/hypr/hyprland.lua"
+printf '#!/bin/bash\n' >"$T/bin/hyprctl"
+cp "$T/bin/hyprctl" "$T/bin/omarchy"
+chmod +x "$T/bin/hyprctl" "$T/bin/omarchy"
+for _ in 1 2; do PATH=$T/bin:$PATH "$D" setup >/dev/null 2>&1; done
+hl=$T/home/.config/hypr/hyprland.lua
+check "setup twice adds one custom.lua line" test "$(grep -c '^dofile(".*/hypr/custom\.lua")$' "$hl")" = 1
+check "setup twice adds one autostart line" test "$(grep -cxF 'require("hypr.autostart")' "$hl")" = 1
 
 echo
 if ((fails)); then echo "$fails of $n failed"; exit 1; fi

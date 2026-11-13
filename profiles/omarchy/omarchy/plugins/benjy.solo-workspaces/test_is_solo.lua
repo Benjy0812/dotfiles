@@ -1,8 +1,10 @@
--- Run: lua test_is_solo.lua. Tests the real M.matches from solo-workspaces.lua.
+-- Run: lua test_is_solo.lua. Tests the real M.matches and M.slot_on from solo-workspaces.lua.
 -- Stubs the Hyprland globals the plugin calls at load time, and hides HOME and
 -- XDG_CONFIG_HOME so no real settings file is read.
 hl = setmetatable({ dsp = { window = {} } }, { __index = function() return function() end end })
 hl.get_workspace_windows = function() return {} end
+-- Omarchy's monitor-workspaces module, published as o.workspaces: DP-3 owns 11-20.
+o = { workspaces = { workspace_id = function(m, s) return (m.name == "DP-3" and 10 or 0) + s end } }
 local getenv = os.getenv
 os.getenv = function(name)
   if name == "HOME" or name == "XDG_CONFIG_HOME" then return "/nonexistent" end
@@ -39,5 +41,8 @@ check("^bad_(%d+", "bad_1", false)
 if calls ~= 1 then fails = fails + 1; print("FAIL: bad pattern notified again, got " .. calls) end
 hl.exec_cmd = real_exec
 
+-- Workspace 11 on DP-3 is that monitor's slot 1 (Omarchy's ids are numbers).
+if M.slot_on({ name = "DP-3" }, 11) ~= 1 then fails = fails + 1; print("FAIL: workspace 11 on DP-3 is not slot 1") end
+
 if fails > 0 then os.exit(1) end
-print("all 10 passed")
+print("all 11 passed")

@@ -6,15 +6,15 @@
 --
 -- Settings are in ~/.config/hypr/solo-workspaces.lua.
 --
--- Works alone with plain workspaces 1-10, or together with
--- benjy.monitor-workspaces, in which case "1-10" means the focused monitor's
--- own 1-10.
+-- Follows Omarchy's own per-monitor workspace numbering, so "1-10" means each
+-- monitor's own 1-10 (11-20 on the second one). Without it, plain 1-10.
 
 local defaults = { apps = {}, push_others = true, follow = true, slots = 10 }
 local M = {}
 
--- Settings live outside the plugin so reinstalling keeps them; dotfiles.bash setup
--- creates this file from config.default.lua.
+-- Settings live outside the plugin so reinstalling keeps them. dotfiles.bash
+-- setup links profiles/omarchy/hypr/solo-workspaces.lua here; config.default.lua
+-- is a starting point to copy by hand.
 M.config = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/solo-workspaces.lua"
 
 local function read_config()
@@ -76,10 +76,12 @@ local function is_solo(class)
   return matches(M.apps, class)
 end
 
--- Real workspace id of `slot` on `monitor`, via monitor-workspaces if loaded.
+-- Real workspace id of `slot` on `monitor`, from Omarchy's per-monitor
+-- numbering (o.workspaces) when loaded. Its ids are numbers, so stringify.
 local function workspace_for(monitor, slot)
-  if monitor_workspaces and monitor_workspaces.workspace_id then
-    return monitor_workspaces.workspace_id(monitor, slot)
+  local mw = o and o.workspaces
+  if mw and mw.workspace_id then
+    return tostring(mw.workspace_id(monitor, slot))
   end
   return tostring(slot)
 end
@@ -89,6 +91,7 @@ local function slot_on(monitor, id)
     if workspace_for(monitor, slot) == tostring(id) then return slot end
   end
 end
+M.slot_on = slot_on
 
 -- Tiled windows on workspace `id`, other than `except`. Floating ones are
 -- dialogs and popups and never count.

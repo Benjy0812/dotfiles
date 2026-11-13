@@ -18,4 +18,4 @@ Run `../../dotfiles.bash push nvim`. It copies `init.lua` to
 `../../dotfiles.bash push -n nvim`.
 
 The plain, plugin-free config used on other profiles is in
-[../../apps/nvim](../../apps/nvim/README.md).
+[../../../apps/nvim](../../../apps/nvim/README.md).

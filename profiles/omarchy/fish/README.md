@@ -29,7 +29,7 @@ Any way works, as long as `fish --version` prints 3.4 or newer afterwards:
 | Arch, Omarchy, CachyOS | `sudo pacman -S fish` |
 | Debian, Ubuntu | `sudo apt install fish` |
 | Fedora | `sudo dnf install fish` |
-| NixOS | already done: `programs.fish.enable` in [`nix/`](../../nix/README.md) |
+| NixOS | already done: `programs.fish.enable` in [`nix/`](../../nixos/nix/README.md) |
 | macOS | `brew install fish` |
 | Anything else | see [fishshell.com](https://fishshell.com/) |
 

@@ -29,7 +29,7 @@ Then put the configs in place, depending on the machine. On any machine,
 - **NixOS:** `nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --impure --sudo` (a folder in `profiles/nixos/nix/hosts/`)
   deploys them through home-manager ([nix](profiles/nixos/nix/README.md)).
 - **Omarchy:** `./dotfiles.bash push`, then `./dotfiles.bash setup`
-  ([omarchy](omarchy/README.md)).
+  ([omarchy](profiles/omarchy/README.md)).
 - **Anywhere else:** `./dotfiles.bash push` copies the profile into `~/.config/` and keeps
   what it replaces as backups (`-n` shows what it would do first).
 

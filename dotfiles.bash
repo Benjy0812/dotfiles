@@ -15,7 +15,6 @@ SYNCED="$STATE_DIR/synced.tsv" # "name/file<TAB>sha256" as of the last push or p
 HISTORY="$STATE_DIR/history.tsv" # "run<TAB>kind<TAB>name<TAB>file<TAB>saved copy", for undo
 UNDO_DIR="$STATE_DIR/undo"       # repo files as they were before a pull
 RUN_SEQ=0
-OMARCHY_RESTART=0
 DRY=0 JSON=0 COMMIT=0 YES=0
 N_COPY=0 N_BACKUP=0 # counted by push/pull/restore for the summary line
 PULLED=()           # repo paths written by pulls, for the commit offer
@@ -185,16 +184,18 @@ resolve_profile
 ALWAYS_IGNORE=('*/README.md' '*/fish_variables' 'hypr/custom.lua')
 USER_IGNORE=() # from the profile's .dotfilesignore, which "Choose what syncs" edits
 
-# matches PATH ("folder/file") against the globs that follow it
-matches_any() { # path glob..
+# The first glob that matches PATH, or nothing: first_match PATH GLOB..
+first_match() {
   local path=$1 p
   shift
   for p in "$@"; do
     # shellcheck disable=SC2053 # the pattern is meant to be a glob
-    [[ $path == $p ]] && return 0
+    if [[ $path == $p ]]; then echo "$p"; return 0; fi
   done
   return 1
 }
+# matches PATH ("folder/file") against the globs that follow it
+matches_any() { first_match "$@" >/dev/null; } # path glob..
 ignored() { matches_any "$1" "${ALWAYS_IGNORE[@]}" "${USER_IGNORE[@]}"; }
 
 # The settings files live in the profile (profiles/<os>/), never in the repo root.
@@ -488,17 +489,6 @@ note_unpreferred() {
   done
 }
 
-# The first glob that matches PATH, or nothing: first_match PATH GLOB..
-first_match() {
-  local path=$1 p
-  shift
-  for p in "$@"; do
-    # shellcheck disable=SC2053 # the pattern is meant to be a glob
-    if [[ $path == $p ]]; then echo "$p"; return 0; fi
-  done
-  return 1
-}
-
 # Everything that is not synced, and why: files skipped by the built-in list or
 # by .dotfilesignore, and whole folders left out by a group pick.
 skipped_report() {
@@ -555,11 +545,6 @@ omarchy_plugins() {
   for d in "$(src_dir omarchy)"/plugins/*/; do [[ -d $d ]] && basename "$d"; done
 }
 
-# A plugin with a bar widget hooks into bindings.lua, the others into autostart.lua.
-plugin_hook_file() {
-  if [[ -f $(src_dir omarchy)/plugins/$1/Widget.qml ]]; then echo "$HYPR/bindings.lua"; else echo "$HYPR/autostart.lua"; fi
-}
-
 # installed | partial | missing, for the hyprland.lua hook and the settings links.
 omarchy_state() {
   local ok=0 total=1 f
@@ -583,8 +568,7 @@ remove_hook() { # file id
 }
 
 plugin_install() { # id
-  local id=$1 hook dest=$CONFIG/omarchy/plugins/$1 shell=$CONFIG/omarchy/shell.json rel
-  hook=$(plugin_hook_file "$id")
+  local id=$1 hook=$HYPR/autostart.lua dest=$CONFIG/omarchy/plugins/$1 rel
   [[ -f $hook ]] || { echo "  ${YEL}skipped${X} plugin $id: $(short "$hook") is missing"; return 0; }
   cp "$hook" "$hook.bak"
   remove_hook "$hook" "$id"
@@ -593,29 +577,17 @@ plugin_install() { # id
   done < <(tracked omarchy)
   printf '%s\n' "-- >>> $id >>>" "dofile(\"$dest/${id#*.}.lua\")" "-- <<< $id <<<" >>"$hook"
   echo "  ${GRN}plugin${X}  $id"
-  # A plugin with a widget replaces Omarchy's global workspace strip in the bar.
-  if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]] && grep -q '"omarchy.workspaces"' "$shell"; then
-    cp "$shell" "$shell.bak"
-    sed -i "s/\"omarchy\\.workspaces\"/\"${id//./\\.}\"/" "$shell"
-    OMARCHY_RESTART=1
-  fi
 }
 
 plugin_uninstall() { # id
-  local id=$1 shell=$CONFIG/omarchy/shell.json
-  remove_hook "$(plugin_hook_file "$id")" "$id"
+  local id=$1
+  remove_hook "$HYPR/autostart.lua" "$id"
   rm -rf "$CONFIG/omarchy/plugins/$id"
-  if [[ -f $(src_dir omarchy)/plugins/$id/Widget.qml && -f $shell ]]; then
-    sed -i "s/\"${id//./\\.}\"/\"omarchy.workspaces\"/" "$shell"
-    OMARCHY_RESTART=1
-  fi
   echo "  ${YEL}removed${X} plugin $id"
 }
 
 omarchy_reload() {
   hyprctl reload >/dev/null 2>&1 && hyprctl configerrors || true
-  # Plugin hot-reload can keep the old widget cached, so restart the bar.
-  if ((OMARCHY_RESTART)); then omarchy restart shell >/dev/null 2>&1 || true; fi
 }
 
 # True when the active profile carries the Omarchy files.
@@ -628,11 +600,10 @@ omarchy_setup() {
   if ((DRY)); then echo "would hook custom.lua into hyprland.lua, link the settings and install the plugins"; return 0; fi
   [[ -f $hl ]] || die "missing $(short "$hl")"
   omarchy_ready || die "the profile '${PROFILE:-none}' has no hypr/custom.lua and omarchy/plugins/"
-  OMARCHY_RESTART=0
   cp "$hl" "$hl.bak"
   # Skip Omarchy's preinstalled app binds; has to be set before its defaults load.
   sed -i 's/^-- *omarchy_preinstalled_bindings = false/omarchy_preinstalled_bindings = false/' "$hl"
-  sed -i '/omarchy\/hypr\/custom.lua/d' "$hl"
+  sed -i '\|^dofile(.*/hypr/custom\.lua")$|d' "$hl"
   echo "dofile(\"$(src_dir hypr)/custom.lua\")" >>"$hl"
   echo "  ${GRN}hook${X}    custom.lua loads from hyprland.lua"
   # Link before the plugin hooks run, so the plugins don't create default settings.
@@ -648,7 +619,7 @@ omarchy_setup() {
   fi
   if ! grep -q 'require("hypr.autostart")' "$hl"; then
     sed -i '/^require("hypr.looknfeel")/a require("hypr.autostart")' "$hl"
-    grep -q 'require("hypr.autostart")' "$hl" || sed -i '/omarchy\/hypr\/custom.lua/i require("hypr.autostart")' "$hl"
+    grep -q 'require("hypr.autostart")' "$hl" || sed -i '\|^dofile(.*/hypr/custom\.lua")$|i require("hypr.autostart")' "$hl"
     echo "  ${GRN}hook${X}    autostart.lua loads from hyprland.lua"
   fi
   while read -r f; do plugin_install "$f"; done < <(omarchy_plugins)
@@ -658,7 +629,6 @@ omarchy_setup() {
 omarchy_uninstall() {
   local hl=$HYPR/hyprland.lua f
   if ((DRY)); then echo "would remove the hook, the settings links and the plugins"; return 0; fi
-  OMARCHY_RESTART=0
   while read -r f; do plugin_uninstall "$f"; done < <(omarchy_plugins)
   # Only remove links pointing here; the settings stay in this repo.
   while read -r f; do
@@ -666,7 +636,7 @@ omarchy_uninstall() {
   done < <(omarchy_settings)
   if [[ -f $hl ]]; then
     cp "$hl" "$hl.bak"
-    sed -i '/omarchy\/hypr\/custom.lua/d' "$hl"
+    sed -i '\|^dofile(.*/hypr/custom\.lua")$|d' "$hl"
     sed -i 's/^omarchy_preinstalled_bindings = false/-- omarchy_preinstalled_bindings = false/' "$hl"
   fi
   omarchy_reload
@@ -781,7 +751,7 @@ hint_unsynced_edits() {
       *) continue ;;
     esac
     out+=("$f")
-  done < <(git -C "$ROOT" status --porcelain -uall | cut -c4-)
+  done < <(git -C "$ROOT" status --porcelain -uall 2>/dev/null | cut -c4-)
   ((${#out[@]})) || return 0
   echo "  ${YEL}${G_WARN} ${#out[@]} edited repo file(s) are not synced (not in profile ${PROFILE:-none}):${X}"
   printf '    %s\n' "${out[@]}"
@@ -829,11 +799,8 @@ changed_files() { # all | pull
 
 # " +N -M": lines of file $2 that are new / missing compared with file $1.
 diff_stat() {
-  local add del
   if [[ -L $1 || -L $2 || ! -f $1 || ! -f $2 ]]; then return 0; fi
-  add=$(diff "$1" "$2" | grep -c '^>' || true)
-  del=$(diff "$1" "$2" | grep -c '^<' || true)
-  printf ' %s+%s%s %s-%s%s' "$GRN" "$add" "$X" "$RED" "$del" "$X"
+  diff "$1" "$2" | awk -v g="$GRN" -v r="$RED" -v x="$X" '/^>/ { a++ } /^</ { d++ } END { printf " %s+%d%s %s-%d%s", g, a, x, r, d, x }' || true # diff exits 1 on a difference
 }
 
 # Read-only preview of every differing file; +/- count lines of the
@@ -1960,7 +1927,7 @@ menu_select() { # [global]: only folders from profiles/global/ instead of the pr
         mv -f "$f.tmp" "$f"
         ((++synced))
       else
-        pattern=$(printf '%s\n' "${USER_IGNORE[@]}" | while read -r p; do matches_any "$path" "$p" && echo "$p" && break; done)
+        pattern=$(first_match "$path" "${USER_IGNORE[@]}")
         echo "  ${YEL}$path is skipped by the pattern '$pattern'; edit .dotfilesignore to change it${X}"
         pause
       fi

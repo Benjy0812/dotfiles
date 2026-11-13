@@ -291,8 +291,7 @@ On a profile with `hypr/custom.lua` and `omarchy/plugins/`:
 
 - `setup` loads `custom.lua` from `~/.config/hypr/hyprland.lua`, links the
   settings files (`hypr/*.lua` except `custom.lua`) into `~/.config/hypr/`,
-  installs every plugin and hooks it into `bindings.lua` (plugins with a
-  `Widget.qml`, which also replace the bar's workspace widget) or `autostart.lua`.
+  installs every plugin and hooks it into `autostart.lua`.
   Safe to repeat, e.g. after `omarchy refresh hyprland`.
 - `uninstall` removes all of that. Settings stay in the repo.
 
@@ -324,9 +323,8 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
 - **`fixes/`:** one numbered folder per fix (`NNN-slug/`) with a README (symptom,
   cause, versions, undo), the patch, snapshots of live files, a `verify/` check and
   `revert.sh`. Nothing runs automatically.
-- **Omarchy plugins:** `benjy.monitor-workspaces` (workspaces 1-10 on every
-  monitor, with bar widget) and `benjy.solo-workspaces` (listed apps get a
-  workspace of their own). Installed by `setup`; settings are `hypr/*-workspaces.lua`.
+- **Omarchy plugins:** `benjy.solo-workspaces` (listed apps get a
+  workspace of their own). Installed by `setup`; settings are `hypr/solo-workspaces.lua`.
 
 ## Files on disk
 

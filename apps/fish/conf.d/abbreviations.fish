@@ -19,6 +19,7 @@ abbr -a rmd rmdir
 abbr -a rmrf rm -rf
 
 # Common commands
+abbr -a lazy lazygit
 abbr -a buni bun install
 abbr -a bunf bun run format
 abbr -a bund bun run dev

@@ -21,6 +21,9 @@ Steam resolves the cursor through the X11 `default` theme, not the env var.
 - `~/.icons/default/index.theme` with `Inherits=<THEME>` (this is the real fix)
 - `~/.Xresources` `Xcursor.theme` / `Xcursor.size` (fallback)
 
+The first run saves your old `index.theme` as `index.theme.bak` and your old
+`Xcursor.*` lines in `~/.Xresources.xcursor.bak`; `revert.sh` puts them back.
+
 To use another cursor, pass its name (a folder in `/usr/share/icons`), e.g.
 `./restore.sh Bibata-Modern-Ice 32`, or edit the defaults at the top of the
 script. Also change `XCURSOR_THEME` in `profiles/omarchy/hypr/custom.lua` so

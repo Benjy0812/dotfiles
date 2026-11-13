@@ -110,7 +110,9 @@ Manual check: share a monitor in Vesktop and watch for more than 10 seconds.
 
 Copies `files/override.conf` and `files/xdg-desktop-portal-wlr.conf` back into
 place and restarts the portal. Does **not** rebuild the binary — use
-`rebuild.sh` for that.
+`rebuild.sh` for that; if the binary is missing it stops and installs nothing.
+An existing, different `~/.config/xdg-desktop-portal-wlr/config` is saved once
+as `config.bak`.
 
 ## Revert
 
@@ -118,8 +120,8 @@ place and restarts the portal. Does **not** rebuild the binary — use
 ./revert.sh
 ```
 
-Removes the systemd drop-in, restarts the portal, and returns you to the stock
-package. **The ~5s freeze will come back** while sharing a monitor that is not
+Removes the systemd drop-in, puts `config.bak` back (or removes the config
+restore installed), restarts the portal, and returns you to the stock package. **The ~5s freeze will come back** while sharing a monitor that is not
 at layout position 0,0.
 
 ## Notes / possible upstream reports

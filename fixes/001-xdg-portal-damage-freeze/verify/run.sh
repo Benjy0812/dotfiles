@@ -26,7 +26,7 @@ echo "portal:    $(systemctl --user is-active xdg-desktop-portal-wlr 2>/dev/null
 echo
 
 CAPTURE_TEST_SECONDS="$SECS" "$ELECTRON" main.js 2>/dev/null \
-    | grep -E 'sources:|result:|VERDICT:'
+    | grep -E 'sources:|result:|VERDICT:' || true
 
 echo
 echo "--- portal errors in the last ${SECS}s (should be empty) ---"

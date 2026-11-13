@@ -84,6 +84,15 @@ echo b >"$T/home/.config/kitty/kitty.conf"
 "$D" pull -y >/dev/null
 "$D" undo --yes >/dev/null
 check "undo puts the repo file back" grep -qx a "$T/repo/profiles/p/kitty/kitty.conf"
+check "after undo of a pull the edit is in ~/.config again" has "edited in ~/.config" "$("$D" status)"
+fresh
+echo c >"$T/repo/profiles/p/kitty/kitty.conf"
+"$D" push -y >/dev/null
+"$D" undo --yes >/dev/null
+check "undo puts the ~/.config file back" grep -qx a "$T/home/.config/kitty/kitty.conf"
+check "after undo of a push the repo is newer again" has "repo is newer" "$("$D" status)"
+"$D" pull -y >/dev/null
+check "pull after undo keeps the repo edit" grep -qx c "$T/repo/profiles/p/kitty/kitty.conf"
 
 echo layers
 fresh

@@ -2,6 +2,5 @@
 
 # Usage: mkcd my-new-folder
 function mkcd
-    mkdir -p $argv
-    cd $argv
+    mkdir -p -- $argv[1]; and cd -- $argv[1]
 end

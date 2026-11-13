@@ -51,7 +51,7 @@ Then put the configs in place, depending on the machine. On any machine,
 - **Undo:** every push, pull and restore is logged. `undo --yes` (or Undo last sync
   in the menu) puts back the replaced ~/.config files, removes files the run
   created and restores repo files a pull overwrote. Undoing is itself undoable.
-- **Push / pull:** `push [name|name/file]` copies repo to `~/.config`; `pull`
+- **Push / pull:** `push [name|name/file]` copies repo to `~/.config` (conflicts skipped unless named); `pull`
   copies edits back (`--commit` commits them, the menu offers commit and push).
   `-n` is a dry run everywhere.
 - **Conflicts:** after `baseline` (or the first push or pull of a file) the

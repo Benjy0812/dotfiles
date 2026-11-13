@@ -85,7 +85,8 @@ ${B}Everyday${X}
   status        one line per folder: in sync, edited in ~/.config, repo is newer,
                 changed on both sides, or not in ~/.config yet (--json for scripts)
   diff          show exactly what differs, line by line
-  push          copy repo -> ~/.config; a file it replaces is saved as a backup first
+  push          copy repo -> ~/.config; a file it replaces is saved as a backup first;
+                files changed on both sides are skipped unless named
   pull          copy ~/.config -> repo for files you edited there (--commit also commits them)
   undo          reverse the last push, pull or restore (shows the changes; add --yes to do it)
   restore       bring a backup back (NAME/FILE for the newest one, or pick from a list)
@@ -920,7 +921,13 @@ pull_file() { # name rel
 install_entry() {
   local name=$1 rel
   echo "${B}$name${X}"
-  while IFS= read -r -d '' rel; do push_file "$name" "$rel"; done < <(tracked "$name")
+  while IFS= read -r -d '' rel; do
+    if [[ "$(state "$(src_dir "$name")/$rel" "$(dest_of "$name" "$rel")")" == conflict ]]; then
+      echo "  ${RED}${G_WARN} skipped${X}  $name/$rel changed on both sides (push it by name to keep the repo copy, pull it by name to keep ~/.config, or: merge NAME FILE)"
+    else
+      push_file "$name" "$rel"
+    fi
+  done < <(tracked "$name")
 }
 
 # Every file edited in ~/.config and not changed in the repo since.

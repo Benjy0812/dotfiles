@@ -48,6 +48,11 @@ echo live >"$T/home/.config/kitty/kitty.conf"
 check "both sides changed is a conflict" has "both sides" "$("$D" status)"
 "$D" pull -y >/dev/null
 check "pull does not overwrite a conflict" grep -qx repo "$T/repo/profiles/p/kitty/kitty.conf"
+out=$("$D" push -y)
+check "push does not overwrite a conflict" grep -qx live "$T/home/.config/kitty/kitty.conf"
+check "push says it skipped the conflict" has "both sides" "$out"
+"$D" push kitty/kitty.conf -y >/dev/null
+check "push by file name overwrites a conflict" grep -qx repo "$T/home/.config/kitty/kitty.conf"
 
 echo "secrets"
 fresh

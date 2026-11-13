@@ -123,7 +123,7 @@ Everyday:
 | *(none)* | Open the menu. |
 | `status` | One row per folder with counts and skipped files. `--json` for scripts. |
 | `diff [name..]` | Colored diff: `-` repo, `+` `~/.config`. |
-| `push [name..]` | Copy repo to `~/.config`. A different existing file is moved to the backup folder first. |
+| `push [name..]` | Copy repo to `~/.config`. A different existing file is moved to the backup folder first. Conflicts are skipped unless named. |
 | `pull [name..]` | Copy edited files into the repo. Conflicts are skipped unless named. `--commit` commits the pulled files (no push). |
 | `restore [NAME/FILE..]` | Bring back the newest backup; without names pick one with fzf. The current file is backed up first. |
 | `layer [NAME global|os|auto]` | Choose per folder between the shared `profiles/global/` copy and this OS's own copy. |

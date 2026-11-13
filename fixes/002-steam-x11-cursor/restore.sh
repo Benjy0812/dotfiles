@@ -13,13 +13,19 @@ fi
 
 # Steam falls back to the "default" theme, which normally inherits Adwaita.
 install -d "$HOME/.icons/default"
+# First run only: keep the user's files so revert.sh can put them back.
+[ -f "$HOME/.icons/default/index.theme" ] && [ ! -e "$HOME/.icons/default/index.theme.bak" ] \
+    && cp -p "$HOME/.icons/default/index.theme" "$HOME/.icons/default/index.theme.bak"
 printf '[Icon Theme]\nInherits=%s\n' "$THEME" > "$HOME/.icons/default/index.theme"
 
 # Fallback for X11 apps that read Xresources; keeps any other lines.
 touch "$HOME/.Xresources"
+[ -e "$HOME/.Xresources.xcursor.bak" ] \
+    || grep '^Xcursor\.' "$HOME/.Xresources" > "$HOME/.Xresources.xcursor.bak" || true
 grep -v '^Xcursor\.' "$HOME/.Xresources" > "$HOME/.Xresources.tmp" || true
 printf 'Xcursor.theme: %s\nXcursor.size: %s\n' "$THEME" "$SIZE" >> "$HOME/.Xresources.tmp"
-mv "$HOME/.Xresources.tmp" "$HOME/.Xresources"
+# cat, not mv: keeps ~/.Xresources a symlink if it is one.
+cat "$HOME/.Xresources.tmp" > "$HOME/.Xresources"; rm -f "$HOME/.Xresources.tmp"
 command -v xrdb >/dev/null && xrdb -merge "$HOME/.Xresources" || true
 
 echo "cursor: $THEME ($SIZE)"

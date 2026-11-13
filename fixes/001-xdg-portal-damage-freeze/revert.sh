@@ -15,6 +15,16 @@ else
     echo "drop-in already absent: $DROPIN"
 fi
 
+CONF="$HOME/.config/xdg-desktop-portal-wlr/config"
+if [ -f "$CONF.bak" ]; then
+    mv "$CONF.bak" "$CONF"
+    echo "put back: $CONF (from $CONF.bak)"
+elif cmp -s "$CONF" "$(dirname "$0")/files/xdg-desktop-portal-wlr.conf"; then
+    rm -f "$CONF"
+    rmdir "$(dirname "$CONF")" 2>/dev/null || true
+    echo "removed: $CONF"
+fi
+
 systemctl --user daemon-reload
 systemctl --user stop xdg-desktop-portal-wlr 2>/dev/null || true
 systemctl --user restart xdg-desktop-portal

@@ -356,6 +356,9 @@ src_dir() {
   local os=$ROOT/profiles/${PROFILE:-none}/$1
   if { [[ ${LAYER[$1]:-} == global ]] || [[ ! -d $os ]]; } && [[ -d $GLOBAL/$1 ]]; then echo "$GLOBAL/$1"; else echo "$os"; fi
 }
+# True when this folder syncs from profiles/global/, which is read only: it is applied to
+# ~/.config but never written back by pull.
+is_global() { [[ $(src_dir "$1") == "$GLOBAL"/* ]]; }
 # True when the active profile or the global layer has this folder.
 has_folder() { [[ -d $ROOT/profiles/${PROFILE:-none}/$1 || -d $GLOBAL/$1 ]]; }
 
@@ -755,7 +758,34 @@ show_status() {
   done < <(entries)
   box_rows "${rows[@]}"
   printf '\n'
+  hint_unsynced_edits
   hint_skipped
+  hint_global
+}
+
+# A dim nudge while profiles/global/ does not exist.
+hint_global() {
+  [[ -d $GLOBAL ]] && return 0
+  echo "  ${D}Tip: configs shared by every OS can live in profiles/global/ (see: $0 layer)${X}"
+  echo
+}
+
+# Uncommitted edits in repo config that the active profile never syncs (apps/, mango/,
+# another profile), e.g. editing apps/fish instead of profiles/omarchy/fish.
+hint_unsynced_edits() {
+  local f out=()
+  while IFS= read -r f; do
+    case $f in
+      apps/* | mango/*) ;;
+      profiles/*) [[ $f == profiles/"${PROFILE:-none}"/* || $f == profiles/global/* ]] && continue ;;
+      *) continue ;;
+    esac
+    out+=("$f")
+  done < <(git -C "$ROOT" status --porcelain -uall | cut -c4-)
+  ((${#out[@]})) || return 0
+  echo "  ${YEL}${G_WARN} ${#out[@]} edited repo file(s) are not synced (not in profile ${PROFILE:-none}):${X}"
+  printf '    %s\n' "${out[@]}"
+  echo
 }
 
 # "12 skipped: ./dotfiles.bash skipped" under the status table, when something is.
@@ -867,6 +897,7 @@ push_file() { # name rel
 # One file, ~/.config -> repo. Git is the undo, so no backup.
 pull_file() { # name rel
   local src dest
+  if is_global "$1"; then echo "  ${YEL}read only${X}  $1/$2 comes from profiles/global/ (edit it in the repo, or: $0 layer $1 os)"; return 0; fi
   src=$(src_dir "$1")/$2 dest=$(dest_of "$1" "$2")
   if [[ ! -e $src && ! -L $src ]]; then echo "  ${RED}not tracked in the repo${X}  $1/$2"; return 0; fi
   if [[ ! -e $dest && ! -L $dest ]]; then echo "  ${RED}not in ~/.config${X}  $1/$2"; return 0; fi
@@ -1890,12 +1921,15 @@ menu_backups() {
 
 # Tick the files that should sync. Unticked files are written to
 # .dotfilesignore as exact paths; other lines there (comments, globs) stay.
-menu_select() {
+menu_select() { # [global]: only folders from profiles/global/ instead of the profile's own
   need_fzf || return 0
+  local scope=${1:-os}
   local f; f=$(pfile .dotfilesignore); local n rel path rows=() paths=() i preselect=load:select-all st tag
   local picked=() skipped=0 synced=0 pattern
   declare -A keep=()
   while read -r n; do
+    if [[ $scope == global ]] && ! is_global "$n"; then continue; fi
+    if [[ $scope != global ]] && is_global "$n"; then continue; fi
     while IFS= read -r -d '' rel; do
       path=$n/$rel
       matches_any "$path" "${ALWAYS_IGNORE[@]}" && continue
@@ -2133,10 +2167,14 @@ menu() {
     echo
     if [[ -n $MSG ]]; then echo "  $MSG"; echo; MSG=; fi
     SYNCS_LABEL="Choose what syncs${PROFILE:+ (${PROFILE^})}"
+    GLOBAL_LABEL="Choose what syncs (Global)"
     items=("Sync|$(if ((PENDING)); then echo "Review the $PENDING file(s) that differ and apply them. Nothing changes until you confirm."; else echo "Everything is in sync."; fi)"
       "Add from ~/.config|Browse ~/.config and copy any file or folder into the repo. Secrets, caches and big files are held back."
       "Backups|Restore a replaced file, or delete old backups."
       "$SYNCS_LABEL|Tick the files to sync and untick the ones to leave out, with a diff preview. For whole folders or one terminal/editor use Tools > Profile settings.")
+    if [[ -d $GLOBAL ]]; then
+      items+=("$GLOBAL_LABEL|Same as above for the shared profiles/global/ folders. Read only: they are applied to ~/.config, never pulled back.")
+    fi
     run=$(last_run)
     if [[ -n $run ]]; then
       items+=("Undo last sync|Put back what the run from $(run_time "$run") changed ($(run_changes "$run" | wc -l) change(s)).")
@@ -2148,6 +2186,7 @@ menu() {
       "Add from ~/.config") menu_add ;;
       Backups) menu_backups ;;
       "$SYNCS_LABEL") menu_select ;;
+      "$GLOBAL_LABEL") menu_select global ;;
       "Undo last sync") undo_last confirm; pause ;;
       Tools) menu_tools ;;
       Quit) break ;;

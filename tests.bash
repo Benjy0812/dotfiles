@@ -92,6 +92,9 @@ echo g >"$T/repo/profiles/global/starship/starship.toml"
 check "global-only folder is listed" has "starship" "$("$D" status)"
 "$D" push starship >/dev/null
 check "global folder is pushed" grep -qx g "$T/home/.config/starship/starship.toml"
+echo edited >"$T/home/.config/starship/starship.toml"
+"$D" pull starship >/dev/null
+check "global folder is read only for pull" grep -qx g "$T/repo/profiles/global/starship/starship.toml"
 check "OS copy wins by default" has "uses p" "$("$D" layer | grep kitty)"
 "$D" layer kitty global >/dev/null
 check "layer global copies the OS folder to global" test -f "$T/repo/profiles/global/kitty/kitty.conf"

@@ -3,7 +3,7 @@
 return {
   -- Window classes (see `hyprctl clients`), matched without case.
   -- An entry starting with "^" is a Lua pattern; "^steam_app_%d+$" = every Steam game.
-  apps = { "org.jellyfin.JellyfinDesktop", "chrome-discord.com__channels_@me-Default", "^steam_app_%d+$" },
+  apps = { "org.jellyfin.JellyfinDesktop", "chrome-discord.com__channels_@me-Default", "^steam_app_%d+$", "^minecraft%d+$" },
   -- When another window lands on a solo app's workspace:
   -- true = that window moves away, false = it stays and shares.
   push_others = true,

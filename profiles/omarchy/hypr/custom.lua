@@ -49,7 +49,7 @@ local cursor = "Bibata-Modern-Classic"
 hl.env("XCURSOR_THEME", cursor)
 hl.env("HYPRCURSOR_THEME", cursor)
 
--- Mesa (AMD/Intel) shader cache limit, raised so games like Wuthering Waves
+-- Mesa (AMD/Intel) shader cache limit, raised so games like Counter-Strike
 -- don't get their compiled shaders evicted. NVIDIA ignores this; its
 -- equivalent is __GL_SHADER_DISK_CACHE_SIZE.
 hl.env("MESA_SHADER_CACHE_MAX_SIZE", "50G")
@@ -170,3 +170,15 @@ hl.window_rule({
 --   gamemoderun %command%        performance mode (pacman -S gamemode)
 --   mangohud %command%           fps overlay (pacman -S mangohud)
 --   gamescope -f -W 1920 -H 1080 -r 240 -- %command%   own fullscreen layer
+
+-- https://wiki.hypr.land/Configuring/Basics/Variables/#general
+hl.config({
+  general = {
+    gaps_in = 0,
+    gaps_out = 0,
+    border_size = 1,
+
+     -- Change to niri-like side-scrolling layout.
+     --layout = "scrolling",
+  },
+})

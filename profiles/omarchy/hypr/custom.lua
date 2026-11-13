@@ -1,5 +1,6 @@
 -- Personal Hyprland settings on top of Omarchy's defaults. The rest of
--- ~/.config/hypr stays stock, so this is the only Hyprland file tracked here.
+-- ~/.config/hypr stays stock; the only other Hyprland file tracked here is
+-- solo-workspaces.lua (the plugin's settings).
 --
 -- Setup: ~/.config/hypr/hyprland.lua needs two changes, since this file is
 -- loaded from there and runs after Omarchy's defaults.
@@ -9,7 +10,7 @@
 --      omarchy_preinstalled_bindings = false
 --
 -- 2. At the end of the file, load this one:
---      dofile(os.getenv("HOME") .. "/Projects/dotfiles/omarchy/hypr/custom.lua")
+--      dofile(os.getenv("HOME") .. "/Projects/dotfiles/profiles/omarchy/hypr/custom.lua")
 --
 -- Then validate: hyprctl reload && hyprctl configerrors
 -- `omarchy refresh hyprland` resets hyprland.lua, so redo both after it.
@@ -147,7 +148,7 @@ hl.window_rule({
   -- No idle lock while the game is fullscreen. Also: "none", "always", "focus".
   idle_inhibit = "fullscreen",
 
-  -- Slot 1 of the 240Hz monitor (DP-3). With monitor-workspaces it owns ids
+  -- Slot 1 of the 240Hz monitor (DP-3). With Omarchy's monitor workspaces it owns ids
   -- 11-20 and the 144Hz one 1-10, so use 1 if they ever swap. Check with:
   --   cat ~/.local/state/omarchy/monitor-workspaces   (block 0 = 1-10, 1 = 11-20)
   --   hyprctl workspaces | grep -E "workspace ID|monitor:"

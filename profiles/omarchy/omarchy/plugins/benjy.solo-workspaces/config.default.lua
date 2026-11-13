@@ -1,5 +1,6 @@
--- Settings for benjy.solo-workspaces. dotfiles.bash setup created this file and never
--- overwrites it. Changes apply on their own a moment after saving.
+-- Settings for benjy.solo-workspaces. Copy to ~/.config/hypr/solo-workspaces.lua
+-- (dotfiles.bash setup links profiles/omarchy/hypr/solo-workspaces.lua there
+-- instead). Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.
   -- An entry starting with "^" is a Lua pattern, e.g. "^steam_app_%d+$".

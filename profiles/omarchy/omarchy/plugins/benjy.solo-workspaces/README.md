@@ -34,11 +34,10 @@ Entries starting with `^` are Lua patterns and match case-sensitively; other ent
 Changes apply on their own within 2 seconds of saving. If an edit breaks the
 file you get a notification and the last working settings stay active.
 
-## With monitor-workspaces
+## Multiple monitors
 
-Works on its own with plain workspaces 1-10. If
-[benjy.monitor-workspaces](../benjy.monitor-workspaces) is installed too,
-"nearest empty" is searched in that monitor's own 1-10.
+Follows Omarchy's own per-monitor workspace numbering: "nearest empty" is
+searched in that monitor's own 1-10 (11-20 on the second monitor, and so on).
 
 ## Install
 

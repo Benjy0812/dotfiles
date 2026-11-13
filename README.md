@@ -12,8 +12,7 @@ its own README with the details.
 | `docs/` | Guides, starting with [the dotfiles.bash usage](docs/usage.md) | [docs/README.md](docs/README.md) |
 | `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
 
-The Omarchy plugins have their own READMEs too:
-[monitor-workspaces](profiles/omarchy/omarchy/plugins/benjy.monitor-workspaces/README.md) and
+The Omarchy plugin has its own README too:
 [solo-workspaces](profiles/omarchy/omarchy/plugins/benjy.solo-workspaces/README.md).
 
 ## Setup

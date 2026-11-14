@@ -13,6 +13,9 @@
 !mango/
 !profiles/
 !nix/
+!/.claude/
+/.claude/*
+!/.claude/skills/
 
 # Rewritten by fish at runtime, and machine-specific
 apps/fish/fish_variables

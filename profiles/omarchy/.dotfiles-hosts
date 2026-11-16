@@ -1,4 +1,0 @@
-# Which folders belong on which machine, as "hostname: folder folder".
-# A host with no line (or "*") gets every folder. Find the name with: uname -n
-# Example:
-#   laptop: alacritty fish git kitty nvim yazi zed omarchy

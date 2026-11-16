@@ -1,5 +1,0 @@
-# Where repo files go. One rule per line: "folder/path = target".
-# The longest matching rule wins. A folder with no rule goes to
-# ~/.config/<folder>/ (profiles/ubuntu/kitty -> ~/.config/kitty). "~" is your home.
-# Example:
-#   kitty/themes = ~/.local/share/kitty-themes

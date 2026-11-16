@@ -1,5 +1,3 @@
-status is-interactive; or return
-
 # Shell Aliases
 
 # Directory navigation

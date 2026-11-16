@@ -28,7 +28,6 @@ profiles/
   <os>/                what a machine with that OS links (omarchy, nixos, ubuntu...)
     <folder>/          one app or area, linked into ~/.config/<folder>/
     README.md          notes for that OS (optional, never linked)
-  global/              shared configs; not linked, copy from here into a profile
 apps/                  boilerplate app configs to copy into a new profile
 mango/                 boilerplate MangoWM + Noctalia config
 docs/                  this guide

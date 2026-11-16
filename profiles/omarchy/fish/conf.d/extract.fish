@@ -15,8 +15,6 @@ function extract
     end
 
     switch $filename
-        case "*.tar.zst"
-            tar --zstd -xf "$filename"
         case "*.tar.gz" "*.tgz"
             tar -xzf "$filename"
         case "*.tar.xz" "*.txz"

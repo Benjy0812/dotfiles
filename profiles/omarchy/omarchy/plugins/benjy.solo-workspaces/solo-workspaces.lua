@@ -13,7 +13,7 @@ local defaults = { apps = {}, push_others = true, follow = true, slots = 10 }
 local M = {}
 
 -- Settings live outside the plugin so reinstalling keeps them. dotfiles.bash
--- setup links profiles/omarchy/hypr/solo-workspaces.lua here; config.default.lua
+-- link links profiles/omarchy/hypr/solo-workspaces.lua here; config.default.lua
 -- is a starting point to copy by hand.
 M.config = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/solo-workspaces.lua"
 

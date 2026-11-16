@@ -1,5 +1,5 @@
 -- Settings for benjy.solo-workspaces. Copy to ~/.config/hypr/solo-workspaces.lua
--- (dotfiles.bash setup links profiles/omarchy/hypr/solo-workspaces.lua there
+-- (dotfiles.bash link links profiles/omarchy/hypr/solo-workspaces.lua there
 -- instead). Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.

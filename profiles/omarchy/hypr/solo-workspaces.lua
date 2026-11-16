@@ -1,5 +1,5 @@
 -- Settings for benjy.solo-workspaces, linked to ~/.config/hypr/solo-workspaces.lua by
--- dotfiles.bash setup. Changes apply on their own a moment after saving.
+-- dotfiles.bash link. Changes apply on their own a moment after saving.
 return {
   -- Window classes (see `hyprctl clients`), matched without case.
   -- An entry starting with "^" is a Lua pattern; "^steam_app_%d+$" = every Steam game.

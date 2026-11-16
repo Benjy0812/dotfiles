@@ -1,8 +1,8 @@
 # Apps
 
-Boilerplate app configs. They are not synced from here: `./dotfiles.bash profile new <os>`
-copies the folders you pick into `profiles/<os>/`, and that profile is what a machine
-syncs to `~/.config/<folder>/`. NixOS also deploys some of these through
+Boilerplate app configs. They are not linked from here: copy the folders you want into
+`profiles/<os>/` (`cp -r apps/kitty profiles/ubuntu/`), and `./dotfiles.bash link` links
+that profile into `~/.config/<folder>/`. NixOS also deploys some of these through
 home-manager ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
 
 | Folder | What | Details |

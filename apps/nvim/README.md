@@ -9,17 +9,15 @@ Look up any option or key inside Neovim with `:help <name>`, for example
 
 ## Install
 
-Run `../../dotfiles.bash push nvim`. It
-copies `init.lua` to `~/.config/nvim/init.lua`; `dotfiles.bash doctor` warns if `nvim` or a
-clipboard tool (`wl-clipboard`) is missing. If a
-different `init.lua` is already there (for example Omarchy's LazyVim one), it
-is moved to the backup folder first
-(`~/.local/state/dotfiles/backups/nvim/init.lua/`). Other LazyVim files in `~/.config/nvim/`
+Run `../../dotfiles.bash link` to link `init.lua` to `~/.config/nvim/init.lua`. If a
+different `init.lua` is already there (for example Omarchy's LazyVim one), stow
+refuses; `../../dotfiles.bash adopt` moves it into the repo instead, and `git restore`
+puts the repo copy back. Other LazyVim files in `~/.config/nvim/`
 (`lua/`, `lazy-lock.json`) are left alone and go unused, and LazyVim's theme
-hot-reload stops working. To go back, run `../../dotfiles.bash restore nvim/init.lua`. NixOS deploys
+hot-reload stops working. NixOS deploys
 the file through home-manager ([../../profiles/nixos/nix](../../profiles/nixos/nix/README.md)).
 
-Check what it would do with `../../dotfiles.bash push -n nvim`.
+Check what it would do with `../../dotfiles.bash link -n`.
 
 ## How the file is built
 

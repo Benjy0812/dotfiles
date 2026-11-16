@@ -29,8 +29,9 @@ tracked; everything else stays Omarchy's stock config.
 
 Safe to run again; do so after `omarchy refresh hyprland` or `omarchy refresh shell`.
 Each file is its own link, so Omarchy's other files in `~/.config/hypr/` and
-`~/.config/omarchy/` stay untouched. If Omarchy rewrites a linked file such as
-`shell.json`, the change shows up in `git diff`; commit it or `git restore` it.
+`~/.config/omarchy/` stay untouched. If Omarchy edits a linked file such as
+`shell.json`, the change shows up in `git diff`. If it does not, Omarchy replaced
+the link with a real file: run `adopt`, then check `git diff`.
 Before the first `adopt`, remove the old `~/.config/hypr/solo-workspaces.lua`
 link that the copy-based `setup` made; stow does not replace a link it does not own.
 Every folder in `plugins/` is hooked into `~/.config/hypr/autostart.lua`.

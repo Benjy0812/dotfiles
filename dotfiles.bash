@@ -61,6 +61,7 @@ stow_profile() {
 
 track() {
   local path rel
+  stow_profile -n 2>/dev/null || die "link fails before tracking; fix that first: $0 link -n"
   for path in "$@"; do
     [[ $path == /* ]] || path=$CONFIG/$path
     rel=${path#"$CONFIG"/}

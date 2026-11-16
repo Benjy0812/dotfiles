@@ -52,7 +52,7 @@ profile; `apps/` and `mango/` are starting points to copy from.
 
 | Folder | What | More |
 |---|---|---|
-| `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, two workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md) |
+| `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md) |
 | `profiles/nixos/` | NixOS: apps, MangoWM, and `nix/` (system, home-manager) | [README](../profiles/nixos/nix/README.md) |
 | `apps/` | Terminals (alacritty, kitty, foot, ghostty), fish, nvim, yazi, zed, git | [README](../apps/README.md) |
 | `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [README](../mango/README.md) |
@@ -324,7 +324,8 @@ the only copy. That is why `dotfiles.bash` skips any profile that contains a
   cause, versions, undo), the patch, snapshots of live files, a `verify/` check and
   `revert.sh`. Nothing runs automatically.
 - **Omarchy plugins:** `benjy.solo-workspaces` (listed apps get a
-  workspace of their own). Installed by `setup`; settings are `hypr/solo-workspaces.lua`.
+  workspace of their own; settings are `hypr/solo-workspaces.lua`) and
+  `benjy.workspaces` (workspace groups per monitor, plus their bar widget). Installed by `setup`.
 
 ## Files on disk
 

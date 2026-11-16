@@ -8,6 +8,7 @@ tracked; everything else stays Omarchy's stock config.
 | `hypr/custom.lua` | loaded from here | All personal Hyprland settings (see setup below) |
 | `hypr/solo-workspaces.lua` | linked to `~/.config/hypr/` | My settings for the solo-workspaces plugin: the solo apps (Jellyfin) |
 | [`omarchy/plugins/benjy.solo-workspaces/`](omarchy/plugins/benjy.solo-workspaces/README.md) | `~/.config/omarchy/plugins/` | Listed apps get a workspace to themselves, moved to the nearest empty one |
+| `omarchy/plugins/benjy.workspaces/` | `~/.config/omarchy/plugins/` | Workspace groups: 3 groups of 10 per monitor (`SUPER+PgDn/PgUp`), and a bar widget (clone of `omarchy.workspaces`) showing `G1`-`G3` |
 | `omarchy/shell.json` | `~/.config/omarchy/shell.json` | Bar layout and idle settings |
 
 ## `hypr/custom.lua`

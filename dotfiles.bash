@@ -30,10 +30,11 @@ EOF
 
 # First profile folder that fits this machine: Omarchy, NixOS, then the distro.
 detect_profile() {
-  local c id cands=()
+  local c ids cands=()
   if [[ -d $CONFIG/omarchy ]]; then cands+=(omarchy); fi
   if [[ -e /etc/NIXOS ]]; then cands+=(nixos nix); fi
-  if [[ -r /etc/os-release ]]; then id=$(. /etc/os-release; echo "${ID:-} ${ID_LIKE:-}"); read -ra id <<<"$id"; cands+=("${id[@]}"); fi
+  # shellcheck source=/dev/null
+  if [[ -r /etc/os-release ]]; then ids=$(. /etc/os-release; echo "${ID:-} ${ID_LIKE:-}"); read -ra ids <<<"$ids"; cands+=("${ids[@]}"); fi
   for c in "${cands[@]}"; do
     if [[ -d $ROOT/profiles/$c ]]; then echo "$c"; return 0; fi
   done

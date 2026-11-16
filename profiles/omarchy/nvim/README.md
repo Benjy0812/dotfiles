@@ -11,11 +11,9 @@ Docs for any option or key: `:help <name>`.
 
 ## Install
 
-Run `../../dotfiles.bash push nvim`. It copies `init.lua` to
-`~/.config/nvim/init.lua`; an existing different one is moved to
-`~/.local/state/dotfiles/backups/nvim/init.lua/` first. Restore it with
-`../../dotfiles.bash restore nvim/init.lua`. Preview with
-`../../dotfiles.bash push -n nvim`.
+Run `../../dotfiles.bash link` to link the profile, `init.lua` included, into
+`~/.config/nvim/`. If a different `init.lua` is already there, use `adopt` once and
+review with `git diff`. Preview with `../../dotfiles.bash link -n`.
 
 The plain, plugin-free config used on other profiles is in
 [../../../apps/nvim](../../../apps/nvim/README.md).

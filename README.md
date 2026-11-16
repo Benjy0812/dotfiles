@@ -5,9 +5,9 @@ its own README with the details.
 
 | Folder | What | Details |
 |---|---|---|
-| `profiles/<os>/` | What is synced on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md) |
-| `profiles/global/` | Optional shared configs, used by every OS unless a profile has its own copy of the folder | [usage guide](docs/usage.md#global-and-os-copies) |
-| `apps/`, `mango/` | Boilerplate: starting configs that `profile new` copies into a new profile | [apps/README.md](apps/README.md) |
+| `profiles/<os>/` | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md) |
+| `profiles/global/` | Shared configs (not linked by `dotfiles.bash`; copy what you need into a profile) | |
+| `apps/`, `mango/` | Boilerplate: starting configs to copy into a new profile | [apps/README.md](apps/README.md) |
 | `flake.nix` | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/` | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
 | `docs/` | Guides, starting with [the dotfiles.bash usage](docs/usage.md) | [docs/README.md](docs/README.md) |
 | `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
@@ -21,71 +21,36 @@ The Omarchy plugin has its own README too:
 git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
 ```
 
-Then put the configs in place, depending on the machine. On any machine,
-`./dotfiles.bash` compares the repo with `~/.config` and syncs them (menu needs
-`gum` and `fzf`). Or by hand:
+Then put the configs in place, depending on the machine. Needs GNU stow
+(`sudo pacman -S stow`).
 
-- **NixOS:** `nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --impure --sudo` (a folder in `profiles/nixos/nix/hosts/`)
+- **NixOS:** `./dotfiles.bash rebuild` (or `nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --impure --sudo`)
   deploys them through home-manager ([nix](profiles/nixos/nix/README.md)).
-- **Omarchy:** `./dotfiles.bash push`, then `./dotfiles.bash setup`
-  ([omarchy](profiles/omarchy/README.md)).
-- **Anywhere else:** `./dotfiles.bash push` copies the profile into `~/.config/` and keeps
-  what it replaces as backups (`-n` shows what it would do first).
+- **Omarchy:** `./dotfiles.bash adopt` the first time (or `link` on a clean machine),
+  then `./dotfiles.bash setup` ([omarchy](profiles/omarchy/README.md)).
+- **Anywhere else:** `./dotfiles.bash link -n` to preview, then `link`.
 
 ## dotfiles.bash
 
-`./dotfiles.bash help` lists everything; the full guide is [docs/usage.md](docs/usage.md). The main parts:
+`dotfiles.bash` links each file of the active profile (`profiles/<os>/`) into
+`~/.config` with [GNU stow](https://www.gnu.org/software/stow/). The live file
+is the repo file, so an edit in `~/.config` is a change in this repo: use git to
+see it (`git diff`), save it (`git commit`), sync it (`git push`/`git pull`) and
+undo it (`git restore`). Folders in `~/.config` stay real folders, so files you do
+not track (like Omarchy's own files in `~/.config/hypr/`) stay untouched.
+`README.md` files are never linked.
 
-- **Menu:** the status table and a "Next:" line, then Sync, Backups, Tools (and
-  Undo last sync once something has been applied). Sync is one fzf list of every
-  file that differs, labeled `→ save to ~/.config`, `← save to repo` or
-  `⚠ both changed`. Safe files start ticked, so `Enter` is the usual answer;
-  `Tab` toggles, `Ctrl-e` opens `nvim -d`. A review screen lists what will be
-  replaced before anything is applied. Conflicts start unticked and ask: keep
-  the repo copy, keep the ~/.config copy, merge in nvim, or skip.
-- **Add anything:** `track PATH` (or Add from ~/.config in the menu) copies any file or
-  folder from `~/.config` into the repo; caches, credentials and big files are held back.
-- **Clear diffs:** every change is labeled `repo ➜ ~/.config` or `~/.config ➜ repo`, with
-  both real paths and a diff of exactly what the target would get; review it all before Apply.
-- **Undo:** every push, pull and restore is logged. `undo --yes` (or Undo last sync
-  in the menu) puts back the replaced ~/.config files, removes files the run
-  created and restores repo files a pull overwrote. Undoing is itself undoable.
-- **Push / pull:** `push [name|name/file]` copies repo to `~/.config` (conflicts skipped unless named); `pull`
-  copies edits back (`--commit` commits them, the menu offers commit and push).
-  `-n` is a dry run everywhere.
-- **Conflicts:** after `baseline` (or the first push or pull of a file) the
-  script knows each file's last synced content, so it can tell "edited in
-  `~/.config`" from "changed on both sides". Without that it goes by file time.
-- **Backups:** a replaced file is moved to its own folder,
-  `~/.local/state/dotfiles/backups/<folder>/<file>/<time>` (`DOTFILES_BACKUP_DIR`
-  changes it), so a file with ten backups has one folder, not ten files beside it.
-  `backups` lists them, `restore name/file` brings one back, `clean --yes`
-  deletes the ones older than 30 days.
-- **watch:** `./dotfiles.bash watch [--auto]` notifies when a tracked file is
-  saved in `~/.config` (`--auto` pulls it). Run it at login, for example from
-  Hyprland's `exec-once`. Needs `inotify-tools`.
-- **doctor:** checks tools, that `.gitignore` does not hide tracked files, old
-  backups and broken links.
-- **Profiles:** only the active profile is synced. `profiles/<os>/<folder>/` goes to
-  `~/.config/<folder>/`. `apps/` and `mango/` are boilerplate: on a new OS run
-  `./dotfiles.bash profile new ubuntu` (or Tools > Profile > New profile) to copy the
-  folders you pick into `profiles/ubuntu/`, then adapt them there. After the copy the
-  profile is its own; nothing is shared. The profile is detected (Omarchy, NixOS, then
-  the distro name from `/etc/os-release`); set it with `./dotfiles.bash profile NAME`
-  (or `auto`, `none`).
-- **What syncs:** everything in the active profile except `README.md`,
-  `fish_variables` and `hypr/custom.lua`. To change that, open the menu's
-  "Choose what syncs" (or run `./dotfiles.bash select`), tick the files you want
-  and press Enter; unticked files are skipped. It saves them to `.dotfilesignore`.
-  On Omarchy, `./dotfiles.bash setup` adds what copying cannot do (the hyprland.lua
-  hook, the settings links, the plugin hooks); `uninstall` undoes it.
-- **Where files go:** each profile folder goes to `~/.config/<folder>/` unless the profile's `.dotfiles-map`
-  says otherwise. One rule per line, `folder/path = target`; the longest match wins.
-  `./dotfiles.bash map` shows the result.
-- **Config files:** all live in `profiles/<os>/`, never in the root: `.dotfilesignore`
-  (local, not committed) lists paths to skip, `.dotfiles-map` says where folders go and
-  `.dotfiles-hosts` maps a hostname to the folders it should get (all optional). Fish
-  completions live in `profiles/<os>/fish/completions/dotfiles.bash.fish`.
+| Command | What it does |
+|---|---|
+| `link [-n]` | Link the profile into `~/.config` (`-n`: dry run). Stow refuses to replace a real file. |
+| `adopt` | First run on a machine: move the existing `~/.config` files into the repo, then link them. Review with `git diff`; `git restore` what you do not want. |
+| `unlink` | Remove the links. The repo keeps the files. |
+| `track PATH..` | Move a file from `~/.config` into the profile and link it back. |
+| `setup`, `uninstall` | Omarchy: add or remove the Hyprland hooks for `custom.lua` and the plugins. |
+| `rebuild [-n]` | NixOS: rebuild from this repo's flake. |
+| `profile [NAME\|auto]` | Show or set this machine's profile. |
+
+Full guide: [docs/usage.md](docs/usage.md).
 
 ## What's not tracked
 

@@ -58,4 +58,9 @@ echo live >"$C/hypr/a.lua"
 check "adopt pulls the live file into the repo" test "$(cat "$R/hypr/a.lua")" == live
 check "adopt links it" links_to "$C/hypr/a.lua" "$R/hypr/a.lua"
 
-((fails == 0)) && echo "all passed" || { echo "$fails failed"; exit 1; }
+if ((fails == 0)); then
+  echo "all passed"
+else
+  echo "$fails failed"
+  exit 1
+fi

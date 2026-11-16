@@ -85,6 +85,17 @@ hl.monitor({
   sdr_max_luminance = 80,
 })
 
+hl.monitor({
+  output = "desc:Vestel Elektronik Sanayi ve Ticaret A. S. 22W_LCD_TV",
+  mode = "1920x1080@60.00",
+  position = "-1920x0",
+  scale = 1,
+  vrr = 0,
+  bitdepth = 10,
+  sdr_min_luminance = 0.2,
+  sdr_max_luminance = 80,
+})
+
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#decoration
 hl.config({
   decoration = {
@@ -109,68 +120,6 @@ hl.config({
     },
   },
 })
-
--- Gaming. Steam/Proton windows have the class steam_app_<appid>; for other
--- launchers, find the class with `hyprctl clients | grep class` while the game
--- runs. Later rules win, so put per-game exceptions below the general one.
--- After editing: hyprctl reload && hyprctl configerrors
-
--- Class regex for "every Steam game". Hyprland uses regex, not Lua patterns:
--- write [0-9] for a digit and [.] for a dot.
-local games = "^steam_app_[0-9]+$"
-
-hl.config({
-  -- Lets windows tear (lower input lag, but a frame can show two images).
-  -- Only applies to fullscreen windows that ask for it with `immediate`.
-  general = { allow_tearing = true },
-
-  -- Fullscreen windows skip the compositor: 0 off, 1 every fullscreen window,
-  -- 2 only detected games (1 can glitch video and browsers).
-  render = { direct_scanout = 2 },
-
-  -- Variable refresh rate stays off, these monitors have no FreeSync. With one:
-  -- 3 = fullscreen games/video only, and set vrr = 3 in its hl.monitor() too,
-  -- which overrides this.
-  misc = { vrr = 0 },
-})
-
--- Delete a line to turn that effect off.
-hl.window_rule({
-  name = "games",
-  match = { class = games },
-
-  fullscreen = true,
-  -- Tear while fullscreen. Remove for games that flicker with it.
-  immediate = true,
-  -- No blur or animations on the game window.
-  no_blur = true,
-  no_anim = true,
-  -- No idle lock while the game is fullscreen. Also: "none", "always", "focus".
-  idle_inhibit = "fullscreen",
-
-  -- Slot 1 of the 240Hz monitor (DP-3). With Omarchy's monitor workspaces it owns ids
-  -- 11-20 and the 144Hz one 1-10, so use 1 if they ever swap. Check with:
-  --   cat ~/.local/state/omarchy/monitor-workspaces   (block 0 = 1-10, 1 = 11-20)
-  --   hyprctl workspaces | grep -E "workspace ID|monitor:"
-  --   hyprctl monitors | grep -E "^Monitor|@"
-  -- The solo-workspaces plugin keeps games alone on it (same pattern in
-  -- ~/.config/hypr/solo-workspaces.lua); a busy workspace sends the game to
-  -- the nearest empty one.
-  workspace = "11",
-})
-
--- Per-game overrides: copy a block, change the class, put it below "games".
--- Game that flickers with tearing:
--- hl.window_rule({ match = { class = "^steam_app_1245620$" }, immediate = false })
--- Non-Steam game:
--- hl.window_rule({ match = { class = "^Minecraft.*" }, fullscreen = true, immediate = true })
--- Floating, fixed size:
--- hl.window_rule({ match = { class = "^steam_app_12345$" }, float = true, size = "1280 720", center = true })
-
--- Steam launch options that pair with this:
---   gamemoderun %command%        performance mode (pacman -S gamemode)
---   mangohud %command%           fps overlay (pacman -S mangohud)
---   gamescope -f -W 1920 -H 1080 -r 240 -- %command%   own fullscreen layer
 
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#general
 hl.config({

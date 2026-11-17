@@ -184,75 +184,10 @@ BarWidget {
     if (target !== ids[index]) root.focusWorkspace(target)
   }
 
-  // The workspace each monitor shows carries its layout: a square tiles, a
-  // circle scrolls, and a triangle floats. Clicking it cycles to the next one,
-  // as Super + L does.
-  property string activeMode: "dwindle"
-  property bool modeStale: false
-
-  function modeGlyph(mode) {
-    if (mode === "scrolling") return "󰝥"
-    if (mode === "floating") return "󰔶"
-    return "󱓻"
-  }
-
-  // A layout only changes through the layout commands, which ask for a refresh,
-  // or a config reload, so each workspace's mode is read once and cached rather
-  // than running the script on every workspace switch.
-  property var modeCache: ({})
-  property int modeGeneration: 0
-  property int modeProcWorkspace: -1
-  property int modeProcGeneration: 0
-
-  function showActiveMode() {
-    var mode = root.modeCache[root.activeWorkspaceId()]
-    if (mode !== undefined) root.activeMode = mode
-    else readMode()
-  }
-
-  function readMode() {
-    if (modeProc.running) {
-      root.modeStale = true
-      return
-    }
-    var id = root.activeWorkspaceId()
-    if (id === -1) return
-    root.modeProcWorkspace = id
-    root.modeProcGeneration = root.modeGeneration
-    modeProc.command = ["omarchy-hyprland-workspace-layout-current", String(id)]
-    modeProc.running = true
-  }
-
-  function refresh() {
-    root.modeCache = ({})
-    root.modeGeneration++
-    readMode()
-  }
-
-  // The layout commands act on the focused workspace, so a click on another
-  // monitor's bar focuses that monitor first.
-  function cycleLayout() {
-    if (!root.bar) return
-    var command = "omarchy-hyprland-workspace-layout-toggle"
-    if (root.monitor && !root.monitor.focused) {
-      command = "hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ monitor = \"" + root.monitorName + "\" })") + " >/dev/null && " + command
-    }
-    root.bar.run(command)
-  }
-
-  Component.onCompleted: refresh()
-  onMonitorChanged: root.showActiveMode()
-
-  Connections {
-    target: root.monitor
-    function onActiveWorkspaceChanged() { root.showActiveMode() }
-  }
-
   Connections {
     target: Hyprland
     function onRawEvent(event) {
       var name = event ? String(event.name) : ""
-      if (name === "configreloaded") root.refresh()
       // Quickshell credits every workspace switch to the focused monitor, as
       // the event doesn't say which one switched, and misses the workspace a
       // monitor falls back to when its own is moved away. Moving workspaces
@@ -265,33 +200,6 @@ BarWidget {
         Hyprland.refreshWorkspaces()
       }
     }
-  }
-
-  Process {
-    id: modeProc
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var mode = text.trim()
-        // A read that started before a refresh may predate the change.
-        if (!mode || root.modeProcGeneration !== root.modeGeneration) return
-        root.modeCache[root.modeProcWorkspace] = mode
-        if (root.modeProcWorkspace === root.activeWorkspaceId()) root.activeMode = mode
-      }
-    }
-    onExited: {
-      if (!root.modeStale) return
-      root.modeStale = false
-      // Deferred: the process still reports running while it signals exit.
-      Qt.callLater(root.showActiveMode)
-    }
-  }
-
-  // Super + L and the default layout change the mode without a focus change,
-  // so they ask every bar to read it again.
-  ShellIpc {
-    target: "omarchy.workspaces"
-
-    function refresh(): void { root.broadcast("refresh") }
   }
 
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
@@ -342,16 +250,14 @@ BarWidget {
         Layout.topMargin: firstGuest && root.vertical ? Style.space(6) : 0
 
         bar: root.bar
-        text: shown ? root.modeGlyph(root.activeMode) : (slot === root.slots ? "0" : String(slot))
+        text: slot === root.slots ? "0" : String(slot)
+        active: shown
         opacity: occupied || shown ? 1 : 0.5
         horizontalMargin: 6
         verticalPadding: 6
         fixedWidth: root.vertical ? root.barSize : Style.space(20)
         fixedHeight: root.barSize
-        onPressed: function() {
-          if (shown) root.cycleLayout()
-          else root.focusWorkspace(modelData)
-        }
+        onPressed: function() { if (!shown) root.focusWorkspace(modelData) }
         onWheelMoved: function(delta) { root.scrollWorkspaces(delta) }
       }
     }

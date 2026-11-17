@@ -29,3 +29,6 @@ profiles/*/mango/noctalia.conf
 
 # Per-machine list of files dotfiles.bash skips
 profiles/*/.dotfilesignore
+
+profiles/omarchy/omarchy/shell.json
+profiles/omarchy/fish/config.fish

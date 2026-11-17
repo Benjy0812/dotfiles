@@ -7,6 +7,7 @@
 --
 -- SUPER + 1-0 (and SHIFT / SHIFT+ALT moves) act on the focused monitor's
 -- current group. SUPER + Page Down / Page Up switch group, keeping the slot.
+-- SHIFT (+ALT) with them moves the window to the same slot in that group.
 --
 -- Workspaces.qml next to this file is the bar widget showing the current group.
 --
@@ -82,6 +83,15 @@ function M.cycle(step, monitor_name)
   end, "o.groups.cycle(" .. step .. arg(monitor_name) .. ")")
 end
 
+function M.move_window_group(step, follow)
+  return action(function()
+    local group, slot = current()
+    local g = (group - 1 + step) % GROUPS + 1
+    if g == 1 then return o.workspaces.move_window(slot, follow)() end
+    hl.dispatch(hl.dsp.window.move({ workspace = target(g, slot), follow = follow ~= false }))
+  end, "o.groups.move_window_group(" .. step .. (follow == false and ", false" or "") .. ")")
+end
+
 o.groups = M
 
 -- hl is only absent when the self-test loads this file.
@@ -94,6 +104,10 @@ if o.rebind then
   end
   o.bind("SUPER + Next", "Next workspace group", M.cycle(1))
   o.bind("SUPER + Prior", "Previous workspace group", M.cycle(-1))
+  o.bind("SUPER + SHIFT + Next", "Move window to next workspace group", M.move_window_group(1))
+  o.bind("SUPER + SHIFT + Prior", "Move window to previous workspace group", M.move_window_group(-1))
+  o.bind("SUPER + SHIFT + ALT + Next", "Move window silently to next workspace group", M.move_window_group(1, false))
+  o.bind("SUPER + SHIFT + ALT + Prior", "Move window silently to previous workspace group", M.move_window_group(-1, false))
 end
 
 return M

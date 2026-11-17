@@ -17,6 +17,7 @@
 	mnemonicPrefix = true    # More intuitive refs in diff output
 [commit]
 	verbose = true           # Include diff comment in commit message template
+	gpgsign = true
 [column]
 	ui = auto 			     # Output in columns when possible
 [branch]
@@ -35,3 +36,6 @@
 [user]
 	name = Benjy0812
 	email = 108727379+Benjy0812@users.noreply.github.com
+	signingkey = /home/benjy/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh

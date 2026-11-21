@@ -132,3 +132,11 @@ hl.config({
      --layout = "scrolling",
   },
 })
+
+-- Star Citizen: allow tearing (like Windows exclusive fullscreen) for lower
+-- input latency when in-game VSync is off.
+hl.config({ general = { allow_tearing = true } })
+hl.window_rule({ match = { class = "starcitizen.exe" }, immediate = true })
+
+-- Flatpak apps (Bottles, GitButler) in the app launcher
+hl.env("XDG_DATA_DIRS", os.getenv("HOME") .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")

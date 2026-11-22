@@ -140,3 +140,11 @@ hl.window_rule({ match = { class = "starcitizen.exe" }, immediate = true })
 
 -- Flatpak apps (Bottles, GitButler) in the app launcher
 hl.env("XDG_DATA_DIRS", os.getenv("HOME") .. "/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share")
+
+-- GitButler: open floating and centered at its default size. Class is
+-- gitbutler-tauri today; com.gitbutler.app if the GTK app ID takes over.
+o.window("^(gitbutler-tauri|com\\.gitbutler\\.app)$", {
+  float = true,
+  center = true,
+  size = { 1160, 720 },
+})

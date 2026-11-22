@@ -17,14 +17,14 @@ profiles/nixos/
   nix/              the Nix side, below
 ```
 
-| Path in `nix/` | What |
-|---|---|
-| `configuration.nix` | System: boot, ly login + MangoWM, fish, fonts, packages |
-| `patches/` | Patches built into packages (screen-share fix for the wlr portal) |
-| `hosts/<name>/` | One folder per machine: `default.nix` (hostname, swap). Each folder becomes `nixosConfigurations.<name>`. Hardware is read from the machine's own `/etc/nixos/hardware-configuration.nix`, so builds need `--impure` |
-| `home.nix` | home-manager packages, shared by both outputs |
-| `dotfiles.nix` | Deploys every folder of the profile into `~/.config` |
-| `standalone.nix` | Extra settings for the standalone profile |
+| Path in `nix/`      | What                                                                                                                                                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `configuration.nix` | System: boot, ly login + MangoWM, fish, fonts, packages                                                                                                                                                              |
+| `patches/`          | Patches built into packages (screen-share fix for the wlr portal)                                                                                                                                                    |
+| `hosts/<name>/`     | One folder per machine: `default.nix` (hostname, swap). Each folder becomes `nixosConfigurations.<name>`. Hardware is read from the machine's own `/etc/nixos/hardware-configuration.nix`, so builds need `--impure` |
+| `home.nix`          | home-manager packages, shared by both outputs                                                                                                                                                                        |
+| `dotfiles.nix`      | Deploys every folder of the profile into `~/.config`                                                                                                                                                                 |
+| `standalone.nix`    | Extra settings for the standalone profile                                                                                                                                                                            |
 
 ## Use
 

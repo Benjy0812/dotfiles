@@ -14,31 +14,31 @@
   "disable_ai": true,
   "cli_default_open_behavior": "existing_window",
   "project_panel": {
-    "dock": "left",
+    "dock": "left"
   },
   "outline_panel": {
-    "dock": "left",
+    "dock": "left"
   },
   "collaboration_panel": {
     "button": false,
-    "dock": "left",
+    "dock": "left"
   },
   "git_panel": {
-    "dock": "left",
+    "dock": "left"
   },
   "telemetry": {
     "diagnostics": false,
-    "metrics": false,
+    "metrics": false
   },
   "icon_theme": {
     "mode": "dark",
     "light": "Material Icon Theme",
-    "dark": "Material Icon Theme",
+    "dark": "Material Icon Theme"
   },
   "theme": {
     "mode": "dark",
     "light": "One Light",
-    "dark": "Glass Dark",
+    "dark": "Glass Dark"
   },
   "file_scan_exclusions": [
     "**/.svn",
@@ -47,6 +47,6 @@
     "**/CVS",
     "**/.DS_Store",
     "**/Thumbs.db",
-    "**/.classpath",
-  ],
+    "**/.classpath"
+  ]
 }

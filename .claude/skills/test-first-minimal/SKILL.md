@@ -12,6 +12,7 @@ One behavior at a time: failing test, smallest code, mutation proof. Ponytail pr
 - Never `git commit`, `push`, `add`, `stash` or `checkout` unless the user's current message says so. Undo your own edits with an exact reverse Edit.
 
 ## Setup
+
 1. List the behaviors back with the target file.
 2. Pick the runner from the target path:
    - `profiles/**/*.lua` -> `for f in <dir>/test_*.lua; do lua "$f" || echo "EXIT $?"; done`
@@ -20,6 +21,7 @@ One behavior at a time: failing test, smallest code, mutation proof. Ponytail pr
 3. Run the suite as a baseline. Red -> stop.
 
 ## Per behavior
+
 1. Add ONE test immediately before the test file's summary/exit trailer (code after it never counts).
    - Lua: a `check(...)` line; bump the count in the final `print`.
    - Bash: a `check "<name>" <command...>` line (passes when the command succeeds).
@@ -30,9 +32,11 @@ One behavior at a time: failing test, smallest code, mutation proof. Ponytail pr
 6. Mutation check: break the new code (invert a condition or return a constant), confirm the NEW test fails, restore with the exact reverse Edit, confirm green.
 
 ## Stop and report
+
 3 failed attempts on a behavior (show the last failure), an old test fails, baseline red, spec ambiguous, mutation survives (strengthen the NEW test only, retry), unknown runner.
 
 ## Report
-| behavior | test | code (file:lines) | red Y/N | mutation Y/N |
-|---|---|---|---|---|
-Then the suite result, flags, and `skipped: <non-goals>`.
+
+| behavior                                                  | test | code (file:lines) | red Y/N | mutation Y/N |
+| --------------------------------------------------------- | ---- | ----------------- | ------- | ------------ |
+| Then the suite result, flags, and `skipped: <non-goals>`. |

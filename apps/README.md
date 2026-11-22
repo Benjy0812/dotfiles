@@ -5,14 +5,14 @@ Boilerplate app configs. They are not linked from here: copy the folders you wan
 that profile into `~/.config/<folder>/`. NixOS also deploys some of these through
 home-manager ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
 
-| Folder | What | Details |
-|---|---|---|
-| `alacritty/`, `kitty/`, `foot/`, `ghostty/` | Terminals, set up alike (see below) | |
-| `fish/` | Fish shell: aliases, abbreviations, helper functions | [fish/README.md](fish/README.md) |
-| `nvim/` | Neovim: plugin-free `init.lua` for learning | [nvim/README.md](nvim/README.md) |
-| `yazi/` | Yazi file manager | [yazi/README.md](yazi/README.md) |
-| `zed/`, `.zed/` | Zed editor settings and the Glass theme | [zed/README.md](zed/README.md) |
-| `git/` | Git aliases, sane defaults, `gh` as credential helper | |
+| Folder                                      | What                                                  | Details                          |
+| ------------------------------------------- | ----------------------------------------------------- | -------------------------------- |
+| `alacritty/`, `kitty/`, `foot/`, `ghostty/` | Terminals, set up alike (see below)                   |                                  |
+| `fish/`                                     | Fish shell: aliases, abbreviations, helper functions  | [fish/README.md](fish/README.md) |
+| `nvim/`                                     | Neovim: plugin-free `init.lua` for learning           | [nvim/README.md](nvim/README.md) |
+| `yazi/`                                     | Yazi file manager                                     | [yazi/README.md](yazi/README.md) |
+| `zed/`, `.zed/`                             | Zed editor settings and the Glass theme               | [zed/README.md](zed/README.md)   |
+| `git/`                                      | Git aliases, sane defaults, `gh` as credential helper |                                  |
 
 ## Terminals
 

@@ -34,13 +34,13 @@ docs/                  this guide
 fixes/                 documented local patches for upstream bugs
 ```
 
-| Folder | What | More |
-|---|---|---|
-| `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md) |
-| `profiles/nixos/` | NixOS: apps, MangoWM, and `nix/` (system, home-manager) | [README](../profiles/nixos/nix/README.md) |
-| `apps/` | Terminals (alacritty, kitty, foot, ghostty), fish, nvim, yazi, zed, git | [README](../apps/README.md) |
-| `mango/` | MangoWM compositor with Noctalia: keys, monitors, look | [README](../mango/README.md) |
-| `fixes/` | Patches applied outside package management, each with revert and verify | [README](../fixes/README.md) |
+| Folder              | What                                                                         | More                                      |
+| ------------------- | ---------------------------------------------------------------------------- | ----------------------------------------- |
+| `profiles/omarchy/` | Omarchy (Hyprland): apps, `hypr/custom.lua`, workspace plugins, `shell.json` | [README](../profiles/omarchy/README.md)   |
+| `profiles/nixos/`   | NixOS: apps, MangoWM, and `nix/` (system, home-manager)                      | [README](../profiles/nixos/nix/README.md) |
+| `apps/`             | Terminals (alacritty, kitty, foot, ghostty), fish, nvim, yazi, zed, git      | [README](../apps/README.md)               |
+| `mango/`            | MangoWM compositor with Noctalia: keys, monitors, look                       | [README](../mango/README.md)              |
+| `fixes/`            | Patches applied outside package management, each with revert and verify      | [README](../fixes/README.md)              |
 
 ## How it works
 
@@ -72,17 +72,17 @@ sudo pacman -S stow
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `link [-n]` | Link the profile into `~/.config`. `-n` shows what stow would do and changes nothing. Safe to repeat; run it after adding files to the profile or after `git pull`. |
-| `adopt` | Like `link`, but a real file in the way is moved into the repo first (stow `--adopt`), so the live version wins. Review with `git diff`; `git restore` puts the repo version back. Meant for the first run on a machine. |
-| `unlink` | Remove the links. The repo keeps the files; `~/.config` loses them until the next `link`. |
-| `track PATH..` | Move files or folders from `~/.config` into the profile and link them back. PATH is relative to `~/.config` (`kitty/kitty.conf`) or absolute under it. Refuses a link, a path outside `~/.config`, and a path the repo already has. Commit afterwards. |
-| `setup` | Omarchy: hook `custom.lua` and the plugins into Hyprland. Run after `link`. |
-| `uninstall` | Omarchy: remove those hooks. The links stay until `unlink`. |
-| `rebuild [-n]` | NixOS: `nixos-rebuild switch` for this repo's flake (`-n`: dry-build). |
-| `profile [NAME\|auto]` | Show the active profile, or save a choice for this machine. |
-| `help` | Print the command list. |
+| Command                | What it does                                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `link [-n]`            | Link the profile into `~/.config`. `-n` shows what stow would do and changes nothing. Safe to repeat; run it after adding files to the profile or after `git pull`.                                                                                    |
+| `adopt`                | Like `link`, but a real file in the way is moved into the repo first (stow `--adopt`), so the live version wins. Review with `git diff`; `git restore` puts the repo version back. Meant for the first run on a machine.                               |
+| `unlink`               | Remove the links. The repo keeps the files; `~/.config` loses them until the next `link`.                                                                                                                                                              |
+| `track PATH..`         | Move files or folders from `~/.config` into the profile and link them back. PATH is relative to `~/.config` (`kitty/kitty.conf`) or absolute under it. Refuses a link, a path outside `~/.config`, and a path the repo already has. Commit afterwards. |
+| `setup`                | Omarchy: hook `custom.lua` and the plugins into Hyprland. Run after `link`.                                                                                                                                                                            |
+| `uninstall`            | Omarchy: remove those hooks. The links stay until `unlink`.                                                                                                                                                                                            |
+| `rebuild [-n]`         | NixOS: `nixos-rebuild switch` for this repo's flake (`-n`: dry-build).                                                                                                                                                                                 |
+| `profile [NAME\|auto]` | Show the active profile, or save a choice for this machine.                                                                                                                                                                                            |
+| `help`                 | Print the command list.                                                                                                                                                                                                                                |
 
 On a profile with a `nix/` folder, `link`, `adopt` and `unlink` refuse and point at `rebuild`.
 
@@ -158,12 +158,12 @@ straight from this repo (`profiles/nixos/`) and home-manager links them into
 
 ## Environment variables
 
-| Variable | Meaning |
-|---|---|
-| `DOTFILES_PROFILE` | Force a profile (or `auto`) for one run. |
-| `DOTFILES_NIX_HOST` | Flake host for `rebuild`. |
-| `XDG_CONFIG_HOME` | Link target instead of `~/.config`. |
-| `XDG_STATE_HOME` | Where the saved profile choice lives, instead of `~/.local/state`. |
+| Variable            | Meaning                                                            |
+| ------------------- | ------------------------------------------------------------------ |
+| `DOTFILES_PROFILE`  | Force a profile (or `auto`) for one run.                           |
+| `DOTFILES_NIX_HOST` | Flake host for `rebuild`.                                          |
+| `XDG_CONFIG_HOME`   | Link target instead of `~/.config`.                                |
+| `XDG_STATE_HOME`    | Where the saved profile choice lives, instead of `~/.local/state`. |
 
 ## Requirements
 

@@ -3,13 +3,13 @@
 Personal Linux desktop configs, kept at `~/Projects/dotfiles`. Each folder has
 its own README with the details.
 
-| Folder | What | Details |
-|---|---|---|
-| `profiles/<os>/` | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md) |
-| `apps/`, `mango/` | Boilerplate: starting configs to copy into a new profile | [apps/README.md](apps/README.md) |
-| `flake.nix` | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/` | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
-| `docs/` | Guides, starting with [the dotfiles.bash usage](docs/usage.md) | [docs/README.md](docs/README.md) |
-| `fixes/` | Local patches for upstream bugs | [fixes/README.md](fixes/README.md) |
+| Folder            | What                                                                                                      | Details                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `profiles/<os>/`  | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md)     |
+| `apps/`, `mango/` | Boilerplate: starting configs to copy into a new profile                                                  | [apps/README.md](apps/README.md)                             |
+| `flake.nix`       | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/`                               | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
+| `docs/`           | Guides, starting with [the dotfiles.bash usage](docs/usage.md)                                            | [docs/README.md](docs/README.md)                             |
+| `fixes/`          | Local patches for upstream bugs                                                                           | [fixes/README.md](fixes/README.md)                           |
 
 The Omarchy plugin has its own README too:
 [solo-workspaces](profiles/omarchy/omarchy/plugins/benjy.solo-workspaces/README.md).
@@ -39,15 +39,15 @@ undo it (`git restore`). Folders in `~/.config` stay real folders, so files you 
 not track (like Omarchy's own files in `~/.config/hypr/`) stay untouched.
 `README.md` files are never linked.
 
-| Command | What it does |
-|---|---|
-| `link [-n]` | Link the profile into `~/.config` (`-n`: dry run). Stow refuses to replace a real file. |
-| `adopt` | First run on a machine: move the existing `~/.config` files into the repo, then link them. Review with `git diff`; `git restore` what you do not want. |
-| `unlink` | Remove the links. The repo keeps the files. |
-| `track PATH..` | Move a file from `~/.config` into the profile and link it back. |
-| `setup`, `uninstall` | Omarchy: add or remove the Hyprland hooks for `custom.lua` and the plugins. |
-| `rebuild [-n]` | NixOS: rebuild from this repo's flake. |
-| `profile [NAME\|auto]` | Show or set this machine's profile. |
+| Command                | What it does                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `link [-n]`            | Link the profile into `~/.config` (`-n`: dry run). Stow refuses to replace a real file.                                                                |
+| `adopt`                | First run on a machine: move the existing `~/.config` files into the repo, then link them. Review with `git diff`; `git restore` what you do not want. |
+| `unlink`               | Remove the links. The repo keeps the files.                                                                                                            |
+| `track PATH..`         | Move a file from `~/.config` into the profile and link it back.                                                                                        |
+| `setup`, `uninstall`   | Omarchy: add or remove the Hyprland hooks for `custom.lua` and the plugins.                                                                            |
+| `rebuild [-n]`         | NixOS: rebuild from this repo's flake.                                                                                                                 |
+| `profile [NAME\|auto]` | Show or set this machine's profile.                                                                                                                    |
 
 Full guide: [docs/usage.md](docs/usage.md).
 

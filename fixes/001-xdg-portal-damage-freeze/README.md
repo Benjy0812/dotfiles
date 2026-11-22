@@ -29,18 +29,18 @@ fatal protocol error → portal process dies → systemd restarts it → the
 PipeWire stream stops → the viewer sees a frozen frame.
 
 This is why it survives the first few seconds: the initial full frame is
-valid, and the first *damaged region* is what kills it.
+valid, and the first _damaged region_ is what kills it.
 
 ## Affected versions
 
-| Component | Version at time of fix |
-|---|---|
+| Component                | Version at time of fix                        |
+| ------------------------ | --------------------------------------------- |
 | `xdg-desktop-portal-wlr` | 0.8.4-1.1 (Arch/CachyOS) — **the buggy side** |
-| `xdg-desktop-portal` | 1.22.1-2.1 |
-| `mangowm` | 0.18.3-1.1 — sends layout-space damage |
-| `vesktop-bin` | 1.6.8-1 |
-| Electron | 43.8.3 |
-| OS / kernel | CachyOS rolling / 7.3.0-5-cachyos |
+| `xdg-desktop-portal`     | 1.22.1-2.1                                    |
+| `mangowm`                | 0.18.3-1.1 — sends layout-space damage        |
+| `vesktop-bin`            | 1.6.8-1                                       |
+| Electron                 | 43.8.3                                        |
+| OS / kernel              | CachyOS rolling / 7.3.0-5-cachyos             |
 
 Trigger condition: **the shared monitor must not be at layout position 0,0.**
 Sharing a monitor at x=0,y=0 would not hit this particular crash.
@@ -56,21 +56,21 @@ always legal and the captured image is unchanged.
 
 ### Why not other approaches
 
-| Alternative | Result |
-|---|---|
-| `xdg-desktop-portal-kde` / `-gnome` / `-hyprland` | Won't work: they require KWin / mutter / Hyprland. Screen sharing breaks completely on mango. |
-| Force `wlr-screencopy` fallback instead of `ext-image-copy-capture` | Delivers exactly **1 frame** then stalls on mango. Dead end. |
-| Move the monitor to x=0 | Works around it, but changes the desktop layout and only helps the monitor at the origin. |
+| Alternative                                                         | Result                                                                                        |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `xdg-desktop-portal-kde` / `-gnome` / `-hyprland`                   | Won't work: they require KWin / mutter / Hyprland. Screen sharing breaks completely on mango. |
+| Force `wlr-screencopy` fallback instead of `ext-image-copy-capture` | Delivers exactly **1 frame** then stalls on mango. Dead end.                                  |
+| Move the monitor to x=0                                             | Works around it, but changes the desktop layout and only helps the monitor at the origin.     |
 
 ## Where the fix lives
 
-| Piece | Path |
-|---|---|
-| Patched binary (in use) | `~/.local/libexec/xdg-desktop-portal-wlr` |
+| Piece                           | Path                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| Patched binary (in use)         | `~/.local/libexec/xdg-desktop-portal-wlr`                               |
 | systemd drop-in that selects it | `~/.config/systemd/user/xdg-desktop-portal-wlr.service.d/override.conf` |
-| Portal runtime config | `~/.config/xdg-desktop-portal-wlr/config` |
-| Build tree + source | `~/.local/src/xdg-desktop-portal-wlr-patched/` |
-| Snapshots of the two configs | `files/` in this folder |
+| Portal runtime config           | `~/.config/xdg-desktop-portal-wlr/config`                               |
+| Build tree + source             | `~/.local/src/xdg-desktop-portal-wlr-patched/`                          |
+| Snapshots of the two configs    | `files/` in this folder                                                 |
 
 The stock `/usr/lib/xdg-desktop-portal-wlr` is **untouched**; the drop-in
 replaces only `ExecStart`, keeping the packaged unit, D-Bus activation and

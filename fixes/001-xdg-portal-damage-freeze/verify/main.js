@@ -15,7 +15,9 @@ app.whenReady().then(async () => {
       types: ["screen"],
       thumbnailSize: { width: 160, height: 90 },
     });
-    console.log("sources: " + sources.map((s) => `${s.id} "${s.name}"`).join(", "));
+    console.log(
+      "sources: " + sources.map((s) => `${s.id} "${s.name}"`).join(", "),
+    );
     if (!sources.length) {
       console.log("VERDICT: NO_SOURCES (portal not serving screens)");
       app.quit();
@@ -31,7 +33,9 @@ app.whenReady().then(async () => {
     });
     win.setAlwaysOnTop(true);
     win.webContents.setBackgroundThrottling(false);
-    win.webContents.session.setPermissionRequestHandler((wc, p, cb) => cb(true));
+    win.webContents.session.setPermissionRequestHandler((wc, p, cb) =>
+      cb(true),
+    );
     await win.loadFile(path.join(__dirname, "blank.html"));
 
     // Continuous animation => continuous damage on the captured output.
@@ -88,7 +92,10 @@ app.whenReady().then(async () => {
       result.frames > 50 &&
       result.lastFrameAt > DURATION_MS - 2000 &&
       result.framesInLast5s > 30;
-    console.log("VERDICT: " + (ok ? "PASS - frames flowing continuously" : "FAIL - stream stalled"));
+    console.log(
+      "VERDICT: " +
+        (ok ? "PASS - frames flowing continuously" : "FAIL - stream stalled"),
+    );
   } catch (e) {
     console.log("VERDICT: FAIL - " + e.message);
   }

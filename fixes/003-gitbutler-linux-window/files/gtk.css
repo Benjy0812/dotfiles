@@ -1,0 +1,58 @@
+/* Menu bar styled to match GitButler's dark theme (colors from its --clr-gray-* / --clr-pop-* tokens).
+   Applies to every GTK3 menu bar; delete this file to undo. */
+
+menubar {
+  background: #1c1917; /* --bg-2 */
+  border-bottom: 1px solid #3a3532; /* --border-3 */
+  padding: 0 4px;
+  min-height: 0;
+  box-shadow: none;
+}
+
+menubar > menuitem {
+  color: #aaa29d; /* --text-2 */
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 0;
+  border-radius: 6px;
+  margin: 3px 1px;
+}
+
+menubar > menuitem:hover {
+  color: #f9f9f8; /* --text-1 */
+  background: #272321; /* --bg-1 */
+  box-shadow: none;
+}
+
+menu,
+.menu,
+.context-menu {
+  background: #272321;
+  border: 1px solid #3a3532;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+menu menuitem {
+  color: #f9f9f8;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  min-height: 0;
+}
+
+menu menuitem:hover {
+  background: #1d8a8a; /* --clr-pop-40, GitButler's teal accent */
+  color: #ffffff;
+}
+
+menu menuitem accelerator {
+  color: #635b55; /* --text-3 */
+}
+
+menu separator {
+  background: #3a3532;
+  margin: 4px 6px;
+}

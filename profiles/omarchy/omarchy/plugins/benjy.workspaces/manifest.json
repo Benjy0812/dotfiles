@@ -5,9 +5,7 @@
   "version": "1.0.0",
   "author": "Omarchy",
   "description": "Workspace number indicators",
-  "kinds": [
-    "bar-widget"
-  ],
+  "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "Workspaces.qml"
   },

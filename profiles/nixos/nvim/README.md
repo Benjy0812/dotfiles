@@ -36,43 +36,43 @@ Three short blocks, in this order:
 
 ### Display
 
-| Option | What it does |
-|---|---|
-| `number = true` | Shows the line number at the left of every line. |
+| Option                  | What it does                                                                                                                                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number = true`         | Shows the line number at the left of every line.                                                                                                                                                               |
 | `relativenumber = true` | Shows other lines as their distance from the cursor line. With `number` also on, the cursor line shows its real number and the rest show distance. You read "7 lines down" at a glance and type `7j` or `7dd`. |
-| `cursorline = true` | Highlights the line the cursor is on, so you can find it quickly. |
-| `scrolloff = 8` | Keeps at least 8 lines visible above and below the cursor when you scroll, so you always see context. |
-| `signcolumn = "yes"` | Always reserves the narrow column left of the numbers (used for git marks and diagnostics). Without it the text jumps sideways whenever a sign appears. |
-| `termguicolors = true` | Uses 24-bit colors in the terminal. Modern color schemes need it. |
+| `cursorline = true`     | Highlights the line the cursor is on, so you can find it quickly.                                                                                                                                              |
+| `scrolloff = 8`         | Keeps at least 8 lines visible above and below the cursor when you scroll, so you always see context.                                                                                                          |
+| `signcolumn = "yes"`    | Always reserves the narrow column left of the numbers (used for git marks and diagnostics). Without it the text jumps sideways whenever a sign appears.                                                        |
+| `termguicolors = true`  | Uses 24-bit colors in the terminal. Modern color schemes need it.                                                                                                                                              |
 
 ### Indentation
 
-| Option | What it does |
-|---|---|
-| `expandtab = true` | Pressing `Tab` inserts spaces, not a tab character. |
-| `shiftwidth = 2` | One indent level is 2 columns. Used by `>>`, `<<`, `==` and auto-indent. |
-| `tabstop = 2` | A tab character that is already in a file is drawn 2 columns wide. |
+| Option               | What it does                                                                    |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `expandtab = true`   | Pressing `Tab` inserts spaces, not a tab character.                             |
+| `shiftwidth = 2`     | One indent level is 2 columns. Used by `>>`, `<<`, `==` and auto-indent.        |
+| `tabstop = 2`        | A tab character that is already in a file is drawn 2 columns wide.              |
 | `smartindent = true` | A new line copies the indent of the line above, and adds one level after a `{`. |
 
 ### Search
 
-| Option | What it does |
-|---|---|
-| `ignorecase = true` | `/foo` matches `foo`, `Foo` and `FOO`. |
-| `smartcase = true` | Overrides `ignorecase` when your search has a capital letter: `/Foo` matches only `Foo`. |
-| `hlsearch = true` | Highlights every match after you search. Clear it with `Esc` (see keymaps). |
-| `incsearch = true` | Jumps to the first match while you are still typing the search. |
+| Option              | What it does                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `ignorecase = true` | `/foo` matches `foo`, `Foo` and `FOO`.                                                   |
+| `smartcase = true`  | Overrides `ignorecase` when your search has a capital letter: `/Foo` matches only `Foo`. |
+| `hlsearch = true`   | Highlights every match after you search. Clear it with `Esc` (see keymaps).              |
+| `incsearch = true`  | Jumps to the first match while you are still typing the search.                          |
 
 ### Windows, files and clipboard
 
-| Option | What it does |
-|---|---|
-| `splitright = true` | `:vsplit` opens the new window on the right instead of the left. |
-| `splitbelow = true` | `:split` opens the new window below instead of above. |
-| `undofile = true` | Saves undo history to disk, so `u` still works after you close and reopen a file. |
+| Option                      | What it does                                                                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `splitright = true`         | `:vsplit` opens the new window on the right instead of the left.                                                                                                                           |
+| `splitbelow = true`         | `:split` opens the new window below instead of above.                                                                                                                                      |
+| `undofile = true`           | Saves undo history to disk, so `u` still works after you close and reopen a file.                                                                                                          |
 | `clipboard = "unnamedplus"` | Yank (`y`), delete and paste (`p`) use the system clipboard, so you can copy between Neovim and other apps. It needs a clipboard tool such as `wl-clipboard` on Wayland or `xclip` on X11. |
-| `updatetime = 250` | Waits 250 ms (default 4000) before writing the swap file and firing the idle event. Makes plugins that react to idle feel faster. |
-| `timeoutlen = 400` | Waits 400 ms for the next key of a multi-key mapping such as `<leader>w` before giving up. |
+| `updatetime = 250`          | Waits 250 ms (default 4000) before writing the swap file and firing the idle event. Makes plugins that react to idle feel faster.                                                          |
+| `timeoutlen = 400`          | Waits 400 ms for the next key of a multi-key mapping such as `<leader>w` before giving up.                                                                                                 |
 
 ## Keymaps
 
@@ -80,31 +80,31 @@ The first letter is the mode: `n` is Normal, `v` is Visual.
 
 ### Leader commands (Normal mode)
 
-| Keys | What it does |
-|---|---|
-| `Space w` | Saves the file (`:write`). |
-| `Space q` | Quits the window (`:quit`). Fails if the file has unsaved changes, which is the safe behavior. |
+| Keys      | What it does                                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Space w` | Saves the file (`:write`).                                                                                                                             |
+| `Space q` | Quits the window (`:quit`). Fails if the file has unsaved changes, which is the safe behavior.                                                         |
 | `Space e` | Opens Neovim's built-in file explorer (`:Explore`) in the directory of the current file. Press `Enter` on a file to open it and `-` to go up a folder. |
 
 ### Search
 
-| Keys | What it does |
-|---|---|
-| `Esc` | Clears the search highlight (`:nohlsearch`). Normal use of `Esc` is unchanged. |
+| Keys      | What it does                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `Esc`     | Clears the search highlight (`:nohlsearch`). Normal use of `Esc` is unchanged.                                             |
 | `n` / `N` | Jump to the next or previous match, then center the line on screen (`zz`) and unfold it if it was hidden in a fold (`zv`). |
 
 ### Moving around
 
-| Keys | What it does |
-|---|---|
+| Keys                                      | What it does                                                                                       |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `Ctrl+h` / `Ctrl+j` / `Ctrl+k` / `Ctrl+l` | Move to the split on the left, below, above or right. Replaces the two-key `Ctrl+w h` and friends. |
-| `Ctrl+d` / `Ctrl+u` | Scroll half a page down or up, then center the cursor line (`zz`), so you do not lose your place. |
+| `Ctrl+d` / `Ctrl+u`                       | Scroll half a page down or up, then center the cursor line (`zz`), so you do not lose your place.  |
 
 ### Editing in Visual mode
 
-| Keys | What it does |
-|---|---|
-| `J` / `K` | Move the selected lines down or up, re-indent them, and keep them selected. Select lines with `V`, then press `J` or `K` repeatedly. |
+| Keys      | What it does                                                                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `J` / `K` | Move the selected lines down or up, re-indent them, and keep them selected. Select lines with `V`, then press `J` or `K` repeatedly.                                   |
 | `<` / `>` | Indent the selection left or right and keep it selected (`gv` reselects), so you can press `>` several times in a row. Plain Vim drops the selection after one indent. |
 
 ## Autocomplete

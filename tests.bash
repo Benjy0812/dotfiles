@@ -93,6 +93,34 @@ mv "$R/hypr/a.lua" "$R/hypr/b.lua"
 check "doctor reports a broken link into the repo" bash -c "'$D' doctor 2>&1 | grep -q 'broken link: .*hypr/a.lua'"
 check "doctor fails when something is wrong" bash -c "! '$D' doctor"
 
+fresh
+# Stock bar: Bar.qml, widgets/W.qml, manifest.json; the profile's benjy.bar has bar.patch and its own manifest.
+S=$T/stock B=$R/omarchy/plugins/benjy.bar
+rm -rf "$S"
+mkdir -p "$S/widgets" "$B"
+printf 'one\ntwo\n' >"$S/Bar.qml"
+echo w >"$S/widgets/W.qml"
+echo stock >"$S/manifest.json"
+echo mine >"$B/manifest.json"
+printf -- '--- a/Bar.qml\n+++ b/Bar.qml\n@@ -1,2 +1,2 @@\n one\n-two\n+TWO\n' >"$B/bar.patch"
+export DOTFILES_STOCK_BAR=$S
+"$D" link >/dev/null
+"$D" bar-update >/dev/null 2>&1
+L=$C/omarchy/plugins/benjy.bar
+check "bar-update writes the patched Bar.qml" test "$(cat "$L/Bar.qml" 2>/dev/null)" == "$(printf 'one\nTWO')"
+check "bar-update copies the stock widgets as real files" test -f "$L/widgets/W.qml" -a ! -L "$L/widgets/W.qml"
+check "bar-update keeps our manifest link" links_to "$L/manifest.json" "$B/manifest.json"
+check "bar-update leaves the repo free of stock files" test ! -e "$B/Bar.qml"
+printf 'changed\nupstream\n' >"$S/Bar.qml"
+check "bar-update fails when the patch no longer applies" bash -c "! '$D' bar-update"
+check "a failed bar-update keeps the working bar" test "$(cat "$L/Bar.qml")" == "$(printf 'one\nTWO')"
+printf 'one\ntwo\n' >"$S/Bar.qml"
+"$D" bar-update >/dev/null 2>&1
+echo three >>"$L/Bar.qml"
+"$D" bar-save >/dev/null
+check "bar-save turns live edits into bar.patch" grep -q '^+three' "$B/bar.patch"
+unset DOTFILES_STOCK_BAR
+
 if ((fails == 0)); then
   echo "all passed"
 else

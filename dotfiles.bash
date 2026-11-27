@@ -23,7 +23,9 @@ dotfiles: link common/ and profiles/<os>/ into ~/.config (one link per file, via
   track PATH..    move a ~/.config file into the profile and link it back
   doctor          report broken links, unlinked repo files and link conflicts
   snapshot        copy per-machine files (shell.json...) to machines/<host>/
-  setup           Omarchy: hook custom.lua and the plugins into Hyprland (after link)
+  setup           Omarchy: load custom.lua from hyprland.lua, build benjy.bar (after link)
+  bar-update      Omarchy: rebuild benjy.bar from the stock bar + bar.patch
+  bar-save        Omarchy: save edits to the live benjy.bar Bar.qml as bar.patch
   uninstall       Omarchy: remove those hooks
   rebuild [-n]    NixOS: nixos-rebuild switch for this repo's flake (-n: dry-build)
   profile [NAME|auto]  show or set this machine's profile
@@ -154,46 +156,69 @@ doctor() {
   return "$bad"
 }
 
-# ---- omarchy --------------------------------------------------------------
-# stow links the plugins and hypr settings; setup adds the hooks it cannot.
+# ---- omarchy ----------------------------------------------------------------
+# stow links the plugins and hypr settings; setup adds the hook it cannot.
+# custom.lua loads each plugin's Hyprland-side Lua itself (one dofile per plugin).
 
 omarchy_plugins() {
   local d
   for d in "$P"/omarchy/plugins/*/; do [[ -d $d ]] && basename "$d"; done
 }
 
-# Drop a plugin's marked block from a hook file.
+# Drop a plugin's marked block from a hook file (hooks older setups added).
 remove_hook() { # file id
   [[ -f $1 ]] || return 0
+  grep -qxF -- "-- >>> $2 >>>" "$1" || return 0
+  cp "$1" "$1.bak"
   awk -v b="-- >>> $2 >>>" -v e="-- <<< $2 <<<" '
     $0 == b { skip=1; next }
     $0 == e { skip=0; next }
     !skip
   ' "$1" >"$1.tmp"
   mv "$1.tmp" "$1"
+  echo "  removed old autostart hook $2"
 }
 
-plugin_install() { # id
-  local id=$1 hook=$HYPR/autostart.lua dest=$CONFIG/omarchy/plugins/$1
-  [[ -f $hook ]] || { echo "  skipped plugin $id: $(short "$hook") is missing"; return 0; }
-  cp "$hook" "$hook.bak"
-  remove_hook "$hook" "$id"
-  printf '%s\n' "-- >>> $id >>>" "dofile(\"$dest/${id#*.}.lua\")" "-- <<< $id <<<" >>"$hook"
-  echo "  plugin  $id"
+# benjy.bar is Omarchy's bar plus our edits. The repo keeps only the edits
+# (bar.patch) and our own files; bar-update rebuilds the rest from the stock bar
+# into ~/.config as real files, so an Omarchy update to the bar is one command.
+BAR_STOCK=${DOTFILES_STOCK_BAR:-/usr/share/omarchy/shell/plugins/bar}
+
+bar_update() {
+  local src=$P/omarchy/plugins/benjy.bar dest=$CONFIG/omarchy/plugins/benjy.bar tmp f
+  [[ -f $src/bar.patch ]] || die "no $(short "$src")/bar.patch"
+  [[ -f $BAR_STOCK/Bar.qml ]] || die "no stock bar at $(short "$BAR_STOCK")"
+  tmp=$(mktemp -d)
+  cp -r "$BAR_STOCK"/. "$tmp"
+  if ! patch -s -d "$tmp" -p1 -r - --no-backup-if-mismatch <"$src/bar.patch" >/dev/null; then
+    rm -rf "$tmp"
+    die "bar.patch no longer applies to the stock Bar.qml (Omarchy changed it); the live bar is unchanged.
+Redo the edits marked 'benjy' in $(short "$dest/Bar.qml") on a fresh copy of $(short "$BAR_STOCK/Bar.qml"), then: $0 bar-save"
+  fi
+  while IFS= read -r f; do
+    [[ -e $src/$f ]] && continue # ours (manifest, README, AutoHide...) stays linked
+    mkdir -p "$(dirname -- "$dest/$f")"
+    rm -f -- "$dest/$f" # never write through a link into the repo
+    cp -- "$tmp/$f" "$dest/$f"
+  done < <(cd "$tmp" && find . -type f -printf '%P\n')
+  rm -rf "$tmp"
+  echo "benjy.bar rebuilt from $(short "$BAR_STOCK") + bar.patch"
 }
 
-# The plugin files stay linked; `unlink` removes them.
-plugin_uninstall() { # id
-  remove_hook "$HYPR/autostart.lua" "$1"
-  echo "  removed plugin hook $1"
+# Save edits made to the live Bar.qml as the new bar.patch.
+bar_save() {
+  local src=$P/omarchy/plugins/benjy.bar dest=$CONFIG/omarchy/plugins/benjy.bar
+  [[ -f $dest/Bar.qml ]] || die "no $(short "$dest/Bar.qml"); run: $0 bar-update"
+  diff -u --label a/Bar.qml --label b/Bar.qml "$BAR_STOCK/Bar.qml" "$dest/Bar.qml" >"$src/bar.patch" || true
+  echo "saved $(short "$src/bar.patch"); commit it"
 }
 
 omarchy_reload() {
   hyprctl reload >/dev/null 2>&1 && hyprctl configerrors || true
 }
 
-# Load custom.lua from hyprland.lua and hook the plugins into autostart.lua.
-# Safe to run again, e.g. after `omarchy refresh hyprland`.
+# Load custom.lua from hyprland.lua and build benjy.bar. Safe to run again,
+# e.g. after `omarchy refresh hyprland`.
 omarchy_setup() {
   local hl=$HYPR/hyprland.lua f
   [[ -f $hl ]] || die "missing $(short "$hl")"
@@ -208,23 +233,14 @@ omarchy_setup() {
   sed -i '\|^dofile(.*/hypr/custom\.lua")$|d' "$hl"
   echo "dofile(\"$P/hypr/custom.lua\")" >>"$hl"
   echo "  hook    custom.lua loads from hyprland.lua"
-  # Plugins hook into autostart.lua: make sure it exists and hyprland.lua loads it.
-  if [[ ! -f $HYPR/autostart.lua ]]; then
-    cp /usr/share/omarchy/config/hypr/autostart.lua "$HYPR/autostart.lua" 2>/dev/null || echo "-- Extra autostart processes." >"$HYPR/autostart.lua"
-    echo "  create  hypr/autostart.lua"
-  fi
-  if ! grep -q 'require("hypr.autostart")' "$hl"; then
-    sed -i '/^require("hypr.looknfeel")/a require("hypr.autostart")' "$hl"
-    grep -q 'require("hypr.autostart")' "$hl" || sed -i '\|^dofile(.*/hypr/custom\.lua")$|i require("hypr.autostart")' "$hl"
-    echo "  hook    autostart.lua loads from hyprland.lua"
-  fi
-  while read -r f; do plugin_install "$f"; done < <(omarchy_plugins)
+  while read -r f; do remove_hook "$HYPR/autostart.lua" "$f"; done < <(omarchy_plugins)
+  if [[ -f $P/omarchy/plugins/benjy.bar/bar.patch ]]; then bar_update; fi
   omarchy_reload
 }
 
 omarchy_uninstall() {
   local hl=$HYPR/hyprland.lua f
-  while read -r f; do plugin_uninstall "$f"; done < <(omarchy_plugins)
+  while read -r f; do remove_hook "$HYPR/autostart.lua" "$f"; done < <(omarchy_plugins)
   if [[ -f $hl ]]; then
     cp "$hl" "$hl.bak"
     sed -i '\|^dofile(.*/hypr/custom\.lua")$|d' "$hl"
@@ -287,6 +303,8 @@ case $cmd in
     ;;
   doctor) doctor ;;
   snapshot) snapshot ;;
+  bar-update) bar_update ;;
+  bar-save) bar_save ;;
   setup) omarchy_setup ;;
   uninstall) omarchy_uninstall ;;
   rebuild) rebuild "$@" ;;

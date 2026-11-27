@@ -28,13 +28,13 @@ The repo keeps only our files and the edits to Omarchy's `Bar.qml`
 (`bar.patch`). `./dotfiles.bash setup` (or `bar-update`) builds the rest from
 the stock bar into `~/.config/omarchy/plugins/benjy.bar/` as real files.
 
-| File               | What                                                                          |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `AutoHide.qml`     | Peek logic: Super shortcuts, cursor polling, workspace flash                  |
-| `AutoHideModel.js` | Pure show/hide decisions; `node test_autohide.js` tests them                  |
-| `bar.lua`          | Super hold bind, loaded from `hypr/custom.lua`                                |
-| `bar.patch`        | The `benjy` edits to Omarchy's `Bar.qml` (`barOff`/`barPeek`/`peekScreen`)    |
-| `manifest.json`    | Plugin id `benjy.bar`, cloned from `omarchy.bar`                              |
+| File               | What                                                                       |
+| ------------------ | -------------------------------------------------------------------------- |
+| `AutoHide.qml`     | Peek logic: Super shortcuts, cursor polling, workspace flash               |
+| `AutoHideModel.js` | Pure show/hide decisions; `node test_autohide.js` tests them               |
+| `bar.lua`          | Super hold bind, loaded from `hypr/custom.lua`                             |
+| `bar.patch`        | The `benjy` edits to Omarchy's `Bar.qml` (`barOff`/`barPeek`/`peekScreen`) |
+| `manifest.json`    | Plugin id `benjy.bar`, cloned from `omarchy.bar`                           |
 
 ## After an Omarchy update
 

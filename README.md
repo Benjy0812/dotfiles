@@ -3,13 +3,13 @@
 Personal Linux desktop configs, kept at `~/Projects/dotfiles`. Each folder has
 its own README with the details.
 
-| Folder            | What                                                                                                      | Details                                                      |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `profiles/<os>/`  | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md)     |
-| `common/`         | App configs every profile links; a profile file with the same path replaces the shared one                | [common/README.md](common/README.md)                         |
-| `flake.nix`       | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/`                               | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
-| `docs/`           | Guides, starting with [the dotfiles.bash usage](docs/usage.md)                                            | [docs/README.md](docs/README.md)                             |
-| `fixes/`          | Local patches for upstream bugs                                                                           | [fixes/README.md](fixes/README.md)                           |
+| Folder           | What                                                                                                      | Details                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `profiles/<os>/` | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md)     |
+| `common/`        | App configs every profile links; a profile file with the same path replaces the shared one                | [common/README.md](common/README.md)                         |
+| `flake.nix`      | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/`                               | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
+| `docs/`          | Guides, starting with [the dotfiles.bash usage](docs/usage.md)                                            | [docs/README.md](docs/README.md)                             |
+| `fixes/`         | Local patches for upstream bugs                                                                           | [fixes/README.md](fixes/README.md)                           |
 
 The Omarchy plugin has its own README too:
 [solo-workspaces](profiles/omarchy/omarchy/plugins/benjy.solo-workspaces/README.md).

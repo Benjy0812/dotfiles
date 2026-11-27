@@ -6,13 +6,13 @@ with the same path replaces the one here (e.g. Omarchy's LazyVim `nvim/init.lua`
 NixOS deploys these folders through home-manager, where a profile folder
 replaces the whole common folder ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
 
-| Folder                                      | What                                                  | Details                          |
-| ------------------------------------------- | ----------------------------------------------------- | -------------------------------- |
-| `alacritty/`, `kitty/`, `foot/`, `ghostty/` | Terminals, set up alike (see below)                   |                                  |
-| `fish/`                                     | Fish shell: aliases, abbreviations, helper functions  | [fish/README.md](fish/README.md) |
-| `nvim/`                                     | Neovim: plugin-free `init.lua` for learning           | [nvim/README.md](nvim/README.md) |
-| `yazi/`                                     | Yazi file manager                                     | [yazi/README.md](yazi/README.md) |
-| `zed/`                                     | Zed editor settings and the Glass theme               | [zed/README.md](zed/README.md)   |
+| Folder                                      | What                                                                                                                  | Details                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `alacritty/`, `kitty/`, `foot/`, `ghostty/` | Terminals, set up alike (see below)                                                                                   |                                  |
+| `fish/`                                     | Fish shell: aliases, abbreviations, helper functions                                                                  | [fish/README.md](fish/README.md) |
+| `nvim/`                                     | Neovim: plugin-free `init.lua` for learning                                                                           | [nvim/README.md](nvim/README.md) |
+| `yazi/`                                     | Yazi file manager                                                                                                     | [yazi/README.md](yazi/README.md) |
+| `zed/`                                      | Zed editor settings and the Glass theme                                                                               | [zed/README.md](zed/README.md)   |
 | `git/`                                      | Git aliases, sane defaults, `gh` as credential helper; includes `~/.config/git/profile` (Omarchy: SSH commit signing) |                                  |
 
 ## Terminals

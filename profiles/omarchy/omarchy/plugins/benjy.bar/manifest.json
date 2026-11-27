@@ -5,9 +5,7 @@
   "version": "1.0.0",
   "author": "Omarchy",
   "description": "Status bar with widgets",
-  "kinds": [
-    "bar"
-  ],
+  "kinds": ["bar"],
   "entryPoints": {
     "bar": "Bar.qml"
   },

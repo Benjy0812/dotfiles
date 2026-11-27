@@ -1,5 +1,5 @@
 # Completions for ~/Projects/dotfiles/dotfiles.bash, also when run as ./dotfiles.bash
-set -l cmds link adopt unlink track setup uninstall rebuild profile help
+set -l cmds bootstrap link adopt unlink track doctor snapshot setup uninstall bar-update bar-save rebuild profile help
 
 function __dfs_complete
     complete -c dotfiles.bash $argv

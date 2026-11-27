@@ -11,45 +11,44 @@ its own README with the details.
 | `docs/`          | Guides, starting with [the dotfiles.bash usage](docs/usage.md)                                            | [docs/README.md](docs/README.md)                             |
 | `fixes/`         | Local patches for upstream bugs                                                                           | [fixes/README.md](fixes/README.md)                           |
 
-The Omarchy plugin has its own README too:
-[solo-workspaces](profiles/omarchy/omarchy/plugins/benjy.solo-workspaces/README.md).
+Machine snapshots (`machines/<host>/`) are backups, never linked.
 
 ## Setup
 
 ```bash
 git clone https://github.com/Benjy0812/dotfiles.git ~/Projects/dotfiles
+cd ~/Projects/dotfiles && ./dotfiles.bash bootstrap
 ```
 
-Then put the configs in place, depending on the machine. Needs GNU stow
-(`sudo pacman -S stow`).
-
-- **NixOS:** `./dotfiles.bash rebuild` (or `nixos-rebuild switch --flake ~/Projects/dotfiles#<host> --impure --sudo`)
-  deploys them through home-manager ([nix](profiles/nixos/nix/README.md)).
-- **Omarchy:** `./dotfiles.bash adopt` the first time (or `link` on a clean machine),
-  then `./dotfiles.bash setup` ([omarchy](profiles/omarchy/README.md)).
-- **Anywhere else:** `./dotfiles.bash link -n` to preview, then `link`.
+`bootstrap` installs the profile's `packages.txt`, links `common/` and the
+profile into `~/.config` with [GNU stow](https://www.gnu.org/software/stow/),
+runs the Omarchy `setup`, then `doctor`. On NixOS it runs `rebuild` instead
+([nix](profiles/nixos/nix/README.md)). A machine that already has configs: run
+`./dotfiles.bash adopt` first and review `git diff`.
 
 ## dotfiles.bash
 
-`dotfiles.bash` links each file of the active profile (`profiles/<os>/`) into
-`~/.config` with [GNU stow](https://www.gnu.org/software/stow/). The live file
-is the repo file, so an edit in `~/.config` is a change in this repo: use git to
-see it (`git diff`), save it (`git commit`), sync it (`git push`/`git pull`) and
-undo it (`git restore`). Folders in `~/.config` stay real folders, so files you do
-not track (like Omarchy's own files in `~/.config/hypr/`) stay untouched.
-`README.md` files are never linked.
+Each file of `common/` and the active profile (`profiles/<os>/`) becomes a link
+in `~/.config`; a profile file replaces the `common/` file with the same path.
+The live file is the repo file, so an edit in `~/.config` is a change in this
+repo. Folders in `~/.config` stay real folders, so files you do not track stay
+untouched.
 
-| Command                | What it does                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `link [-n]`            | Link the profile into `~/.config` (`-n`: dry run). Stow refuses to replace a real file.                                                                |
-| `adopt`                | First run on a machine: move the existing `~/.config` files into the repo, then link them. Review with `git diff`; `git restore` what you do not want. |
-| `unlink`               | Remove the links. The repo keeps the files.                                                                                                            |
-| `track PATH..`         | Move a file from `~/.config` into the profile and link it back.                                                                                        |
-| `setup`, `uninstall`   | Omarchy: add or remove the Hyprland hooks for `custom.lua` and the plugins.                                                                            |
-| `rebuild [-n]`         | NixOS: rebuild from this repo's flake.                                                                                                                 |
-| `profile [NAME\|auto]` | Show or set this machine's profile.                                                                                                                    |
+| Command                  | What it does                                                         |
+| ------------------------ | -------------------------------------------------------------------- |
+| `bootstrap`              | New machine: packages, `link`, `setup`, `doctor`                     |
+| `link [-n]`              | Link `common/` and the profile (`-n`: dry run)                       |
+| `adopt`                  | First run: move existing `~/.config` files into the repo, then link  |
+| `unlink`                 | Remove the links                                                     |
+| `track PATH..`           | Move a `~/.config` file into the profile and link it back            |
+| `doctor`                 | Broken links, unlinked repo files, link conflicts                    |
+| `snapshot`               | Back up per-machine files (`shell.json`...) to `machines/<host>/`    |
+| `setup`, `uninstall`     | Omarchy: add or remove the Hyprland hook; `setup` builds `benjy.bar` |
+| `bar-update`, `bar-save` | Omarchy: rebuild `benjy.bar` from stock + `bar.patch`, or save edits |
+| `rebuild [-n]`           | NixOS: rebuild from this repo's flake                                |
+| `profile [NAME\|auto]`   | Show or set this machine's profile                                   |
 
-Full guide: [docs/usage.md](docs/usage.md).
+Full guide: [docs/usage.md](docs/usage.md). Tests: `./tests.bash` (CI runs it too).
 
 ## What's not tracked
 

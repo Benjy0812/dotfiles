@@ -200,6 +200,7 @@ end
 -- Shell plugins with Hyprland-side code (moved here from hypr/autostart.lua).
 dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/benjy.solo-workspaces/solo-workspaces.lua")
 dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/benjy.workspaces/workspaces.lua")
+dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/benjy.bar/bar.lua")
 
 -- Floating windows left off every monitor (one unplugged or moved, or an app
 -- reopening where it last was) are centered on the monitor they belong to.

@@ -2,6 +2,7 @@
 # directory/file, so machine-specific or private configs never sneak in.
 /*
 !.gitignore
+!.prettierignore
 !common/
 !README.md
 !dotfiles.bash

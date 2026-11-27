@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Black-box tests for dotfiles.bash in a temp repo copy and a temp HOME.
+# All the repo's tests: dotfiles.bash black-box in a temp repo copy and a temp
+# HOME, every profile's dry-run link, and the plugins' own Lua and Node tests.
 # Usage: ./tests.bash   (exit code 1 if any test fails)
 set -uo pipefail
 command -v stow >/dev/null || { echo "stow not installed: sudo pacman -S stow" >&2; exit 1; }
@@ -120,6 +121,27 @@ echo three >>"$L/Bar.qml"
 "$D" bar-save >/dev/null
 check "bar-save turns live edits into bar.patch" grep -q '^+three' "$B/bar.patch"
 unset DOTFILES_STOCK_BAR
+
+# ---- the real repo -------------------------------------------------------
+REPO=$(dirname -- "$SRC")
+for p in "$REPO"/profiles/*/; do
+  p=$(basename "$p")
+  [[ -d $REPO/profiles/$p/nix ]] && continue # deployed by home-manager, not stow
+  check "profile $p links cleanly (dry run)" env HOME="$T/dry-$p" DOTFILES_PROFILE="$p" "$SRC" link -n
+done
+for t in "$REPO"/profiles/*/omarchy/plugins/*/test_*; do
+  name="$(basename "$(dirname "$t")")/$(basename "$t")"
+  case $t in
+    *.lua) run=lua ;;
+    *.js) run=node ;;
+    *) continue ;;
+  esac
+  if command -v "$run" >/dev/null; then
+    check "$name" bash -c "cd '$(dirname "$t")' && $run '$t'"
+  else
+    echo "  skip  $name ($run not installed)"
+  fi
+done
 
 if ((fails == 0)); then
   echo "all passed"

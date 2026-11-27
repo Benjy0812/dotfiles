@@ -8,7 +8,7 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export HOME=$T/home XDG_STATE_HOME=$T/state DOTFILES_PROFILE=p
 unset XDG_CONFIG_HOME
-C=$HOME/.config R=$T/repo/profiles/p D=$T/repo/dotfiles.bash
+C=$HOME/.config R=$T/repo/profiles/p K=$T/repo/common D=$T/repo/dotfiles.bash
 fails=0
 
 check() { # name command..
@@ -19,12 +19,17 @@ check() { # name command..
 links_to() { [[ -L $1 && $(readlink -f "$1") == "$(readlink -f "$2")" ]]; }
 
 fresh() { # repo: p/hypr/a.lua, p/kitty/kitty.conf, p/kitty/README.md; ~/.config/hypr/omarchy.lua is not ours
+  # common/: kitty/kitty.conf (the profile overrides it), kitty/theme.conf, git/config (common only), fish/fish_variables (never linked)
   rm -rf "$T/repo" "$HOME"
-  mkdir -p "$R/hypr" "$R/kitty" "$C/hypr"
+  mkdir -p "$R/hypr" "$R/kitty" "$C/hypr" "$K/kitty" "$K/git" "$K/fish"
   cp "$SRC" "$D"
   echo a >"$R/hypr/a.lua"
   echo k >"$R/kitty/kitty.conf"
   echo doc >"$R/kitty/README.md"
+  echo shared >"$K/kitty/kitty.conf"
+  echo theme >"$K/kitty/theme.conf"
+  echo g >"$K/git/config"
+  echo state >"$K/fish/fish_variables"
   echo stock >"$C/hypr/omarchy.lua"
 }
 
@@ -38,8 +43,14 @@ check "link leaves an unrelated file alone" test ! -L "$C/hypr/omarchy.lua" -a "
 check "link creates a missing dir as a real dir" test -d "$C/kitty" -a ! -L "$C/kitty"
 check "link makes a file link in the new dir" links_to "$C/kitty/kitty.conf" "$R/kitty/kitty.conf"
 check "a nested README.md is not linked" test ! -e "$C/kitty/README.md"
+check "a common file is linked when the profile lacks it" links_to "$C/git/config" "$K/git/config"
+check "common fills in next to profile files" links_to "$C/kitty/theme.conf" "$K/kitty/theme.conf"
+check "the profile file wins over the common one" links_to "$C/kitty/kitty.conf" "$R/kitty/kitty.conf"
+check "fish_variables is never linked" test ! -e "$C/fish/fish_variables"
+"$D" link >/dev/null 2>&1
+check "link runs again cleanly" links_to "$C/git/config" "$K/git/config"
 "$D" unlink >/dev/null
-check "unlink removes our links" test ! -e "$C/hypr/a.lua" -a ! -e "$C/kitty/kitty.conf"
+check "unlink removes our links" test ! -e "$C/hypr/a.lua" -a ! -e "$C/kitty/kitty.conf" -a ! -e "$C/git/config" -a ! -e "$C/kitty/theme.conf"
 check "unlink keeps the unrelated file" test "$(cat "$C/hypr/omarchy.lua")" == stock
 check "unlink keeps the repo files" test -f "$R/hypr/a.lua"
 
@@ -57,6 +68,13 @@ echo live >"$C/hypr/a.lua"
 "$D" adopt >/dev/null
 check "adopt pulls the live file into the repo" test "$(cat "$R/hypr/a.lua")" == live
 check "adopt links it" links_to "$C/hypr/a.lua" "$R/hypr/a.lua"
+
+fresh
+rm "$R/kitty/kitty.conf"
+"$D" link >/dev/null
+echo mine >"$R/kitty/kitty.conf"
+"$D" link >/dev/null 2>&1
+check "a new profile file takes over a linked common one" links_to "$C/kitty/kitty.conf" "$R/kitty/kitty.conf"
 
 if ((fails == 0)); then
   echo "all passed"

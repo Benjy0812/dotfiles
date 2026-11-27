@@ -6,7 +6,7 @@ its own README with the details.
 | Folder            | What                                                                                                      | Details                                                      |
 | ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `profiles/<os>/`  | What is linked on a machine: one folder per OS (omarchy, nixos, ubuntu...), each with its own app configs | [profiles/omarchy/README.md](profiles/omarchy/README.md)     |
-| `apps/`, `mango/` | Boilerplate: starting configs to copy into a new profile                                                  | [apps/README.md](apps/README.md)                             |
+| `common/`         | App configs every profile links; a profile file with the same path replaces the shared one                | [common/README.md](common/README.md)                         |
 | `flake.nix`       | NixOS flake; its system and home-manager files are in `profiles/nixos/nix/`                               | [profiles/nixos/nix/README.md](profiles/nixos/nix/README.md) |
 | `docs/`           | Guides, starting with [the dotfiles.bash usage](docs/usage.md)                                            | [docs/README.md](docs/README.md)                             |
 | `fixes/`          | Local patches for upstream bugs                                                                           | [fixes/README.md](fixes/README.md)                           |
@@ -56,5 +56,5 @@ Full guide: [docs/usage.md](docs/usage.md).
 `.gitignore` is a whitelist (`/*` plus explicit `!` entries), so anything not
 listed stays out of git even when it's copied into the repo. That keeps out
 private and machine-specific data such as `gh/` (GitHub credentials), browser
-profiles, app state, generated Noctalia themes, and `apps/fish/fish_variables`.
+profiles, app state, generated Noctalia themes, and `fish_variables`.
 Add a new folder to the whitelist before committing it.

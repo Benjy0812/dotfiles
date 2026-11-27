@@ -1,9 +1,10 @@
-# Apps
+# Common
 
-Boilerplate app configs. They are not linked from here: copy the folders you want into
-`profiles/<os>/` (`cp -r apps/kitty profiles/ubuntu/`), and `./dotfiles.bash link` links
-that profile into `~/.config/<folder>/`. NixOS also deploys some of these through
-home-manager ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
+App configs shared by every profile. `./dotfiles.bash link` links them into
+`~/.config/<folder>/` next to the profile's own files; a file in `profiles/<os>/`
+with the same path replaces the one here (e.g. Omarchy's LazyVim `nvim/init.lua`).
+NixOS deploys these folders through home-manager, where a profile folder
+replaces the whole common folder ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
 
 | Folder                                      | What                                                  | Details                          |
 | ------------------------------------------- | ----------------------------------------------------- | -------------------------------- |
@@ -11,8 +12,8 @@ home-manager ([profiles/nixos/nix](../profiles/nixos/nix/README.md)).
 | `fish/`                                     | Fish shell: aliases, abbreviations, helper functions  | [fish/README.md](fish/README.md) |
 | `nvim/`                                     | Neovim: plugin-free `init.lua` for learning           | [nvim/README.md](nvim/README.md) |
 | `yazi/`                                     | Yazi file manager                                     | [yazi/README.md](yazi/README.md) |
-| `zed/`, `.zed/`                             | Zed editor settings and the Glass theme               | [zed/README.md](zed/README.md)   |
-| `git/`                                      | Git aliases, sane defaults, `gh` as credential helper |                                  |
+| `zed/`                                     | Zed editor settings and the Glass theme               | [zed/README.md](zed/README.md)   |
+| `git/`                                      | Git aliases, sane defaults, `gh` as credential helper; includes `~/.config/git/profile` (Omarchy: SSH commit signing) |                                  |
 
 ## Terminals
 

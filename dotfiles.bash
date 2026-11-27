@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# dotfiles: link the active profile (profiles/<os>/) into ~/.config with GNU stow.
+# dotfiles: link common/ and the active profile (profiles/<os>/) into ~/.config
+# with GNU stow.
 # git is the sync, history and undo. Run `./dotfiles.bash help`.
 set -euo pipefail
 
@@ -52,12 +53,45 @@ P="$ROOT/profiles/$PROFILE"
 # A profile with a nix/ folder is deployed by home-manager (nixos-rebuild).
 nix_managed() { [[ -n $PROFILE && -d $P/nix ]]; }
 
-stow_profile() {
+# Two stow layers: common/ (shared by every profile), then profiles/<os>/.
+# A file in the profile replaces the same file in common/, which is skipped.
+STOW_IGNORE=(--ignore='README\.md' --ignore='fish_variables')
+
+profile_files() { [[ -d $P ]] && (cd "$P" && find . \( -type f -o -type l \) -printf '%P\n'); }
+
+common_ignores() { # profile files as stow --ignore args for common/
+  local f
+  # shellcheck disable=SC2001 # a regex escape; ${f//} cannot do a char class
+  while IFS= read -r f; do
+    printf -- "--ignore=^%s\n" "$(sed 's/[][\.*^$+?(){}|]/\\&/g' <<<"$f")"
+  done < <(profile_files)
+}
+
+# A common/ link for a file the profile now has would block the profile link.
+drop_overridden() {
+  local f t
+  while IFS= read -r f; do
+    t=$CONFIG/$f
+    if [[ -L $t && $(readlink -f "$t") == "$ROOT/common/$f" ]]; then rm -- "$t"; fi
+  done < <(profile_files)
+}
+
+stow_profile() { # [-n|-D|--adopt] [-v]
   [[ -n $PROFILE ]] || die "no profile for this machine; set one: $0 profile NAME"
   nix_managed && die "profile '$PROFILE' is deployed by home-manager; run: $0 rebuild"
   command -v stow >/dev/null || die "stow not found: sudo pacman -S stow"
   mkdir -p "$CONFIG"
-  stow --no-folding --ignore='README\.md' -d "$ROOT/profiles" -t "$CONFIG" "$@" "$PROFILE"
+  local -a ign
+  mapfile -t ign < <(common_ignores)
+  local s=(stow --no-folding "${STOW_IGNORE[@]}" -t "$CONFIG")
+  if [[ " $* " == *" -D "* ]]; then
+    "${s[@]}" "$@" -d "$ROOT/profiles" "$PROFILE"
+    if [[ -d $ROOT/common ]]; then "${s[@]}" "$@" -d "$ROOT" common; fi
+    return
+  fi
+  if [[ " $* " != *" -n "* ]]; then drop_overridden; fi
+  if [[ -d $ROOT/common ]]; then "${s[@]}" "${ign[@]}" "$@" -d "$ROOT" common; fi
+  "${s[@]}" "$@" -d "$ROOT/profiles" "$PROFILE"
 }
 
 track() {
@@ -165,7 +199,7 @@ rebuild() { # [-n]
     # Prefer the hosts/ folder named like this machine, else the first one.
     hosts=$ROOT/profiles/nixos/nix/hosts
     host=$(hostname)
-    [[ -d $hosts/$host ]] || host=$(ls "$hosts" 2>/dev/null | head -n1)
+    [[ -d $hosts/$host ]] || host=$(find "$hosts" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | head -n1)
     [[ -n $host ]] || die "no host folder in profiles/nixos/nix/hosts/"
   fi
   flake="$ROOT#$host"

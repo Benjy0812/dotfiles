@@ -15,7 +15,7 @@ refuses; `../../dotfiles.bash adopt` moves it into the repo instead, and `git re
 puts the repo copy back. Other LazyVim files in `~/.config/nvim/`
 (`lua/`, `lazy-lock.json`) are left alone and go unused, and LazyVim's theme
 hot-reload stops working. NixOS deploys
-the file through home-manager ([../nix](../nix/README.md)).
+the file through home-manager ([../../profiles/nixos/nix](../../profiles/nixos/nix/README.md)).
 
 Check what it would do with `../../dotfiles.bash link -n`.
 
@@ -147,7 +147,7 @@ time can be changed with `vim.hl.on_yank({ timeout = 300 })`.
 Start Neovim with this file and nothing else, without touching `~/.config`:
 
 ```bash
-nvim -u apps/nvim/init.lua
+nvim -u common/nvim/init.lua
 ```
 
 Inside, `:verbose set shiftwidth?` shows the value and where it was set, and

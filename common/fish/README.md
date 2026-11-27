@@ -24,14 +24,14 @@
 
 Any way works, as long as `fish --version` prints 3.4 or newer afterwards:
 
-| System                 | Command                                                               |
-| ---------------------- | --------------------------------------------------------------------- |
-| Arch, Omarchy, CachyOS | `sudo pacman -S fish`                                                 |
-| Debian, Ubuntu         | `sudo apt install fish`                                               |
-| Fedora                 | `sudo dnf install fish`                                               |
-| NixOS                  | already done: `programs.fish.enable` in [`nix/`](../../nix/README.md) |
-| macOS                  | `brew install fish`                                                   |
-| Anything else          | see [fishshell.com](https://fishshell.com/)                           |
+| System                 | Command                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| Arch, Omarchy, CachyOS | `sudo pacman -S fish`                                                                |
+| Debian, Ubuntu         | `sudo apt install fish`                                                              |
+| Fedora                 | `sudo dnf install fish`                                                              |
+| NixOS                  | already done: `programs.fish.enable` in [`nix/`](../../profiles/nixos/nix/README.md) |
+| macOS                  | `brew install fish`                                                                  |
+| Anything else          | see [fishshell.com](https://fishshell.com/)                                          |
 
 ### 2. Put this config in place
 
@@ -40,7 +40,7 @@ Any way works, as long as `fish --version` prints 3.4 or newer afterwards:
 ~/Projects/dotfiles/dotfiles.bash link      # link all app configs, fish included
 ```
 
-Or copy just fish: `cp -rP ~/Projects/dotfiles/apps/fish ~/.config/`. On NixOS,
+Or copy just fish: `cp -rP ~/Projects/dotfiles/common/fish ~/.config/`. On NixOS,
 `nixos-rebuild` deploys it for you.
 
 ### 3. Optional tools

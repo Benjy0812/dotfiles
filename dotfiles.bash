@@ -14,13 +14,15 @@ short() { echo "${1/#$HOME/\~}"; }
 
 usage() {
   cat <<EOF
-dotfiles: link profiles/<os>/ into ~/.config (one link per file, via stow)
+dotfiles: link common/ and profiles/<os>/ into ~/.config (one link per file, via stow)
 
   link [-n]       link the profile into ~/.config (-n: dry run)
   adopt           first run on a machine: move existing ~/.config files into the
                   repo, then link them (review with git diff, git restore to drop)
   unlink          remove the links (the repo keeps the files)
   track PATH..    move a ~/.config file into the profile and link it back
+  doctor          report broken links, unlinked repo files and link conflicts
+  snapshot        copy per-machine files (shell.json...) to machines/<host>/
   setup           Omarchy: hook custom.lua and the plugins into Hyprland (after link)
   uninstall       Omarchy: remove those hooks
   rebuild [-n]    NixOS: nixos-rebuild switch for this repo's flake (-n: dry-build)
@@ -108,6 +110,48 @@ track() {
     echo "tracked $rel"
   done
   stow_profile
+}
+
+# Per-machine files that stay real files in ~/.config (apps rewrite them), so
+# they are copied to machines/<host>/ as a backup instead of linked.
+SNAPSHOT=(omarchy/shell.json hypr/bindings.lua hypr/monitors.lua)
+
+snapshot() {
+  local host=${DOTFILES_HOST:-$(hostname)} rel n=0
+  for rel in "${SNAPSHOT[@]}"; do
+    [[ -f $CONFIG/$rel ]] || continue
+    mkdir -p "$(dirname -- "$ROOT/machines/$host/$rel")"
+    cp -- "$CONFIG/$rel" "$ROOT/machines/$host/$rel"
+    echo "copied $rel"
+    ((++n))
+  done
+  ((n)) && echo "to machines/$host/; commit to keep it" || echo "nothing to copy"
+}
+
+# Report broken links into the repo, repo files that are not linked, and
+# anything that would stop `link`. Exit 1 if there is something to fix.
+doctor() {
+  local f t bad=0 out
+  while IFS= read -r t; do
+    [[ $(readlink -m "$t") == "$ROOT"/* ]] || continue
+    echo "broken link: $(short "$t")"
+    bad=1
+  done < <(find "$CONFIG" -xtype l 2>/dev/null)
+  nix_managed && { ((bad == 0)) && echo "ok (home-manager deploys this profile)"; return "$bad"; }
+  while IFS= read -r f; do
+    case ${f##*/} in README.md | fish_variables | .gitignore) continue ;; esac  # stow skips these
+    if [[ -e $P/$f ]]; then t=$P/$f; else t=$ROOT/common/$f; fi
+    [[ -L $CONFIG/$f && $(readlink -f "$CONFIG/$f") == "$(readlink -f "$t")" ]] && continue
+    echo "not linked: $f"
+    bad=1
+  done < <({ profile_files; [[ -d $ROOT/common ]] && (cd "$ROOT/common" && find . \( -type f -o -type l \) -printf '%P\n'); } | sort -u)
+  if ! out=$(stow_profile -n 2>&1); then
+    echo "link would fail:"
+    echo "$out" | grep -v '^LINK\|^MKDIR\|^All operations'
+    bad=1
+  fi
+  ((bad == 0)) && echo "ok"
+  return "$bad"
 }
 
 # ---- omarchy --------------------------------------------------------------
@@ -241,6 +285,8 @@ case $cmd in
     (($#)) || die "usage: $0 track PATH.."
     track "$@"
     ;;
+  doctor) doctor ;;
+  snapshot) snapshot ;;
   setup) omarchy_setup ;;
   uninstall) omarchy_uninstall ;;
   rebuild) rebuild "$@" ;;

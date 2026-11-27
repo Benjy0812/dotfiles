@@ -11,6 +11,7 @@
 !fixes/
 !docs/
 !profiles/
+!machines/
 !.github/
 !CLAUDE.md
 !/.claude/

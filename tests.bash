@@ -76,6 +76,23 @@ echo mine >"$R/kitty/kitty.conf"
 "$D" link >/dev/null 2>&1
 check "a new profile file takes over a linked common one" links_to "$C/kitty/kitty.conf" "$R/kitty/kitty.conf"
 
+fresh
+mkdir -p "$C/omarchy"
+echo '{"bar":1}' >"$C/omarchy/shell.json"
+DOTFILES_HOST=box "$D" snapshot >/dev/null
+check "snapshot copies per-machine files to machines/<host>/" test "$(cat "$T/repo/machines/box/omarchy/shell.json")" == '{"bar":1}'
+check "snapshot leaves the live file alone" test ! -L "$C/omarchy/shell.json"
+
+fresh
+"$D" link >/dev/null
+check "doctor passes on a clean link" "$D" doctor
+rm "$C/git/config"
+check "doctor reports a repo file that is not linked" bash -c "'$D' doctor 2>&1 | grep -q 'not linked: git/config'"
+"$D" link >/dev/null
+mv "$R/hypr/a.lua" "$R/hypr/b.lua"
+check "doctor reports a broken link into the repo" bash -c "'$D' doctor 2>&1 | grep -q 'broken link: .*hypr/a.lua'"
+check "doctor fails when something is wrong" bash -c "! '$D' doctor"
+
 if ((fails == 0)); then
   echo "all passed"
 else

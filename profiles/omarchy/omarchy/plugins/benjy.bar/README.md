@@ -24,17 +24,25 @@ windows while it peeks, so nothing resizes.
   `true` (default) shows peeks over fullscreen windows; `false` keeps the bar
   under them and turns hover off there (Super still peeks, behind the window).
 
-| File               | What                                                            |
-| ------------------ | --------------------------------------------------------------- |
-| `AutoHide.qml`     | Peek logic: Super shortcuts, cursor polling, workspace flash    |
-| `AutoHideModel.js` | Pure show/hide decisions; `node test_autohide.js` tests them    |
-| `bar.lua`          | Super hold bind, loaded from `hypr/custom.lua`                  |
-| `Bar.qml`          | Omarchy's bar with the `benjy` edits (`barOff`/`barPeek`/`peekScreen`) |
+The repo keeps only our files and the edits to Omarchy's `Bar.qml`
+(`bar.patch`). `./dotfiles.bash setup` (or `bar-update`) builds the rest from
+the stock bar into `~/.config/omarchy/plugins/benjy.bar/` as real files.
+
+| File               | What                                                                          |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `AutoHide.qml`     | Peek logic: Super shortcuts, cursor polling, workspace flash                  |
+| `AutoHideModel.js` | Pure show/hide decisions; `node test_autohide.js` tests them                  |
+| `bar.lua`          | Super hold bind, loaded from `hypr/custom.lua`                                |
+| `bar.patch`        | The `benjy` edits to Omarchy's `Bar.qml` (`barOff`/`barPeek`/`peekScreen`)    |
+| `manifest.json`    | Plugin id `benjy.bar`, cloned from `omarchy.bar`                              |
 
 ## After an Omarchy update
 
-The clone does not follow Omarchy's bar. To pick up a newer bar, diff
-`Bar.qml` against `/usr/share/omarchy/shell/plugins/bar/Bar.qml`, copy the new
-one over, and reapply the lines marked `benjy` (`barHidden` split into
-`barOff`/`barPeek`/`peekScreen`, the `AutoHide {}` line, the probe writing
-`barOff`, `exclusionMode` on `barOff`, and the `parked` margins).
+Run `./dotfiles.bash bar-update`. It copies the new stock bar and applies
+`bar.patch`; if Omarchy changed the patched lines it stops and leaves the live
+bar as it was. Then redo the lines marked `benjy` in the live `Bar.qml` on a
+fresh copy of `/usr/share/omarchy/shell/plugins/bar/Bar.qml` and run
+`./dotfiles.bash bar-save` to write the new `bar.patch`.
+
+Editing the bar: change the live `Bar.qml`, then `bar-save`; `bar-update`
+overwrites unsaved edits.

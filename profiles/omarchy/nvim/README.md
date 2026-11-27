@@ -16,4 +16,4 @@ Run `../../dotfiles.bash link` to link the profile, `init.lua` included, into
 review with `git diff`. Preview with `../../dotfiles.bash link -n`.
 
 The plain, plugin-free config used on other profiles is in
-[../../../apps/nvim](../../../apps/nvim/README.md).
+[../../../common/nvim](../../../common/nvim/README.md).

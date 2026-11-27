@@ -43,11 +43,10 @@ searched in that monitor's own 1-10 (11-20 on the second monitor, and so on).
 
 ```sh
 dotfiles.bash link        # link the plugin files into ~/.config/omarchy/plugins/
-dotfiles.bash setup       # hook it into hypr/autostart.lua
-dotfiles.bash uninstall   # remove the hook
 ```
 
-Run it again after updating the plugin, and after `omarchy refresh hyprland`.
+`hypr/custom.lua` loads `solo-workspaces.lua` with one `dofile` line; without
+these dotfiles, add that line to `~/.config/hypr/hyprland.lua` yourself.
 
 ## License
 

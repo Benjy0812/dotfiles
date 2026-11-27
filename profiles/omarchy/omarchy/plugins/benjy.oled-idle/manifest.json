@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "benjy.oled-idle",
+  "name": "OLED idle",
+  "version": "1.0.0",
+  "author": "Benjy0812",
+  "description": "Turn the screens off after 3 min idle, and 15 s after the lock screen appears",
+  "kinds": ["service"],
+  "keepLoaded": true,
+  "entryPoints": { "service": "Service.qml" }
+}

@@ -1,0 +1,47 @@
+# Lint and test on every push and pull request. Mirrors ./tests.bash locally.
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stow, lua, shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq stow lua5.4 shellcheck
+          command -v lua || sudo ln -s /usr/bin/lua5.4 /usr/local/bin/lua
+      - name: shellcheck
+        run: shellcheck -S warning dotfiles.bash tests.bash fixes/*/*.sh fixes/*/verify/*.sh profiles/nixos/mango/scripts/*.sh
+      - name: tests
+        run: ./tests.bash
+      - name: prettier
+        run: npx --yes prettier@3.3.3 --check .
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: parse every .nix file
+        run: find . -name '*.nix' -print0 | xargs -0 -n1 nix-instantiate --parse >/dev/null
+      # The host reads this machine's /etc/nixos/hardware-configuration.nix
+      # (--impure); a stub is enough to evaluate what home-manager deploys.
+      - name: evaluate the deployed ~/.config folders
+        run: |
+          sudo mkdir -p /etc/nixos
+          echo '{ fileSystems."/" = { device = "/dev/sda1"; fsType = "ext4"; }; boot.loader.grub.device = "nodev"; }' | sudo tee /etc/nixos/hardware-configuration.nix >/dev/null
+          nix eval --impure --json .#nixosConfigurations.benjy.config.home-manager.users.benjy.xdg.configFile --apply builtins.attrNames

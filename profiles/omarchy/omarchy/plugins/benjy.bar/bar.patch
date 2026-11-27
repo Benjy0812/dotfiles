@@ -1,0 +1,80 @@
+--- a/Bar.qml
++++ b/Bar.qml
+@@ -41,7 +41,11 @@
+   // Mirrors the on-disk `bar-off` flag so the user can hide the bar without
+   // killing the entire shell. Hidden panels stay mapped but park off-screen
+   // without an exclusion zone; updated by the FileView watcher further down.
+-  property bool barHidden: false
++  // benjy: `bar-off` flag on = auto-hide (overlay, peeks via AutoHide.qml); off = normal bar.
++  property bool barOff: false
++  property bool barPeek: false
++  property string peekScreen: ""   // "" = every screen
++  readonly property bool barHidden: barOff && !barPeek
+   property string home: Quickshell.env("HOME")
+   property string stateHome: home + "/.local/state"
+   property string omarchyConfigDir: home + "/.config/omarchy"
+@@ -1629,6 +1633,8 @@
+     onTriggered: if (!root.targetTooltipHovered(root.tooltipTarget)) root.hideTooltip(root.tooltipTarget)
+   }
+ 
++  AutoHide { bar: root }   // benjy: auto-hide for OLED
++
+   // Presence of the `bar-off` flag = bar hidden. Watching the parent toggles
+   // directory because FileView can't observe a file that doesn't exist yet,
+   // and the flag is created/removed by `omarchy-toggle-bar`.
+@@ -1636,7 +1642,7 @@
+     id: barHiddenProbe
+     running: true
+     command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
+-    stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
++    stdout: SplitParser { onRead: function(line) { root.barOff = String(line).trim() === "yes" } }
+   }
+   FileView {
+     path: root.home + "/.local/state/omarchy/toggles"
+@@ -1723,7 +1729,7 @@
+     visible: !remapGuard.remapping && (cutoutWaitOver || !cutoutPending)
+     // An explicit zone instead of Auto: the reserved area stays the strip's
+     // thickness though the window spans its screen.
+-    exclusionMode: root.barHidden ? ExclusionMode.Ignore : ExclusionMode.Normal
++    exclusionMode: root.barOff ? ExclusionMode.Ignore : ExclusionMode.Normal
+     exclusiveZone: thickness
+ 
+     // While this window's widget or bar-move drag is live, the whole surface
+@@ -1746,12 +1752,13 @@
+     // Parked by the whole surface, which spans its screen, so none of it
+     // stays on screen: not the strip, however thick a notch floor makes it,
+     // nor the clear rest that a drag takes input on.
++    readonly property bool parked: root.barOff && !(root.barPeek && (root.peekScreen === "" || root.peekScreen === screen.name))   // benjy
+     readonly property real parkDistance: root.vertical ? implicitWidth : implicitHeight
+     margins {
+-      top: root.barHidden && root.position === "top" ? -barWindow.parkDistance : 0
+-      bottom: root.barHidden && root.position === "bottom" ? -barWindow.parkDistance : 0
+-      left: root.barHidden && root.position === "left" ? -barWindow.parkDistance : 0
+-      right: root.barHidden && root.position === "right" ? -barWindow.parkDistance : 0
++      top: barWindow.parked && root.position === "top" ? -barWindow.parkDistance : 0
++      bottom: barWindow.parked && root.position === "bottom" ? -barWindow.parkDistance : 0
++      left: barWindow.parked && root.position === "left" ? -barWindow.parkDistance : 0
++      right: barWindow.parked && root.position === "right" ? -barWindow.parkDistance : 0
+     }
+ 
+     anchors {
+@@ -1796,7 +1803,9 @@
+     color: "transparent"
+     surfaceFormat.opaque: false
+     WlrLayershell.namespace: "omarchy-bar"
+-    WlrLayershell.layer: WlrLayer.Top
++    // benjy: a peek over a fullscreen window lifts the bar above it, with input.
++    readonly property bool peekOverFullscreen: underFullscreen && root.barOff && !parked && root.barConfig.autoHideOverFullscreen !== false
++    WlrLayershell.layer: peekOverFullscreen ? WlrLayer.Overlay : WlrLayer.Top
+ 
+     // Whether the active workspace on this screen holds a real fullscreen
+     // window, which fades the bar out.
+@@ -1813,7 +1822,7 @@
+     // every layer on the monitor back above whenever a window on any other
+     // workspace leaves fullscreen, or the layer remaps. The invisible strip
+     // would then take the clicks meant for the top of the fullscreen window.
+-    mask: dragActive ? null : (underFullscreen ? noInputRegion : stripInputRegion)
++    mask: dragActive ? null : (underFullscreen && !peekOverFullscreen ? noInputRegion : stripInputRegion)
+ 
+     Region {
+       id: stripInputRegion

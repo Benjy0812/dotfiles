@@ -1,0 +1,7 @@
+# Omarchy: sign commits with the SSH key (included from common/git/config).
+[commit]
+	gpgsign = true
+[user]
+	signingkey = /home/benjy/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh

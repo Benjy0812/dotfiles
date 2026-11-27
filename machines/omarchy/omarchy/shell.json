@@ -1,0 +1,89 @@
+{
+  "bar": {
+    "background": "glassy",
+    "layout": {
+      "center": [
+        {
+          "id": "benjy.workspaces"
+        },
+        {
+          "id": "omarchy.system-update"
+        }
+      ],
+      "centerBegin": [],
+      "centerEnd": [
+        {
+          "id": "omarchy.spacer"
+        }
+      ],
+      "left": [
+        {
+          "id": "omarchy.indicators"
+        }
+      ],
+      "right": [
+        {
+          "id": "omarchy.tray"
+        },
+        {
+          "id": "omarchy.tailscale"
+        },
+        {
+          "id": "omarchy.agents"
+        },
+        {
+          "id": "omarchy.bluetooth"
+        },
+        {
+          "id": "omarchy.network"
+        },
+        {
+          "id": "omarchy.audio"
+        },
+        {
+          "id": "omarchy.monitor"
+        },
+        {
+          "format": "dddd HH:mm:ss",
+          "formatAlt": "d MMMM 'W'ww yyyy",
+          "id": "omarchy.clock",
+          "verticalFormat": "HH\n\u2014\nmm"
+        }
+      ],
+      "tray": []
+    },
+    "position": "top",
+    "id": "benjy.bar",
+    "autoHideMonitors": "focused",
+    "autoHideOverFullscreen": true
+  },
+  "disabledPlugins": [
+    "omarchy.battery",
+    "omarchy.disk-speedtest",
+    "omarchy.nightlight",
+    "omarchy.reminders",
+    "omarchy.speedtest",
+    "omarchy.wifiqr"
+  ],
+  "dock": {
+    "pinned": [
+      "org.gnome.Nautilus",
+      "chromium",
+      "foot",
+      "omacalc",
+      "omawrite",
+      "X",
+      "YouTube"
+    ]
+  },
+  "idle": {
+    "lock": 300,
+    "screensaver": 0
+  },
+  "plugins": [
+    {
+      "id": "benjy.oled-idle"
+    }
+  ],
+  "version": 1
+}

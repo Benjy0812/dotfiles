@@ -122,6 +122,18 @@ echo three >>"$L/Bar.qml"
 check "bar-save turns live edits into bar.patch" grep -q '^+three' "$B/bar.patch"
 unset DOTFILES_STOCK_BAR
 
+fresh
+# Fake package installers on PATH record what bootstrap asks for.
+mkdir -p "$T/bin"
+for c in omarchy-pkg-add omarchy-pkg-aur-add; do printf '#!/bin/sh\necho "%s $*" >>"%s"\n' "$c" "$T/pkgs" >"$T/bin/$c"; chmod +x "$T/bin/$c"; done
+rm -f "$T/pkgs"
+printf '# comment\nstow fish\naur:bibata-cursor-theme-bin\n' >"$R/packages.txt"
+PATH=$T/bin:$PATH "$D" bootstrap >/dev/null 2>&1
+check "bootstrap installs the profile's packages" grep -qx 'omarchy-pkg-add stow fish' "$T/pkgs"
+check "bootstrap installs AUR packages apart" grep -qx 'omarchy-pkg-aur-add bibata-cursor-theme-bin' "$T/pkgs"
+check "bootstrap links the profile" links_to "$C/hypr/a.lua" "$R/hypr/a.lua"
+check "packages.txt is not linked" test ! -e "$C/packages.txt"
+
 # ---- the real repo -------------------------------------------------------
 REPO=$(dirname -- "$SRC")
 for p in "$REPO"/profiles/*/; do

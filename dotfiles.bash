@@ -16,6 +16,7 @@ usage() {
   cat <<EOF
 dotfiles: link common/ and profiles/<os>/ into ~/.config (one link per file, via stow)
 
+  bootstrap       new machine: install packages.txt, link, setup (Omarchy), doctor
   link [-n]       link the profile into ~/.config (-n: dry run)
   adopt           first run on a machine: move existing ~/.config files into the
                   repo, then link them (review with git diff, git restore to drop)
@@ -59,7 +60,7 @@ nix_managed() { [[ -n $PROFILE && -d $P/nix ]]; }
 
 # Two stow layers: common/ (shared by every profile), then profiles/<os>/.
 # A file in the profile replaces the same file in common/, which is skipped.
-STOW_IGNORE=(--ignore='README\.md' --ignore='fish_variables')
+STOW_IGNORE=(--ignore='README\.md' --ignore='fish_variables' --ignore='^packages\.txt')
 
 profile_files() { [[ -d $P ]] && (cd "$P" && find . \( -type f -o -type l \) -printf '%P\n'); }
 
@@ -141,7 +142,7 @@ doctor() {
   done < <(find "$CONFIG" -xtype l 2>/dev/null)
   nix_managed && { ((bad == 0)) && echo "ok (home-manager deploys this profile)"; return "$bad"; }
   while IFS= read -r f; do
-    case ${f##*/} in README.md | fish_variables | .gitignore) continue ;; esac  # stow skips these
+    case $f in */README.md | README.md | */fish_variables | */.gitignore | packages.txt) continue ;; esac # stow skips these
     if [[ -e $P/$f ]]; then t=$P/$f; else t=$ROOT/common/$f; fi
     [[ -L $CONFIG/$f && $(readlink -f "$CONFIG/$f") == "$(readlink -f "$t")" ]] && continue
     echo "not linked: $f"
@@ -154,6 +155,40 @@ doctor() {
   fi
   ((bad == 0)) && echo "ok"
   return "$bad"
+}
+
+# profiles/<os>/packages.txt: one or more names per line, "aur:name" for AUR
+# packages, # comments. Installed with Omarchy's helpers, pacman or apt.
+install_packages() {
+  local list=$P/packages.txt line w
+  local -a repo=() aur=()
+  [[ -f $list ]] || { echo "no packages.txt in profiles/$PROFILE; skipping packages"; return 0; }
+  while IFS= read -r line; do
+    for w in ${line%%#*}; do
+      if [[ $w == aur:* ]]; then aur+=("${w#aur:}"); else repo+=("$w"); fi
+    done
+  done <"$list"
+  if command -v omarchy-pkg-add >/dev/null; then
+    if ((${#repo[@]})); then omarchy-pkg-add "${repo[@]}"; fi
+    if ((${#aur[@]})); then omarchy-pkg-aur-add "${aur[@]}"; fi
+  elif command -v pacman >/dev/null; then
+    if ((${#repo[@]})); then sudo pacman -S --needed "${repo[@]}"; fi
+    if ((${#aur[@]})); then echo "install from the AUR yourself: ${aur[*]}"; fi
+  elif command -v apt-get >/dev/null; then
+    if ((${#repo[@]})); then sudo apt-get install -y "${repo[@]}"; fi
+  else
+    echo "no known package manager; install yourself: ${repo[*]} ${aur[*]}"
+  fi
+}
+
+# A new machine in one go: packages, links, Omarchy hooks, then a health check.
+bootstrap() {
+  if nix_managed; then rebuild; return; fi
+  install_packages
+  stow_profile
+  echo "linked common/ and profiles/$PROFILE/"
+  if [[ -f $P/hypr/custom.lua && -d $P/omarchy/plugins && -f $HYPR/hyprland.lua ]]; then omarchy_setup; fi
+  doctor || echo "doctor found something to fix (above)"
 }
 
 # ---- omarchy ----------------------------------------------------------------
@@ -301,6 +336,7 @@ case $cmd in
     (($#)) || die "usage: $0 track PATH.."
     track "$@"
     ;;
+  bootstrap) bootstrap ;;
   doctor) doctor ;;
   snapshot) snapshot ;;
   bar-update) bar_update ;;

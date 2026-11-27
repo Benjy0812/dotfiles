@@ -1,0 +1,9 @@
+# Installed by ./dotfiles.bash bootstrap (Omarchy ships the rest).
+# One or more names per line; aur:name for AUR packages.
+stow                       # dotfiles.bash
+fish bat                   # shell, colored man pages
+kitty                      # terminal
+ttf-jetbrains-mono-nerd    # terminal font
+yazi neovim                # file manager, editor
+lua nodejs shellcheck      # ./tests.bash
+aur:bibata-cursor-theme-bin  # cursor (hypr/custom.lua)

@@ -63,54 +63,7 @@ hl.window_rule({
     opacity = 1.0,
 })
 
-hl.monitor({
-  output = "desc:AOC 2590G4 0x000210C1",
-  mode = "1920x1080@144.00",
-  position = "0x0",
-  scale = 1,
-  vrr = 0,
-  bitdepth = 10,
-  sdr_min_luminance = 0.2,
-  sdr_max_luminance = 80,
-})
-
-hl.monitor({
-  output = "desc:AOC C27G4ZXU 1O0Q7JA008205",
-  mode = "1920x1080@240.00",
-  position = "0x0",
-  scale = 1,
-  vrr = 0,
-  bitdepth = 10,
-  sdr_min_luminance = 0.2,
-  sdr_max_luminance = 80,
-})
-
-hl.monitor({
-  output = "desc:Vestel Elektronik Sanayi ve Ticaret A. S. 22W_LCD_TV",
-  mode = "1920x1080@60.00",
-  position = "0x0",
-  scale = 1,
-  vrr = 0,
-  bitdepth = 10,
-  sdr_min_luminance = 0.2,
-  sdr_max_luminance = 80,
-})
-
-hl.monitor({
-  output = "desc:ASUSTek COMPUTER INC XG27AQDMES W7LMTF246276",
-  mode = "2560x1440@239.97",
-  position = "1920x0",
-  scale = 1,
-  vrr = 2,
-  bitdepth = 10,
-  min_luminance = 0,
-  max_luminance = 400,
-  max_avg_luminance = 250,
-  sdr_min_luminance = 0.005,
-  sdr_max_luminance = 200,
-  sdrbrightness = 1.0,
-  sdrsaturation = 1.0,
-})
+-- Monitors and HDR are per machine: hypr/hosts/<hostname>.lua, loaded at the end.
 
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#decoration
 hl.config({
@@ -142,7 +95,7 @@ hl.config({
   general = {
     gaps_in = 0,
     gaps_out = 0,
-    border_size = 1,
+    border_size = 0,
 
      -- Change to niri-like side-scrolling layout.
      --layout = "scrolling",
@@ -174,29 +127,6 @@ o.window("^steam_app_.*$", { idle_inhibit = "fullscreen", tile = true })
 -- GTK/XWayland scale; matches the monitors' scale 1 (Omarchy's stock default is 2).
 hl.env("GDK_SCALE", "1")
 
--- OLED: dim borders. Active = current theme accent scaled to 45% brightness
--- (re-read on every reload, so theme switches keep working); inactive near-black.
-do
-  local accent = "7aa2f7"
-  local f = io.open(os.getenv("HOME") .. "/.local/state/omarchy/current/theme/colors.toml")
-  if f then
-    accent = f:read("a"):match('\naccent%s*=%s*"#(%x%x%x%x%x%x)"') or accent
-    f:close()
-  end
-  local function dim(hex, k)
-    local out = ""
-    for i = 1, 5, 2 do
-      out = out .. string.format("%02x", math.floor(tonumber(hex:sub(i, i + 1), 16) * k))
-    end
-    return out
-  end
-  local active, inactive = "rgb(" .. dim(accent, 0.45) .. ")", "rgb(1c1c1c)"
-  hl.config({
-    general = { col = { active_border = active, inactive_border = inactive } },
-    group = { col = { border_active = active, border_inactive = inactive } },
-  })
-end
-
 -- Shell plugins with Hyprland-side code (moved here from hypr/autostart.lua).
 dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/benjy.solo-workspaces/solo-workspaces.lua")
 dofile(os.getenv("HOME") .. "/.config/omarchy/plugins/benjy.workspaces/workspaces.lua")
@@ -227,6 +157,12 @@ for _, event in ipairs({ "monitor.added", "monitor.removed", "config.reloaded", 
   hl.on(event, rescue_later)
 end
 
--- HDR only when a fullscreen game requests it; desktop stays SDR (OLED burn-in).
--- Overrides Omarchy's default of 0.
-hl.config({ render = { cm_auto_hdr = 1 } })
+-- This machine's monitors and HDR (hypr/hosts/<hostname>.lua), if it has a file.
+do
+  local f = io.open("/etc/hostname")
+  local host = f and f:read("l")
+  if f then f:close() end
+  local path = os.getenv("HOME") .. "/.config/hypr/hosts/" .. (host or "") .. ".lua"
+  local exists = io.open(path)
+  if host and exists then exists:close(); dofile(path) end
+end

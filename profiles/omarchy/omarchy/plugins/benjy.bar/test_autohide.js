@@ -55,8 +55,10 @@ assert.equal(s.shown, true);
 s = M.step(s, { ...base, now: 70100 + M.HIDE_MS, y: 400 });
 assert.equal(s.shown, false);
 // Safety net hides at once, keeping the screen.
-assert.deepEqual(M.hide({ shown: true, edgeSince: 5, hideAt: 99, screen: "A" }),
-  { shown: false, edgeSince: 0, hideAt: 0, screen: "A" });
+assert.deepEqual(
+  M.hide({ shown: true, edgeSince: 5, hideAt: 99, screen: "A" }),
+  { shown: false, edgeSince: 0, hideAt: 0, screen: "A" },
+);
 console.log("ok held");
 // Per monitor: Super shows on the focused monitor only.
 const pm = { ...base, mon: "A", focused: "A", all: false };

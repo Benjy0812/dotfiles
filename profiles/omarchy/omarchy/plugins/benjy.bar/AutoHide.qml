@@ -88,7 +88,8 @@ Item {
   }
 
   // Super press and key-up arrive as two shortcuts (bar-peek, bar-unpeek): the
-  // Lua bind in bar.lua never sends bar-peek's own release.
+  // Lua bind in bar.lua never sends bar-peek's own release, so bar.lua sends
+  // bar-unpeek from the raw Super key-up.
   GlobalShortcut {
     appid: "benjy"
     name: "bar-peek"
@@ -108,6 +109,7 @@ Item {
     name: "bar-unpeek"
     description: "Hide the bar when Super is released"
     onPressed: { root.log("released"); root.letGo() }
+    onReleased: root.letGo()   // in case Hyprland sends the dispatch as a release
   }
 
   function letGo() {

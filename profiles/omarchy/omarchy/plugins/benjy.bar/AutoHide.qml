@@ -21,15 +21,9 @@ Item {
   property bool held: false
   property real sentAt: 0   // when the cursor request was written
 
-  // temporary: diagnostic logging for the stuck-peek bug, remove once found
-  property bool loggedPanel: false
-  function log(msg) { console.log("benjy.bar: " + msg) }
-
   onActiveChanged: { held = false; apply({ shown: false, edgeSince: 0, hideAt: 0, screen: "" }) }
 
   function apply(next) {
-    if (next.shown !== st.shown)
-      log("shown " + st.shown + " -> " + next.shown + " screen=" + next.screen + " held=" + held + " panelOpen=" + panelOpen())
     st = next
     bar.peekScreen = all ? "" : (next.screen || "")
     bar.barPeek = active && next.shown
@@ -69,21 +63,16 @@ Item {
     if (!active) return
     var m = monitorAt(x, y)
     var name = m ? m.name : ""
-    var p = panelOpen()
-    if (p !== loggedPanel) { loggedPanel = p; log("panelOpen " + p + (p && st.shown ? " (keeps the bar up)" : "")) }
     apply(Model.step(st, {
       now: Date.now(), y: y - (m ? m.y : 0), mon: name, focused: focusedName(), all: all, held: held,
       // Super peeks the focused monitor, hover the one under the cursor.
-      fullscreen: held ? fullscreen() : fullscreen(m), barSize: bar.barSizeFor(name) || 26, panelOpen: p
+      fullscreen: held ? fullscreen() : fullscreen(m), barSize: bar.barSizeFor(name) || 26, panelOpen: panelOpen()
     }))
   }
 
   function poll() {
     // Watchdog: a request with no reply would stop every hide; reconnect.
-    if (cursorSock.connected && Date.now() - sentAt > 500) {
-      log("cursor socket gave no reply, reconnecting")
-      cursorSock.connected = false
-    }
+    if (cursorSock.connected && Date.now() - sentAt > 500) cursorSock.connected = false
     cursorSock.connected = true
   }
 
@@ -95,20 +84,18 @@ Item {
     name: "bar-peek"
     description: "Show the bar while Super is held"
     onPressed: {
-      var fs = root.fullscreen()
-      root.log("pressed" + (!root.active ? " (ignored: inactive)" : fs ? " (ignored: fullscreen)" : ""))
       if (!root.active) return
       root.held = true
-      root.apply(Model.step(root.st, { now: Date.now(), y: 9999, held: true, fullscreen: fs, focused: root.focusedName() }))
+      root.apply(Model.step(root.st, { now: Date.now(), y: 9999, held: true, fullscreen: root.fullscreen(), focused: root.focusedName() }))
     }
-    onReleased: { root.log("released"); root.letGo() }
+    onReleased: root.letGo()
   }
 
   GlobalShortcut {
     appid: "benjy"
     name: "bar-unpeek"
     description: "Hide the bar when Super is released"
-    onPressed: { root.log("released"); root.letGo() }
+    onPressed: root.letGo()
     onReleased: root.letGo()   // in case Hyprland sends the dispatch as a release
   }
 
@@ -124,7 +111,7 @@ Item {
   Timer {
     interval: 5000
     running: root.held
-    onTriggered: { root.log("safety net fired"); root.held = false; root.apply(Model.hide(root.st)) }
+    onTriggered: { root.held = false; root.apply(Model.hide(root.st)) }
   }
 
   // Cursor position from Hyprland's request socket (no process per poll).

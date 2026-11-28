@@ -1,7 +1,7 @@
 // Pure show/hide decision for benjy.bar AutoHide.qml; tested by test_autohide.js.
 // s: { shown, edgeSince, hideAt, screen }
 // i: { now, y (local to the cursor's monitor), mon (cursor's monitor), focused,
-//      all (bar shows on every monitor), held, fullscreen (block hover), barSize, panelOpen }
+//      all (bar shows on every monitor), held, fullscreen (no peeks there), barSize, panelOpen }
 var DWELL_MS = 250; // cursor must rest on the top edge this long to reveal
 var HIDE_MS = 1500; // hide this long after the cursor leaves the bar
 var FLASH_MS = 1500; // reveal on workspace switch
@@ -14,7 +14,7 @@ function step(s, i) {
     hideAt: s.hideAt,
     screen: s.screen,
   };
-  if (i.held) {
+  if (i.held && !i.fullscreen) {
     n.shown = true;
     n.edgeSince = 0;
     n.screen = i.focused;
@@ -55,11 +55,17 @@ function release(s, now) {
   return { shown: s.shown, edgeSince: 0, hideAt: now, screen: s.screen };
 }
 
+// Hide at once, without waiting for a cursor reply (safety net).
+function hide(s) {
+  return { shown: false, edgeSince: 0, hideAt: 0, screen: s.screen };
+}
+
 if (typeof module !== "undefined")
   module.exports = {
     step: step,
     flash: flash,
     release: release,
+    hide: hide,
     DWELL_MS: DWELL_MS,
     HIDE_MS: HIDE_MS,
   };

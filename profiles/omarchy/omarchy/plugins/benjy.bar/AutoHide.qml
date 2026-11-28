@@ -10,8 +10,7 @@ import "AutoHideModel.js" as Model
 // rest the cursor on the top edge, or switch workspace.
 // shell.json `bar.autoHideMonitors`: "focused" (default) peeks only the focused
 // monitor (or the one under the cursor for hover); "all" peeks every monitor.
-// `bar.autoHideOverFullscreen`: true (default) lets peeks show over fullscreen
-// windows; false keeps the bar under them and turns hover off there.
+// No peeks over fullscreen windows: the bar stays under them.
 Item {
   id: root
   required property var bar
@@ -19,12 +18,18 @@ Item {
   readonly property bool active: bar.barOff
   property var st: ({ shown: false, edgeSince: 0, hideAt: 0, screen: "" })
   readonly property bool all: bar.barConfig && bar.barConfig.autoHideMonitors === "all"
-  readonly property bool overFullscreen: !(bar.barConfig && bar.barConfig.autoHideOverFullscreen === false)
   property bool held: false
+  property real sentAt: 0   // when the cursor request was written
+
+  // temporary: diagnostic logging for the stuck-peek bug, remove once found
+  property bool loggedPanel: false
+  function log(msg) { console.log("benjy.bar: " + msg) }
 
   onActiveChanged: { held = false; apply({ shown: false, edgeSince: 0, hideAt: 0, screen: "" }) }
 
   function apply(next) {
+    if (next.shown !== st.shown)
+      log("shown " + st.shown + " -> " + next.shown + " screen=" + next.screen + " held=" + held + " panelOpen=" + panelOpen())
     st = next
     bar.peekScreen = all ? "" : (next.screen || "")
     bar.barPeek = active && next.shown
@@ -64,13 +69,23 @@ Item {
     if (!active) return
     var m = monitorAt(x, y)
     var name = m ? m.name : ""
+    var p = panelOpen()
+    if (p !== loggedPanel) { loggedPanel = p; log("panelOpen " + p + (p && st.shown ? " (keeps the bar up)" : "")) }
     apply(Model.step(st, {
       now: Date.now(), y: y - (m ? m.y : 0), mon: name, focused: focusedName(), all: all, held: held,
-      fullscreen: !overFullscreen && fullscreen(m), barSize: bar.barSizeFor(name) || 26, panelOpen: panelOpen()
+      // Super peeks the focused monitor, hover the one under the cursor.
+      fullscreen: held ? fullscreen() : fullscreen(m), barSize: bar.barSizeFor(name) || 26, panelOpen: p
     }))
   }
 
-  function poll() { cursorSock.connected = true }
+  function poll() {
+    // Watchdog: a request with no reply would stop every hide; reconnect.
+    if (cursorSock.connected && Date.now() - sentAt > 500) {
+      log("cursor socket gave no reply, reconnecting")
+      cursorSock.connected = false
+    }
+    cursorSock.connected = true
+  }
 
   // Hyprland reports the key-up of the bind that pressed a global shortcut as
   // its release, so one shortcut covers the whole hold (bind in bar.lua).
@@ -79,11 +94,13 @@ Item {
     name: "bar-peek"
     description: "Show the bar while Super is held"
     onPressed: {
+      var fs = root.fullscreen()
+      root.log("pressed" + (!root.active ? " (ignored: inactive)" : fs ? " (ignored: fullscreen)" : ""))
       if (!root.active) return
       root.held = true
-      root.apply(Model.step(root.st, { now: Date.now(), y: 9999, held: true, focused: root.focusedName() }))
+      root.apply(Model.step(root.st, { now: Date.now(), y: 9999, held: true, fullscreen: fs, focused: root.focusedName() }))
     }
-    onReleased: root.letGo()
+    onReleased: { root.log("released"); root.letGo() }
   }
 
   function letGo() {
@@ -93,8 +110,13 @@ Item {
     poll()   // hides now unless the cursor is on the bar
   }
 
-  // OLED safety net: never stay up on a missed Super release.
-  Timer { interval: 30000; running: root.held; onTriggered: root.letGo() }
+  // OLED safety net: never stay up on a missed Super release. Hides directly,
+  // without waiting for a cursor reply.
+  Timer {
+    interval: 5000
+    running: root.held
+    onTriggered: { root.log("safety net fired"); root.held = false; root.apply(Model.hide(root.st)) }
+  }
 
   // Cursor position from Hyprland's request socket (no process per poll).
   Timer {
@@ -106,7 +128,7 @@ Item {
   Socket {
     id: cursorSock
     path: Hyprland.requestSocketPath
-    onConnectedChanged: if (connected) { write("j/cursorpos"); flush() }
+    onConnectedChanged: if (connected) { root.sentAt = Date.now(); write("j/cursorpos"); flush() }
     parser: SplitParser {
       splitMarker: ""
       onRead: function(data) {

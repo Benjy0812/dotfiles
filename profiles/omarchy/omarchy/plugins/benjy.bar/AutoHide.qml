@@ -87,8 +87,8 @@ Item {
     cursorSock.connected = true
   }
 
-  // Hyprland reports the key-up of the bind that pressed a global shortcut as
-  // its release, so one shortcut covers the whole hold (bind in bar.lua).
+  // Super press and key-up arrive as two shortcuts (bar-peek, bar-unpeek): the
+  // Lua bind in bar.lua never sends bar-peek's own release.
   GlobalShortcut {
     appid: "benjy"
     name: "bar-peek"
@@ -101,6 +101,13 @@ Item {
       root.apply(Model.step(root.st, { now: Date.now(), y: 9999, held: true, fullscreen: fs, focused: root.focusedName() }))
     }
     onReleased: { root.log("released"); root.letGo() }
+  }
+
+  GlobalShortcut {
+    appid: "benjy"
+    name: "bar-unpeek"
+    description: "Hide the bar when Super is released"
+    onPressed: { root.log("released"); root.letGo() }
   }
 
   function letGo() {

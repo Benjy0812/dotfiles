@@ -6,8 +6,9 @@ windows while it peeks, so nothing resizes.
 - **Auto-hide on/off:** `SUPER+SHIFT+SPACE` (`omarchy toggle bar`). The `bar-off`
   flag on means auto-hide; off means a normal, always-visible bar.
 - **Peek:** hold Super, rest the cursor on the top edge, or switch workspace.
-  It hides when Super is released, 1.5 s after the cursor leaves the bar, and
-  never while a bar panel is open.
+  It hides when Super is released (or 5 s into a hold, in case the release is
+  lost), 1.5 s after the cursor leaves the bar, and never while a bar panel is
+  open. Peeks are off over fullscreen windows.
 - **Settings** in `~/.config/omarchy/shell.json`:
 
   ```json
@@ -16,13 +17,6 @@ windows while it peeks, so nothing resizes.
 
   `"focused"` (default) peeks only the focused monitor (hover: the one under
   the cursor); `"all"` peeks every monitor.
-
-  ```json
-  "bar": { "autoHideOverFullscreen": true }
-  ```
-
-  `true` (default) shows peeks over fullscreen windows; `false` keeps the bar
-  under them and turns hover off there (Super still peeks, behind the window).
 
 The repo keeps only our files and the edits to Omarchy's `Bar.qml`
 (`bar.patch`). `./dotfiles.bash setup` (or `bar-update`) builds the rest from

@@ -58,23 +58,3 @@
      }
  
      anchors {
-@@ -1796,7 +1803,9 @@
-     color: "transparent"
-     surfaceFormat.opaque: false
-     WlrLayershell.namespace: "omarchy-bar"
--    WlrLayershell.layer: WlrLayer.Top
-+    // benjy: a peek over a fullscreen window lifts the bar above it, with input.
-+    readonly property bool peekOverFullscreen: underFullscreen && root.barOff && !parked && root.barConfig.autoHideOverFullscreen !== false
-+    WlrLayershell.layer: peekOverFullscreen ? WlrLayer.Overlay : WlrLayer.Top
- 
-     // Whether the active workspace on this screen holds a real fullscreen
-     // window, which fades the bar out.
-@@ -1813,7 +1822,7 @@
-     // every layer on the monitor back above whenever a window on any other
-     // workspace leaves fullscreen, or the layer remaps. The invisible strip
-     // would then take the clicks meant for the top of the fullscreen window.
--    mask: dragActive ? null : (underFullscreen ? noInputRegion : stripInputRegion)
-+    mask: dragActive ? null : (underFullscreen && !peekOverFullscreen ? noInputRegion : stripInputRegion)
- 
-     Region {
-       id: stripInputRegion
